@@ -1,0 +1,15 @@
+*.brw
+*.h5
+temp_data/
+.DS_Store
+.idea/
+main.spec
+main
+main.app/
+main.prof
+logo.png
+dist/
+build/
+stats.py
+.idea/
+__pycache__/
