@@ -22,8 +22,10 @@ class ChannelProcessThread(QThread):
         num_channels,
         adc_counts_to_mv,
         mv_offset,
+        sampling_rate,
         row,
         col,
+        eng,
     ):
         super().__init__()
         self.file_path = file_path
@@ -31,27 +33,39 @@ class ChannelProcessThread(QThread):
         self.num_channels = num_channels
         self.adc_counts_to_mv = adc_counts_to_mv
         self.mv_offset = mv_offset
+        self.sampling_rate = sampling_rate
         self.row = row
         self.col = col
+        self.eng = eng
 
     def run(self):
         with h5py.File(self.file_path, "r") as f:
             raw_data = f["/3BData/Raw"][self.channel_index :: self.num_channels]
-
         channel_data = raw_data.astype(np.float32)
         channel_data = (
             channel_data * self.adc_counts_to_mv + self.mv_offset
         ) / 1_000_000
         channel_data -= np.mean(channel_data)
 
+        channel_data = channel_data.reshape(-1, 1)
+
+        sampling_rate = float(self.sampling_rate)
+
+        discharge_times, sz_times, discharge_trains_times, se_times = (
+            self.eng.SzDetectCat(channel_data, sampling_rate, True, nargout=4)
+        )
         result = {
             "signal": channel_data,
-            "SzTimes": np.array([]),
-            "SETimes": np.array([]),
-            "DischargeTimes": np.array([]),
-            "DischargeTrainsTimes": np.array([]),
+            "SzTimes": np.array(sz_times) if sz_times else np.array([]),
+            "SETimes": np.array(se_times) if se_times else np.array([]),
+            "DischargeTimes": np.array(discharge_times)
+            if discharge_times
+            else np.array([]),
+            "DischargeTrainsTimes": np.array(discharge_trains_times)
+            if discharge_trains_times
+            else np.array([]),
         }
-
+        print(f"Progress: {self.channel_index + 1}/{self.num_channels}")
         self.finished.emit(self.row, self.col, result)
 
 
@@ -116,8 +130,10 @@ class AnalysisThread(QThread):
                 num_channels,
                 adc_counts_to_mv,
                 mv_offset,
+                sampling_rate,
                 int(rows[k]) - 1,
                 int(cols[k]) - 1,
+                self.eng,
             )
             thread.finished.connect(self.on_channel_processed)
             threads.append(thread)
@@ -196,7 +212,6 @@ class AnalysisThread(QThread):
 
             else:
                 print("Using Python function")
-                self.eng.quit()
                 total_channels, self.sampling_rate, num_rec_frames = (
                     self.get_cat_envelop(self.file_path, self.temp_data_path)
                 )

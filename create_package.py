@@ -16,7 +16,6 @@ def main():
         ]
     else:
         package_commands = [
-            # Run the Inno Setup Compiler on your .iss file
             r'"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q MEA_GUI_Installer.iss'
         ]
 
