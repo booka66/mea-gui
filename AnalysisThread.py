@@ -1,6 +1,5 @@
 import os
 from time import perf_counter
-from tqdm import tqdm
 
 
 import h5py
@@ -8,49 +7,52 @@ import numpy as np
 from scipy.io import loadmat
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtWidgets import QMessageBox
-import matlab
 
 from alert import alert
 from ProgressUpdaterThread import ProgressUpdaterThread
-from Process import process_channel
-from multiprocessing import Pool, cpu_count  # noqa: E402
 
 
-def process_channel_with_szdetect(args):
-    file_path, k, num_channels, adc_counts_to_mv, mv_offset, row, col, sampling_rate = (
-        args
-    )
+class ChannelProcessThread(QThread):
+    finished = pyqtSignal(int, int, dict)
 
-    with h5py.File(file_path, "r") as f:
-        raw_data = f["3BData/Raw"][
-            k : num_channels
-            * int(f["3BData/Raw"].shape[0] / num_channels) : num_channels
-        ]
-
-    V = {"signal": adc_counts_to_mv * raw_data + mv_offset}
-
-    # Start a new MATLAB engine
-    eng = matlab.engine.start_matlab()
-
-    V_matlab = matlab.double(V["signal"].tolist())
-    DischargeTimes, SzTimes, DischargeTrainsTimes, SETimes = eng.SzDetectCat(
-        V_matlab, sampling_rate, True, nargout=4
-    )
-
-    # Stop the MATLAB engine
-    eng.quit()
-
-    return (
+    def __init__(
+        self,
+        file_path,
+        channel_index,
+        num_channels,
+        adc_counts_to_mv,
+        mv_offset,
         row,
         col,
-        {
-            "signal": V["signal"],
-            "SzTimes": SzTimes,
-            "SETimes": SETimes,
-            "DischargeTimes": DischargeTimes,
-            "DischargeTrainsTimes": DischargeTrainsTimes,
-        },
-    )
+    ):
+        super().__init__()
+        self.file_path = file_path
+        self.channel_index = channel_index
+        self.num_channels = num_channels
+        self.adc_counts_to_mv = adc_counts_to_mv
+        self.mv_offset = mv_offset
+        self.row = row
+        self.col = col
+
+    def run(self):
+        with h5py.File(self.file_path, "r") as f:
+            raw_data = f["/3BData/Raw"][self.channel_index :: self.num_channels]
+
+        channel_data = raw_data.astype(np.float32)
+        channel_data = (
+            channel_data * self.adc_counts_to_mv + self.mv_offset
+        ) / 1_000_000
+        channel_data -= np.mean(channel_data)
+
+        result = {
+            "signal": channel_data,
+            "SzTimes": np.array([]),
+            "SETimes": np.array([]),
+            "DischargeTimes": np.array([]),
+            "DischargeTrainsTimes": np.array([]),
+        }
+
+        self.finished.emit(self.row, self.col, result)
 
 
 class AnalysisThread(QThread):
@@ -61,7 +63,7 @@ class AnalysisThread(QThread):
         super().__init__(parent)
         self.parent = parent
         self.file_path = None
-        self.data = None
+        self.data = np.empty((64, 64), dtype=object)
         self.min_strength = None
         self.max_strength = None
         self.recording_length = None
@@ -105,8 +107,10 @@ class AnalysisThread(QThread):
 
         os.makedirs(temp_data_path, exist_ok=True)
 
-        args_list = [
-            (
+        threads = []
+
+        for k in range(num_channels):
+            thread = ChannelProcessThread(
                 file_path,
                 k,
                 num_channels,
@@ -115,20 +119,17 @@ class AnalysisThread(QThread):
                 int(rows[k]) - 1,
                 int(cols[k]) - 1,
             )
-            for k in range(num_channels)
-        ]
+            thread.finished.connect(self.on_channel_processed)
+            threads.append(thread)
+            thread.start()
 
-        num_processes = cpu_count()
-        with Pool(processes=num_processes) as pool:
-            results = list(
-                tqdm(pool.imap(process_channel, args_list), total=num_channels)
-            )
+        for thread in threads:
+            thread.wait()
 
-        data = np.empty((64, 64), dtype=object)
-        for row, col, channel_data in results:
-            data[row, col] = channel_data
+        return num_channels, sampling_rate, num_rec_frames
 
-        return data, num_channels, sampling_rate, num_rec_frames
+    def on_channel_processed(self, row, col, channel_data):
+        self.data[row, col] = channel_data
 
     def run(self):
         if self.eng is None:
@@ -196,12 +197,10 @@ class AnalysisThread(QThread):
             else:
                 print("Using Python function")
                 self.eng.quit()
-                # Use Python function
-                self.data, total_channels, self.sampling_rate, num_rec_frames = (
+                total_channels, self.sampling_rate, num_rec_frames = (
                     self.get_cat_envelop(self.file_path, self.temp_data_path)
                 )
 
-            # Rest of the method remains the same
             total_channels = int(total_channels)
             self.sampling_rate = float(self.sampling_rate)
             num_rec_frames = int(num_rec_frames)

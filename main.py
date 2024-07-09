@@ -2661,7 +2661,6 @@ class MainWindow(QMainWindow):
         self.bin_size = 100 / self.sampling_rate
         self.db_scan_settings_widget.set_bin_size_range(1 / self.sampling_rate, 0.5)
         self.cluster_tracker.sampling_rate = self.sampling_rate
-        print(f"Sampling rate: {self.sampling_rate}")
         self.fs_range = (0.5, self.sampling_rate / 2)
         self.time_vector = self.analysis_thread.time_vector
         self.active_channels = self.analysis_thread.active_channels
