@@ -143,7 +143,9 @@ class AnalysisThread(QThread):
         os.makedirs(temp_data_path, exist_ok=True)
 
         # Determine the number of CPU cores to use
-        num_cores = np.max(QThread.idealThreadCount(), 8)
+        num_cores = QThread.idealThreadCount()
+        if num_cores > 7:
+            num_cores = 7
         print(f"Using {num_cores} CPU cores for processing.")
 
         # Split the channels into batches
