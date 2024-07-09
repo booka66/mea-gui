@@ -16,7 +16,6 @@ class MatlabEngineThread(QThread):
     def run(self):
         try:
             eng = matlab.engine.start_matlab()
-            print(eng.eval("license"))
 
             # Ensure the MATLAB folder path exists
             if not os.path.exists(self.matlab_folder_path):

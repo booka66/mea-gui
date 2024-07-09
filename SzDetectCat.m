@@ -6,6 +6,8 @@ if ~do_analysis
     SETimes = [];
     return
 end
+% Turn the sampling rate into a double
+sampRate = double(sampRate);
 t = transpose(linspace(0,round(length(V)/round(sampRate)),length(V))); 
 window_size = (round(sampRate));
 step_size = (round(sampRate)/2);

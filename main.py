@@ -1826,16 +1826,44 @@ class MainWindow(QMainWindow):
             self.grid_widget.cells[row - 1][col - 1].setColor(ACTIVE, 1, self.opacity)
 
     def get_min_max_strengths(self):
+        self.min_strength = None
+        self.max_strength = None
+
         for row, col in self.active_channels:
             seizure_times = self.data[row - 1, col - 1]["SzTimes"]
             se_times = self.data[row - 1, col - 1]["SETimes"]
-            times = np.concatenate((seizure_times, se_times))
-            for i, timerange in enumerate(times):
-                start, stop, strength = timerange
-                if self.min_strength is None or strength < self.min_strength:
-                    self.min_strength = strength
-                if self.max_strength is None or strength > self.max_strength:
-                    self.max_strength = strength
+
+            # Handle empty arrays
+            if seizure_times.size == 0 and se_times.size == 0:
+                continue
+
+            # Ensure seizure_times is 2D and not empty
+            if seizure_times.size > 0:
+                if seizure_times.ndim == 1:
+                    seizure_times = seizure_times.reshape(1, -1)
+                elif seizure_times.ndim == 0:
+                    seizure_times = seizure_times.reshape(1, 1)
+            else:
+                seizure_times = np.empty((0, 3))  # Empty 2D array with 3 columns
+
+            # Ensure se_times is 2D and not empty
+            if se_times.size > 0:
+                if se_times.ndim == 1:
+                    se_times = se_times.reshape(1, -1)
+                elif se_times.ndim == 0:
+                    se_times = se_times.reshape(1, 1)
+            else:
+                se_times = np.empty((0, 3))  # Empty 2D array with 3 columns
+
+            times = np.concatenate((seizure_times, se_times), axis=0)
+
+            for timerange in times:
+                if len(timerange) >= 3:
+                    start, stop, strength = timerange[:3]
+                    if self.min_strength is None or strength < self.min_strength:
+                        self.min_strength = strength
+                    if self.max_strength is None or strength > self.max_strength:
+                        self.max_strength = strength
 
     def normalize_strength(self, strength):
         strength = float(strength)
