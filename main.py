@@ -1,6 +1,5 @@
 """ 
 Build to exe with:
-
 pyinstaller --noconfirm --onedir --windowed \
    --add-data "./SzDetectCat.m:." \
    --add-data "./save_channel_to_mat.m:." \
@@ -11,11 +10,13 @@ pyinstaller --noconfirm --onedir --windowed \
    "./main.py"
 
 or:
-
 pyinstaller --noconfirm --onedir --windowed ./main.py --add-data "./SzDetectCat.m:." --add-data "./save_channel_to_mat.m:." --add-data "./getChs.m:." --add-data "./get_cat_envelop.m:." --additional-hooks-dir "./hooks" --add-data "./*.m:."
 
 or (onefile):
 pyinstaller --noconfirm --onefile --windowed ./main.py --add-data "./SzDetectCat.m:." --add-data "./save_channel_to_mat.m:." --add-data "./getChs.m:." --add-data "./get_cat_envelop.m:." --additional-hooks-dir "./hooks" --add-data "./*.m:."
+
+Package macOS version with:
+pkgbuild --install-location /Applications --component main.app/ MEA\ GUI.pkg
 """
 
 import math
