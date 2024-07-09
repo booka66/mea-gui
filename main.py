@@ -13,12 +13,13 @@ or:
 pyinstaller --noconfirm --onedir --windowed ./main.py --add-data "./SzDetectCat.m:." --add-data "./save_channel_to_mat.m:." --add-data "./getChs.m:." --add-data "./get_cat_envelop.m:." --additional-hooks-dir "./hooks" --add-data "./*.m:."
 
 or (onefile):
-pyinstaller --noconfirm --onefile --windowed ./main.py --add-data "./SzDetectCat.m:." --add-data "./save_channel_to_mat.m:." --add-data "./getChs.m:." --add-data "./get_cat_envelop.m:." --additional-hooks-dir "./hooks" --add-data "./*.m:."
+pyinstaller --noconfirm --onefile --windowed ./main.py --icon=./icon.ico --add-data "./SzDetectCat.m:." --add-data "./save_channel_to_mat.m:." --add-data "./getChs.m:." --add-data "./get_cat_envelop.m:." --additional-hooks-dir "./hooks" --add-data "./*.m:."
 
 Package macOS version with:
 pkgbuild --install-location /Applications --component main.app/ MEA\ GUI.pkg
 
-with font:
+macOS with font:
+rm -rf package_root/Applications/MEA\ GUI.app
 cp -R dist/main.app package_root/Applications/MEA\ GUI.app 
 cp fonts/HackNerdFontMono-Regular.ttf package_root/Library/Fonts 
 pkgbuild --root package_root --identifier com.booka66.meagui MEA_GUI_MacOS.pkg
