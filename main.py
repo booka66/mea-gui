@@ -2927,7 +2927,6 @@ if __name__ == "__main__":
     qdarktheme.setup_theme()
     if not any(font_name in font for font in QFontDatabase().families()):
         print(f"Installing font: {font_name}")
-        install_font(font_url, font_dir)
         font_files = []
         for file in os.listdir(font_dir):
             if (file.endswith(".ttf") or file.endswith(".otf")) and font_name.split(
