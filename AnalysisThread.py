@@ -144,6 +144,7 @@ class AnalysisThread(QThread):
 
         # Determine the number of CPU cores to use
         num_cores = QThread.idealThreadCount()
+        num_cores = num_cores // 2
         print(f"Using {num_cores} CPU cores for processing.")
 
         # Split the channels into batches
