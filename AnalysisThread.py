@@ -144,7 +144,7 @@ class AnalysisThread(QThread):
 
         # Determine the number of CPU cores to use
         num_cores = QThread.idealThreadCount()
-        if num_cores > 7:
+        if num_cores > 4:
             num_cores = 7
         print(f"Using {num_cores} CPU cores for processing.")
 
