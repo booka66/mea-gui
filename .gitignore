@@ -13,3 +13,7 @@ build/
 stats.py
 .idea/
 __pycache__/
+Dockerfile
+*.app
+./matlab_env/
+fonts.zip
