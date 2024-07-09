@@ -21,7 +21,7 @@ pkgbuild --install-location /Applications --component main.app/ MEA\ GUI.pkg
 with font:
 cp -R dist/main.app package_root/Applications/MEA\ GUI.app 
 cp fonts/HackNerdFontMono-Regular.ttf package_root/Library/Fonts 
-pkgbuild --root package_root --identifier com.booka66.meagui MEA\ GUI\ MacOS.pkg
+pkgbuild --root package_root --identifier com.booka66.meagui MEA_GUI_MacOS.pkg
 
 """
 
