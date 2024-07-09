@@ -2926,27 +2926,14 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()
     if not any(font_name in font for font in QFontDatabase().families()):
-        print(f"Installing font: {font_name}")
-        font_files = []
-        for file in os.listdir(font_dir):
-            if (file.endswith(".ttf") or file.endswith(".otf")) and font_name.split(
-                " "
-            )[0] in file:
-                font_files.append(file)
-        for font_file in font_files:
-            font_id = QFontDatabase.addApplicationFont(
-                os.path.join(font_dir, font_file)
-            )
-            if font_id != -1:
-                print(f"Installed font: {font_file}")
-                font_name = QFontDatabase.applicationFontFamilies(font_id)[0]
-                print(f"Font name: {font_name}")
-                font = QFont(font_name, 13)
-                app.setFont(font)
-                break
-        else:
-            print("Failed to install font")
-            sys.exit(1)
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)
+        msg.setText(
+            f"Please install the font: {font_name}. Go to the release page to download the font.\nhttps://github.com/booka66/mea-gui/releases/"
+        )
+        msg.setWindowTitle("Font Installation")
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.exec_()
     else:
         print(f"Font already installed: {font_name}")
         font = QFont(font_name, 13)
