@@ -33,6 +33,8 @@ class GraphWidget(QWidget):
         super().__init__(parent)
         self.main_window = parent
         self.layout = QVBoxLayout(self)
+        self.updating_from_minimap = False
+        self.updating_from_plot = False
 
         # Create the minimap
         self.minimap = pg.PlotWidget()
@@ -42,11 +44,13 @@ class GraphWidget(QWidget):
         self.minimap.setBackground("w")
         self.minimap_plot = self.minimap.plot(pen=pg.mkPen(color=(0, 0, 0), width=1))
         self.minimap_region = pg.LinearRegionItem(
-            values=(0, 1), movable=False, brush=(0, 0, 255, 50)
+            values=(0, 1), movable=True, brush=(0, 0, 255, 50)
         )
         self.minimap.addItem(self.minimap_region)
-        # Make it so I can't right click on the minimap
         self.minimap.setContextMenuPolicy(3)
+
+        # Connect the minimap region's sigRegionChanged signal to update_plot_views
+        self.minimap_region.sigRegionChanged.connect(self.minimap_region_changed)
 
         # Set a fixed height for the minimap
         self.minimap.setFixedHeight(100)
@@ -119,6 +123,56 @@ class GraphWidget(QWidget):
             for plot_widget in self.plot_widgets
         ]
 
+    def minimap_region_changed(self):
+        if not self.updating_from_plot:
+            self.updating_from_minimap = True
+            self.update_plot_views()
+            self.updating_from_minimap = False
+
+    def update_plot_views(self):
+        if self.updating_from_minimap:
+            # Get the current region of the minimap
+            region_min, region_max = self.minimap_region.getRegion()
+
+            # Update the view range for all plot widgets
+            for plot_widget in self.plot_widgets:
+                view_box = plot_widget.getPlotItem().getViewBox()
+                view_box.setRange(xRange=(region_min, region_max), padding=0)
+
+    def update_minimap(self):
+        if self.updating_from_minimap:
+            return
+
+        if self.do_show_mini_map:
+            self.updating_from_plot = True
+            active_x_data = self.x_data[self.active_plot_index]
+            active_y_data = self.y_data[self.active_plot_index]
+
+            if active_x_data is None or active_y_data is None:
+                self.updating_from_plot = False
+                return
+
+            # Only update the minimap data if the active plot has changed
+            if self.active_plot_index != self.last_active_plot_index:
+                downsampled_x, downsampled_y = self.downsample_data(
+                    active_x_data, active_y_data, GRAPH_DOWNSAMPLE // 2
+                )
+                self.minimap_plot.setData(downsampled_x, downsampled_y)
+                self.last_active_plot_index = self.active_plot_index
+
+            # Always update the region
+            view_range = (
+                self.plot_widgets[self.active_plot_index]
+                .getPlotItem()
+                .getViewBox()
+                .viewRange()
+            )
+            x_min, x_max = view_range[0]
+            self.minimap_region.setRegion((x_min, x_max))
+            self.updating_from_plot = False
+        else:
+            self.minimap_plot.setData([], [])
+
     def toggle_regions(self):
         self.do_show_regions = not self.do_show_regions
         if self.do_show_regions:
@@ -156,34 +210,6 @@ class GraphWidget(QWidget):
         ].sceneBoundingRect().contains(pos):
             self.active_plot_index = plot_index
             self.update_minimap()
-
-    def update_minimap(self):
-        if self.do_show_mini_map:
-            active_x_data = self.x_data[self.active_plot_index]
-            active_y_data = self.y_data[self.active_plot_index]
-
-            if active_x_data is None or active_y_data is None:
-                return
-
-            # Only update the minimap data if the active plot has changed
-            if self.active_plot_index != self.last_active_plot_index:
-                downsampled_x, downsampled_y = self.downsample_data(
-                    active_x_data, active_y_data, GRAPH_DOWNSAMPLE // 2
-                )
-                self.minimap_plot.setData(downsampled_x, downsampled_y)
-                self.last_active_plot_index = self.active_plot_index
-
-            # Always update the region
-            view_range = (
-                self.plot_widgets[self.active_plot_index]
-                .getPlotItem()
-                .getViewBox()
-                .viewRange()
-            )
-            x_min, x_max = view_range[0]
-            self.minimap_region.setRegion((x_min, x_max))
-        else:
-            self.minimap_plot.setData([], [])
 
     def update_red_lines(self, value, sampling_rate):
         for red_line in self.red_lines:
