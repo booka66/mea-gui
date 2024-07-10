@@ -1,4 +1,4 @@
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtWidgets import (
     QApplication,
     QMessageBox,
@@ -388,9 +388,10 @@ class GraphWidget(QWidget):
                 start=start,
                 stop=stop,
                 plot_index=plot_index: self.region_clicked.emit(start, stop, plot_index)
+                if event.button() == Qt.LeftButton
+                else None
             )
             self.plot_widgets[plot_index].addItem(region)
-
         for start, stop in seizure_regions:
             region = pg.LinearRegionItem(
                 values=(start, stop), brush="#0096c780", movable=False
@@ -400,6 +401,8 @@ class GraphWidget(QWidget):
                 start=start,
                 stop=stop,
                 plot_index=plot_index: self.region_clicked.emit(start, stop, plot_index)
+                if event.button() == Qt.LeftButton
+                else None
             )
             self.plot_widgets[plot_index].addItem(region)
         self.plots[plot_index].setPen(pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH))
