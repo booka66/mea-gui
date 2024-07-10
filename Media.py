@@ -145,7 +145,7 @@ class SaveChannelPlotsDialog(QDialog):
 def save_mea_with_plots(self):
     options = QFileDialog.Options()
     file_filter = "PNG Files (*.png);;SVG Files (*.svg)"
-    default_filename = "mea_with_plots.svg"
+    default_filename = "mea_with_plots"
     file_path, selected_filter = QFileDialog.getSaveFileName(
         self,
         "Save MEA with Channel Plots",
