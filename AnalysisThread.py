@@ -215,7 +215,8 @@ class AnalysisThread(QThread):
                     if file.endswith(".mat"):
                         data = loadmat(os.path.join(self.temp_data_path, file))
 
-                        signal = np.array(data["signal"]).squeeze()
+                        signal = np.array(data["signal"], dtype=np.float16).squeeze()
+
                         name = np.array(data["name"]).squeeze()
                         SzTimes = (
                             np.array(data["SzTimes"])
