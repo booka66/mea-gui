@@ -1,13 +1,12 @@
 from PyQt5.QtWidgets import (
     QLabel,
-    QToolTip,
     QVBoxLayout,
     QWidget,
     QHBoxLayout,
     QSizePolicy,
 )
-from PyQt5.QtGui import QPainter, QColor, QLinearGradient, QPen
-from PyQt5.QtCore import Qt, QRectF, pyqtSignal
+from PyQt5.QtGui import QFont, QPainter, QColor, QLinearGradient, QPen, QPolygon
+from PyQt5.QtCore import QPoint, Qt, QRectF, pyqtSignal
 
 
 class EEGScrubber(QWidget):
@@ -15,7 +14,7 @@ class EEGScrubber(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumHeight(40)
+        self.setMinimumHeight(60)  # Increased height to accommodate tooltip
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.setCursor(Qt.PointingHandCursor)
         self._value = 0
@@ -61,54 +60,104 @@ class EEGScrubber(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
 
         try:
-            background = QLinearGradient(0, 0, self.width(), 0)
-            background.setColorAt(0, QColor(60, 60, 60))
-            background.setColorAt(1, QColor(40, 40, 40))
-            painter.fillRect(self.rect(), background)
+            # Draw background
+            background_color = QColor(60, 60, 60)
+            painter.fillRect(
+                QRectF(0, 20, self.width(), self.height() - 20), background_color
+            )
 
+            # Draw progress
             progress_width = int(self.valueToPixel(self._value))
-            progress_gradient = QLinearGradient(0, 0, progress_width, 0)
+            progress_gradient = QLinearGradient(0, 20, progress_width, 20)
             progress_gradient.setColorAt(0, QColor(0, 120, 255))
             progress_gradient.setColorAt(1, QColor(0, 180, 255))
             painter.fillRect(
-                QRectF(0, 0, progress_width, self.height()), progress_gradient
+                QRectF(0, 20, progress_width, self.height() - 20), progress_gradient
             )
 
+            # Draw markers
             marker_pen = QPen(QColor(255, 100, 0))
             marker_pen.setWidth(2)
             painter.setPen(marker_pen)
             for marker in self.markers:
                 x = int(self.valueToPixel(marker * self.sampling_rate))
-                painter.drawLine(x, 0, x, self.height())
+                painter.drawLine(x, 20, x, self.height())
 
+            # Draw handle
             handle_width = 1
             handle_x = progress_width - handle_width // 2
             handle_color = QColor(255, 255, 255)
             painter.setPen(QPen(handle_color, handle_width, Qt.SolidLine, Qt.RoundCap))
-            painter.drawLine(handle_x, 0, handle_x, self.height())
+            painter.drawLine(handle_x, 20, handle_x, self.height())
 
+            # Draw handle circle
             circle_radius = 3
             painter.setBrush(handle_color)
             painter.drawEllipse(
                 QRectF(
-                    handle_x - circle_radius, 0, circle_radius * 2, circle_radius * 2
+                    handle_x - circle_radius, 20, circle_radius * 2, circle_radius * 2
                 )
             )
 
+            # Draw ticks
             painter.setPen(QColor(100, 100, 100))
             num_ticks = 30
             for i in range(num_ticks + 1):
                 x = int(i * self.width() / num_ticks)
                 painter.drawLine(x, self.height() - 5, x, self.height())
 
+            # Draw hover line
             if self.hover_position is not None and not self.mouse_pressed:
                 painter.setPen(QPen(QColor(200, 200, 200), 1, Qt.DashLine))
                 painter.drawLine(
-                    self.hover_position, 0, self.hover_position, self.height()
+                    self.hover_position, 20, self.hover_position, self.height()
                 )
+
+            # Draw custom tooltip
+            if self.hover_position is not None:
+                self.drawCustomTooltip(painter, self.hover_position)
 
         finally:
             painter.end()
+
+    def drawCustomTooltip(self, painter, x_position):
+        value = self.pixelToValue(x_position)
+        time_in_seconds = value / self.sampling_rate
+        tooltip_text = EEGScrubberWidget.formatTime(time_in_seconds)
+
+        # Set up tooltip appearance
+        tooltip_width = 100
+        tooltip_height = 20
+        triangle_height = 5
+        tooltip_x = max(
+            0, min(x_position - tooltip_width // 2, self.width() - tooltip_width)
+        )
+
+        # Calculate new y-position for the tooltip
+        tooltip_y = -5
+
+        # Draw tooltip rectangle
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(50, 50, 50, 200))
+        painter.drawRect(tooltip_x, tooltip_y, tooltip_width, tooltip_height)
+
+        # Draw tooltip triangle
+        triangle = QPolygon(
+            [
+                QPoint(x_position, tooltip_y + tooltip_height + triangle_height),
+                QPoint(x_position - 5, tooltip_y + tooltip_height),
+                QPoint(x_position + 5, tooltip_y + tooltip_height),
+            ]
+        )
+        painter.drawPolygon(triangle)
+
+        # Draw tooltip text
+        painter.setPen(Qt.white)
+        painter.drawText(
+            QRectF(tooltip_x, tooltip_y, tooltip_width, tooltip_height),
+            Qt.AlignCenter,
+            tooltip_text,
+        )
 
     def valueToPixel(self, value):
         return (value - self._minimum) / (self._maximum - self._minimum) * self.width()
@@ -131,24 +180,15 @@ class EEGScrubber(QWidget):
             self.update()
 
     def mouseMoveEvent(self, event):
+        self.hover_position = event.x()
         if self.mouse_pressed:
             self.setValue(self.pixelToValue(event.x()))
-        else:
-            self.hover_position = event.x()
-            self.update()
-            self.showTooltip(event.pos())
+        self.update()
 
     def leaveEvent(self, event):
         self.hover_position = None
         self.mouse_pressed = False
         self.update()
-        QToolTip.hideText()
-
-    def showTooltip(self, pos):
-        value = self.pixelToValue(pos.x())
-        time_in_seconds = value / self.sampling_rate
-        tooltip_text = EEGScrubberWidget.formatTime(time_in_seconds)
-        QToolTip.showText(self.mapToGlobal(pos), tooltip_text, self)
 
 
 class EEGScrubberWidget(QWidget):
