@@ -26,6 +26,7 @@ pkgbuild --root package_root --identifier com.booka66.meagui MEA_GUI_MacOS.pkg
 
 """
 
+import gc
 import math
 import os
 import sys
@@ -477,9 +478,8 @@ class MainWindow(QMainWindow):
         self.open_button.clicked.connect(self.openFile)
         self.control_layout.addWidget(self.open_button)
 
-        self.low_ram_button = QPushButton(" Low RAM View")
-        self.low_ram_button.clicked.connect(self.run_analysis)
-        self.control_layout.addWidget(self.low_ram_button)
+        self.low_ram_checkbox = QCheckBox("󰔳 Low RAM Mode")
+        self.control_layout.addWidget(self.low_ram_checkbox)
 
         self.view_button = QPushButton(" Quick View")
         self.view_button.clicked.connect(self.run_analysis)
@@ -1707,11 +1707,9 @@ class MainWindow(QMainWindow):
         if self.file_path is not None and self.engine_started:
             self.run_button.setEnabled(True)
             self.view_button.setEnabled(True)
-            self.low_ram_button.setEnabled(True)
         else:
             self.run_button.setEnabled(False)
             self.view_button.setEnabled(False)
-            self.low_ram_button.setEnabled(False)
 
         if self.data is not None:
             self.clear_button.setEnabled(True)
@@ -2462,7 +2460,6 @@ class MainWindow(QMainWindow):
 
     def run_analysis(self):
         button_clicked = self.sender()
-        use_low_ram = False
         if button_clicked is not None:
             if button_clicked.text().__contains__("Run"):
                 print("Running analysis")
@@ -2470,7 +2467,6 @@ class MainWindow(QMainWindow):
             elif button_clicked.text().__contains__("RAM"):
                 print(f"Button text: {button_clicked.text()}")
                 print("Running view with low RAM")
-                use_low_ram = True
                 do_analysis = False
             else:
                 print("Running view without analysis")
@@ -2513,6 +2509,7 @@ class MainWindow(QMainWindow):
                     self.max_strength = None
                     self.recording_length = None
                     self.time_vector = None
+                    del self.data
                     self.data = None
                     self.active_channels = []
                     self.selected_channel = []
@@ -2528,6 +2525,7 @@ class MainWindow(QMainWindow):
                     self.cluster_tracker.clear()
                     self.create_grid()
                     self.set_widgets_enabled()
+                    gc.collect()
 
             self.run_button.setEnabled(False)
             self.update()
@@ -2576,7 +2574,9 @@ class MainWindow(QMainWindow):
                 self.loading_dialog.progress_bar.setRange(0, num_channels)
             self.analysis_thread.file_path = self.file_path
             self.analysis_thread.do_analysis = do_analysis
-            self.analysis_thread.use_low_ram = use_low_ram
+            self.analysis_thread.use_low_ram = (
+                True if self.low_ram_checkbox.isChecked() else False
+            )
             self.analysis_thread.eng = self.eng
             self.analysis_thread.temp_data_path = temp_data_path
             self.loading_dialog.show()
@@ -2680,7 +2680,7 @@ class MainWindow(QMainWindow):
     def on_analysis_completed(self):
         self.loading_dialog.hide()
         self.data = self.analysis_thread.data
-        self.data_cache = self.data.copy()
+        # self.data_cache = self.data.copy()
         self.min_strength = self.analysis_thread.min_strength
         self.max_strength = self.analysis_thread.max_strength
         self.recording_length = self.analysis_thread.recording_length
