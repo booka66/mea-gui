@@ -96,6 +96,7 @@ function process_channel(k, chunk_data, chunk_start, chunk_end, Rows, Cols, ...
     channel_data = double(channel_data);  % Ensure data is in double format
     channel_data = (channel_data * ADCCountsToMV) + MVOffset;
     channel_data = channel_data / 1000000;  % Convert to volts
+    channel_data = channel_data - mean(channel_data);
 
     % Load existing data or create new
     filename = fullfile(temp_data_path, sprintf('temp_data_%d_%d.mat', tgt_rows, tgt_cols));
