@@ -2957,6 +2957,7 @@ else:
     sys.exit(1)
 
 if __name__ == "__main__":
+    # Update the text on the splash screen
     multiprocessing.freeze_support()
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()

@@ -144,8 +144,8 @@ class AnalysisThread(QThread):
 
         # Determine the number of CPU cores to use
         num_cores = QThread.idealThreadCount()
-        if num_cores > 4:
-            num_cores = 4
+        if num_cores > 2:
+            num_cores = 2
         print(f"Using {num_cores} CPU cores for processing.")
 
         # Split the channels into batches
@@ -204,7 +204,7 @@ class AnalysisThread(QThread):
                 os.makedirs(self.temp_data_path, exist_ok=True)
                 # Call MATLAB function
                 total_channels, self.sampling_rate, num_rec_frames = (
-                    self.eng.get_cat_envelop(
+                    self.eng.low_ram_cat(
                         self.file_path, self.temp_data_path, self.do_analysis, nargout=3
                     )
                 )
