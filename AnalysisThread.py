@@ -92,11 +92,6 @@ class AnalysisThread(QThread):
                         if "DischargeTimes" in data
                         else np.array([])
                     )
-                    DischargeTrainsTimes = (
-                        np.array(data["DischargeTrainsTimes"])
-                        if "DischargeTrainsTimes" in data
-                        else np.array([])
-                    )
 
                     row, col = name
                     self.data[row - 1, col - 1] = {
@@ -104,7 +99,6 @@ class AnalysisThread(QThread):
                         "SzTimes": SzTimes,
                         "SETimes": SETimes,
                         "DischargeTimes": DischargeTimes,
-                        "DischargeTrainsTimes": DischargeTrainsTimes,
                     }
 
             total_channels = int(total_channels)

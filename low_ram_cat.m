@@ -54,6 +54,7 @@ function [total_channels, sampRate, NRecFrames] = get_cat_envelop_parallel(FileN
     disp(['Total number of chunks to process: ', num2str(total_chunks)]);
 
     % Process data in chunks
+    t = transpose(linspace(1 / sampRate, NRecFrames / sampRate, NRecFrames));
     for chunk_index = 1:total_chunks
         chunk_start = (chunk_index - 1) * chunk_size + 1;
         chunk_end = min(chunk_start + chunk_size - 1, samples_per_channel);
@@ -75,7 +76,7 @@ function [total_channels, sampRate, NRecFrames] = get_cat_envelop_parallel(FileN
             try
                 process_channel(k, chunk_data, chunk_start, chunk_end, Rows, Cols, ...
                                 NRecFrames, ADCCountsToMV, MVOffset, sampRate, ...
-                                do_analysis, temp_data_path, chunk_index == total_chunks);
+                                do_analysis, temp_data_path, chunk_index == total_chunks, t);
             catch ME
                 warning('Error processing channel %d: %s\nStack trace: %s', k, ME.message, getReport(ME));
             end
@@ -87,7 +88,7 @@ end
 
 function process_channel(k, chunk_data, chunk_start, chunk_end, Rows, Cols, ...
                          NRecFrames, ADCCountsToMV, MVOffset, sampRate, ...
-                         do_analysis, temp_data_path, is_last_chunk)
+                         do_analysis, temp_data_path, is_last_chunk, t)
     tgt_rows = Rows(k);
     tgt_cols = Cols(k);
 
@@ -112,7 +113,7 @@ function process_channel(k, chunk_data, chunk_start, chunk_end, Rows, Cols, ...
     % Prepare channel_data structure
     channel_struct = struct('signal', signal, 'name', [tgt_rows, tgt_cols], ...
                             'SzTimes', [], 'SETimes', [], ...
-                            'DischargeTimes', [], 'DischargeTrainsTimes', []);
+                            'DischargeTimes', []);
 
     % Save updated signal
     save_channel_to_mat(channel_struct, temp_data_path);
@@ -122,13 +123,12 @@ function process_channel(k, chunk_data, chunk_start, chunk_end, Rows, Cols, ...
         signal = signal - mean(signal);  % Remove DC offset
 
         % Perform seizure detection
-        [DischargeTimes, SzTimes, DischargeTrainsTimes, SETimes] = SzDetectCat(signal, sampRate, do_analysis);
+        [SzTimes, DischargeTimes, SETimes] = SzSEDetectLEGIT(signal, sampRate, t, do_analysis);
 
         % Update channel_struct with analysis results
         channel_struct.SzTimes = SzTimes;
         channel_struct.SETimes = SETimes;
         channel_struct.DischargeTimes = DischargeTimes;
-        channel_struct.DischargeTrainsTimes = DischargeTrainsTimes;
 
         % Save the analysis results
         save_channel_to_mat(channel_struct, temp_data_path);

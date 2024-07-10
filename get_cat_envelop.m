@@ -36,10 +36,10 @@ for x = 1:64
         data(x, y).SzTimes = [];
         data(x, y).SETimes = [];
         data(x, y).DischargeTimes = [];
-        data(x, y).DischargeTrainsTimes = [];
     end
 end
 temp_data = cell(total_channels, 1);
+t = transpose(linspace(1 / sampRate, NRecFrames / sampRate, NRecFrames));
 parfor k = 1:total_channels
     chNum = k;
     tgt_cols = [Cols(chNum)];
@@ -59,23 +59,16 @@ parfor k = 1:total_channels
     channel_data = channel_data - mean(channel_data, 1);
     
     signal = channel_data(:, 1);
+
     
     % Red, Green, Blue, Yellow
-    [DischargeTimes, SzTimes, DischargeTrainsTimes, SETimes] = SzDetectCat(signal, sampRate, do_analysis);
-
-    CombinedSzTimes = [SzTimes; DischargeTimes];
-
-    % Sort the combined seizure times based on the start time if not empty
-    if ~isempty(CombinedSzTimes)
-        CombinedSzTimes = sortrows(CombinedSzTimes, 1);
-    end
+    [SzTimes, DischargeTimes, SETimes] = SzSEDetectLEGIT(signal, sampRate, t, do_analysis);
     
     temp_data{k} = struct('signal', signal, ...
                           'name', [tgt_rows tgt_cols], ...
                           'SzTimes', SzTimes, ...
                           'SETimes', SETimes, ...
-                          'DischargeTimes', DischargeTimes, ...
-                          'DischargeTrainsTimes', DischargeTrainsTimes);
+                          'DischargeTimes', DischargeTimes);
     % Save the channel data to a MAT file in the specified temp_data directory (with multiple attempts)
     save_channel_to_mat(temp_data{k}, temp_data_path);
 end

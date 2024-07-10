@@ -11,9 +11,8 @@ function save_channel_to_mat(channel_data, temp_data_path)
       SzTimes = channel_data.SzTimes;
       SETimes = channel_data.SETimes;
       DischargeTimes = channel_data.DischargeTimes;
-      DischargeTrainsTimes = channel_data.DischargeTrainsTimes;
 
-      save(mat_filename, 'signal', 'name', 'SzTimes', 'SETimes', 'DischargeTimes', 'DischargeTrainsTimes');
+      save(mat_filename, 'signal', 'name', 'SzTimes', 'SETimes', 'DischargeTimes');
       break;  % Exit the loop if the file is saved successfully
     catch
       if attempt == max_attempts
