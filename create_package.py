@@ -131,7 +131,7 @@ async def main(tag=None, no_package=False):
         package_commands = [
             r'"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q MEA_GUI_Installer.iss'
         ]
-        package_file = "MEA_GUI_Windows.exe"
+        package_file = "Output\\MEA_GUI_Windows.exe"
 
     pyinstaller_process = subprocess.Popen(pyinstaller_command, shell=True)
     pyinstaller_process.wait()
