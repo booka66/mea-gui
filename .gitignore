@@ -17,3 +17,5 @@ Dockerfile
 *.app
 ./matlab_env/*
 fonts.zip
+*.pkg
+package_root/
