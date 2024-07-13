@@ -37,6 +37,7 @@ from PyQt5.QtCore import (
     QLineF,
     QPointF,
     QRectF,
+    QThread,
     Qt,
     QTimer,
     pyqtSignal,
@@ -91,6 +92,18 @@ from Constants import (
     WIN,
     VERSION,
 )
+
+
+class UpdateThread(QThread):
+    update_completed = pyqtSignal(bool)
+
+    def __init__(self, latest_release):
+        super().__init__()
+        self.latest_release = latest_release
+
+    def run(self):
+        success = download_and_install_update(self.latest_release)
+        self.update_completed.emit(success)
 
 
 class MainWindow(QMainWindow):
@@ -519,14 +532,30 @@ class MainWindow(QMainWindow):
 
     def handle_update_button(self, button):
         if button.text() == "&Yes":
-            if download_and_install_update(self.latest_release):
-                sys.exit()
-            else:
-                msg = QMessageBox()
-                msg.setIcon(QMessageBox.Warning)
-                msg.setText("Update process failed.")
-                msg.setWindowTitle("Update")
-                msg.exec_()
+            self.download_msg = QMessageBox(self)
+            self.download_msg.setIcon(QMessageBox.Information)
+            self.download_msg.setText("Downloading update...")
+            self.download_msg.setWindowTitle("Update in Progress")
+            self.download_msg.setStandardButtons(QMessageBox.NoButton)
+            self.download_msg.show()
+
+            # Start the update thread
+            self.update_thread = UpdateThread(self.latest_release)
+            self.update_thread.update_completed.connect(self.on_update_completed)
+            self.update_thread.start()
+
+    def on_update_completed(self, success):
+        # Close the "Downloading update..." message box
+        self.download_msg.close()
+
+        if success:
+            sys.exit()
+        else:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText("Update process failed.")
+            msg.setWindowTitle("Update")
+            msg.exec_()
 
     def confirm_latest_version(self):
         update_available, self.latest_release = check_for_update()
