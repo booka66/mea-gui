@@ -49,7 +49,7 @@ def download_and_install_update(release):
             os.system(f"curl -sL {download_url} -o {download_folder}\\update.exe")
             os.system(f"start {download_folder}\\update.exe")
             print("Update installed successfully.")
-            return False
+            return True
     else:
         print("No suitable update found for your platform.")
         return False
