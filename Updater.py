@@ -10,12 +10,18 @@ GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 
 def check_for_update():
-    response = requests.get(GITHUB_API_URL)
-    if response.status_code == 200:
-        latest_release = response.json()
-        latest_version = latest_release["tag_name"]
-        return version.parse(latest_version) > version.parse(VERSION), latest_release
-    return False, None
+    try:
+        response = requests.get(GITHUB_API_URL)
+        if response.status_code == 200:
+            latest_release = response.json()
+            latest_version = latest_release["tag_name"]
+            return version.parse(latest_version) > version.parse(
+                VERSION
+            ), latest_release
+        return False, None
+    except Exception as e:
+        print(f"Failed to check for updates: {e}")
+        return False, None
 
 
 def download_and_install_update(release):
@@ -39,10 +45,10 @@ def download_and_install_update(release):
             print("Update installed successfully.")
             return True
         elif sys.platform == "win32":
-            # For Windows, we still need to download the file
-            # as there's no direct pipe to installer
-            print("Direct installation not supported on Windows.")
-            print("Please use the file download method for Windows updates.")
+            download_folder = os.path.expanduser("~\\Downloads")
+            os.system(f"curl -sL {download_url} -o {download_folder}\\update.exe")
+            os.system(f"start {download_folder}\\update.exe")
+            print("Update installed successfully.")
             return False
     else:
         print("No suitable update found for your platform.")
