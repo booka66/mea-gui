@@ -30,7 +30,7 @@ class ClusterTracker:
         self.max_distance = max_distance
         self.min_consecutive_frames = min_consecutive_frames
         self.sampling_rate = sampling_rate
-        self.min_seizure_length = min_seizure_length  # Minimum seizure length in mm
+        self.min_seizure_length = min_seizure_length
         self.cluster_lines = []
         self.centroid_items = []
         self.colors = [
@@ -52,9 +52,9 @@ class ClusterTracker:
         ]
         self.cluster_colors = {}
         self.current_time = 0
-        self.history = []  # Store history
-        self.seizures = []  # Store completed seizures
-        self.seizure_graphics_items = []  # Store graphics items for seizures
+        self.history = []
+        self.seizures = []
+        self.seizure_graphics_items = []
         self.last_seizure = None
 
     def update(self, new_centroids, current_time):
@@ -63,10 +63,8 @@ class ClusterTracker:
         else:
             self._process_new_centroids(new_centroids, current_time)
 
-        # Store current state in history
         self.history.append((self._deep_copy_clusters(), current_time))
 
-        # Clean up clusters and check for completed seizures
         self._clean_up_clusters_and_store_seizures()
 
     def _clean_up_clusters_and_store_seizures(self):
@@ -75,7 +73,6 @@ class ClusterTracker:
             if cluster[-1][1] > 0 or len(cluster) < self.min_consecutive_frames:
                 new_clusters.append(cluster)
             else:
-                # Potential seizure has ended, check if it meets the minimum length requirement
                 self._check_and_store_seizure(cluster)
 
         self.clusters = new_clusters
@@ -89,7 +86,7 @@ class ClusterTracker:
                 )
                 for j in range(len(valid_points) - 1)
             )
-            length_mm = length * CELL_SIZE / 1000  # length in millimeters
+            length_mm = length * CELL_SIZE / 1000
 
             if length_mm >= self.min_seizure_length:
                 start_time = cluster[0][2]
@@ -100,7 +97,7 @@ class ClusterTracker:
                 seizure = {
                     "start_time": start_time,
                     "end_time": end_time,
-                    "duration": duration_s * 1000,  # duration in milliseconds
+                    "duration": duration_s * 1000,
                     "length": length_mm,
                     "avg_speed": avg_speed,
                     "points": valid_points,
@@ -151,10 +148,10 @@ class ClusterTracker:
     def _restore_state(self, target_time):
         for past_clusters, past_time in reversed(self.history):
             if past_time <= target_time:
-                self.clusters = past_clusters  # past_clusters is already a deep copy
+                self.clusters = past_clusters
                 self.current_time = past_time
                 break
-        # Remove future history
+
         self.history = [h for h in self.history if h[1] <= target_time]
 
     def _process_new_centroids(self, new_centroids, current_time):
@@ -224,7 +221,7 @@ class ClusterTracker:
         self.centroid_items.clear()
 
         for i, cluster in enumerate(self.get_consistent_clusters()):
-            if cluster[-1][0] is not None:  # Check if the last point is not None
+            if cluster[-1][0] is not None:
                 centroid = cluster[-1][0]
                 color = self.cluster_colors[i]
 
@@ -258,7 +255,6 @@ class ClusterTracker:
                 scene.addItem(line_item)
                 self.cluster_lines.append(line_item)
 
-        # Call draw_cluster_points after drawing lines
         self.draw_cluster_points(scene, cell_width, cell_height)
 
     def get_cluster_stats(self):
@@ -274,19 +270,15 @@ class ClusterTracker:
                 points, times = zip(*valid_points)
 
                 duration_s = times[-1] - times[0]
-                duration_ms = duration_s * 1000  # duration in milliseconds
+                duration_ms = duration_s * 1000
 
-                # Calculate length correctly
                 length = sum(
                     np.linalg.norm(np.array(points[j + 1]) - np.array(points[j]))
                     for j in range(len(points) - 1)
                 )
-                length_mm = length * CELL_SIZE / 1000  # length in millimeters
+                length_mm = length * CELL_SIZE / 1000
 
-                # Calculate average speed
-                avg_speed = (
-                    length_mm / duration_s if duration_s > 0 else 0
-                )  # average speed in mm/s
+                avg_speed = length_mm / duration_s if duration_s > 0 else 0
 
                 stats.append(
                     {
@@ -302,36 +294,29 @@ class ClusterTracker:
         return self.seizures
 
     def create_continuous_heatmap(self, scene, cell_width, cell_height, rows, cols):
-        # Remove previous heatmap items
         for item in self.seizure_graphics_items:
             scene.removeItem(item)
         self.seizure_graphics_items.clear()
 
-        # Create a 2D array to store the count of seizure paths through each cell
         heatmap = np.zeros((rows, cols))
 
-        # Count the number of times each cell is part of a seizure path
         for seizure in self.seizures:
             for point in seizure["points"]:
                 row, col = point
                 if 0 <= row < rows and 0 <= col < cols:
                     heatmap[int(row), int(col)] += 1
 
-        # Apply Gaussian filter for smoothing
         smoothed_heatmap = gaussian_filter(heatmap, sigma=1)
 
-        # Normalize the smoothed heatmap
         max_count = np.max(smoothed_heatmap)
         if max_count > 0:
             smoothed_heatmap = smoothed_heatmap / max_count
 
-        # Create a QImage for the heatmap
         image_width = int(cols * cell_width)
         image_height = int(rows * cell_height)
         image = QImage(image_width, image_height, QImage.Format_RGBA8888)
         image.fill(Qt.transparent)
 
-        # Fill the image with interpolated colors
         for row in range(rows):
             for col in range(cols):
                 intensity = smoothed_heatmap[row, col]
@@ -342,43 +327,35 @@ class ClusterTracker:
                             int(col * cell_width + x), int(row * cell_height + y), color
                         )
 
-        # Create a QGraphicsPixmapItem from the QImage
         pixmap = QPixmap.fromImage(image)
         pixmap_item = QGraphicsPixmapItem(pixmap)
-        pixmap_item.setOpacity(0.7)  # Adjust opacity as needed
+        pixmap_item.setOpacity(0.7)
         scene.addItem(pixmap_item)
         self.seizure_graphics_items.append(pixmap_item)
 
     def get_continuous_heatmap_color(self, intensity):
-        # This function returns a color based on the intensity
-        # Using a gradient from blue (low intensity) to red (high intensity)
         r = int(255 * intensity)
         g = int(255 * (1 - intensity))
         b = int(255 * (1 - intensity))
-        return QColor(r, g, b, 200)  # Added alpha value for transparency
+        return QColor(r, g, b, 200)
 
     def create_heatmap(self, scene, cell_width, cell_height, rows, cols):
-        # Remove previous heatmap items
         for item in self.seizure_graphics_items:
             scene.removeItem(item)
         self.seizure_graphics_items.clear()
 
-        # Create a 2D array to store the count of seizure paths through each cell
         heatmap = np.zeros((rows, cols))
 
-        # Count the number of times each cell is part of a seizure path
         for seizure in self.seizures:
             for point in seizure["points"]:
                 row, col = point
                 if 0 <= row < rows and 0 <= col < cols:
                     heatmap[int(row), int(col)] += 1
 
-        # Normalize the heatmap
         max_count = np.max(heatmap)
         if max_count > 0:
             heatmap = heatmap / max_count
 
-        # Create heatmap visualization
         for row in range(rows):
             for col in range(cols):
                 intensity = heatmap[row, col]
@@ -392,23 +369,18 @@ class ClusterTracker:
                     self.seizure_graphics_items.append(rect)
 
     def get_heatmap_color(self, intensity):
-        # This function returns a color based on the intensity
-        # Using a gradient from blue (low intensity) to red (high intensity)
         r = int(255 * intensity)
         g = 0
         b = int(255 * (1 - intensity))
         return QColor(r, g, b)
 
     def get_color_for_time(self, fraction):
-        # This function returns a color based on the time fraction
-        # You can adjust this to use any color scheme you prefer
         r = int(255 * fraction)
         g = int(255 * (1 - fraction))
         b = 0
         return QColor(r, g, b)
 
     def draw_seizures_time(self, scene, cell_width, cell_height):
-        # Remove previous seizure graphics items
         for item in self.seizure_graphics_items:
             scene.removeItem(item)
         self.seizure_graphics_items.clear()
@@ -416,7 +388,6 @@ class ClusterTracker:
         if not self.seizures:
             return
 
-        # Find the earliest and latest seizure start times
         start_times = [seizure["start_time"] for seizure in self.seizures]
         earliest_start = min(start_times)
         latest_start = max(start_times)
@@ -426,16 +397,13 @@ class ClusterTracker:
             if len(points) < 1:
                 continue
 
-            # Get the starting point
             start_point = points[0]
 
-            # Calculate color based on start time
             time_fraction = (seizure["start_time"] - earliest_start) / (
                 latest_start - earliest_start
             )
             color = self.get_color_for_time(time_fraction)
 
-            # Draw starting point
             start_marker = QGraphicsEllipseItem(0, 0, 10, 10)
             start_marker.setBrush(color)
             start_marker.setPos(
@@ -445,7 +413,6 @@ class ClusterTracker:
             self.seizure_graphics_items.append(start_marker)
 
     def draw_seizures(self, scene, cell_width, cell_height):
-        # Remove previous seizure graphics items
         for item in self.seizure_graphics_items:
             scene.removeItem(item)
         self.seizure_graphics_items.clear()
@@ -455,7 +422,6 @@ class ClusterTracker:
             if len(points) < 2:
                 continue
 
-            # Draw the path
             path = QPainterPath(
                 QPointF(points[0][1] * cell_width, points[0][0] * cell_height)
             )
@@ -463,22 +429,18 @@ class ClusterTracker:
                 path.lineTo(QPointF(point[1] * cell_width, point[0] * cell_height))
 
             path_item = QGraphicsPathItem(path)
-            path_item.setPen(
-                QPen(QColor(0, 0, 0, 128), 2, Qt.SolidLine)
-            )  # Black and slightly opaque
+            path_item.setPen(QPen(QColor(0, 0, 0, 128), 2, Qt.SolidLine))
             scene.addItem(path_item)
             self.seizure_graphics_items.append(path_item)
 
-            # Draw starting point (green)
             start_point = QGraphicsEllipseItem(0, 0, 10, 10)
-            start_point.setBrush(QColor(0, 255, 0))  # Green
+            start_point.setBrush(QColor(0, 255, 0))
             start_point.setPos(
                 points[0][1] * cell_width - 5, points[0][0] * cell_height - 5
             )
             scene.addItem(start_point)
             self.seizure_graphics_items.append(start_point)
 
-            # Draw ending point (red)
             end_point = QGraphicsEllipseItem(0, 0, 10, 10)
             end_point.setBrush(QColor(255, 0, 0))  # Red
             end_point.setPos(
@@ -494,14 +456,14 @@ class ClusterTracker:
         self.cluster_colors.clear()
         self.current_time = 0
         self.history.clear()
-        self.seizures.clear()  # Clear stored seizures
-        self.seizure_graphics_items.clear()  # Clear seizure graphics items
+        self.seizures.clear()
+        self.seizure_graphics_items.clear()
 
     def clear_plot(self, scene: QGraphicsScene):
         for item in scene.items():
             if item in self.seizure_graphics_items:
                 scene.removeItem(item)
-        self.seizure_graphics_items.clear()  # Clear seizure graphics items
+        self.seizure_graphics_items.clear()
 
 
 class ClusterLegend:
@@ -542,7 +504,7 @@ class ClusterLegend:
             )
             text_item = QGraphicsTextItem(text)
             text_item.setFont(font)
-            text_item.setDefaultTextColor(Qt.black)  # Set text color to black
+            text_item.setDefaultTextColor(Qt.black)
             text_item.setPos(self.x + 40, y_offset)
             self.scene.addItem(text_item)
             self.legend_items.append(text_item)

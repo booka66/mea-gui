@@ -1,5 +1,6 @@
 from PyQt5.QtGui import QColor
 
+VERSION = "v1.0.2"
 
 BACKGROUND = QColor("#4a4e69")
 ACTIVE = QColor("#808080")
@@ -14,7 +15,7 @@ PLOTTED = QColor("#ef233c")
 SIZE = 30
 MARKER = "s"
 
-STROKE_WIDTH = 3
+STROKE_WIDTH = 1
 
 GRAPH_DOWNSAMPLE = 10000
 

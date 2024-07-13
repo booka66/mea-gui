@@ -48,7 +48,6 @@ function [total_channels, sampRate, NRecFrames] = get_cat_envelop_parallel(FileN
     samples_per_channel = datasetSize(1) / total_channels;
     disp(['Samples per channel: ', num2str(samples_per_channel)]);
 
-    % Define chunk size (adjust as needed)
     chunk_size = min(100000, samples_per_channel);
     total_chunks = ceil(samples_per_channel / chunk_size);
     disp(['Total number of chunks to process: ', num2str(total_chunks)]);

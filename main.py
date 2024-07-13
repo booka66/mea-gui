@@ -1,43 +1,14 @@
-""" 
-Build to exe with:
-pyinstaller --noconfirm --onedir --windowed \
-   --add-data "./SzDetectCat.m:." \
-   --add-data "./save_channel_to_mat.m:." \
-   --add-data "./getChs.m:." \
-   --add-data "./get_cat_envelop.m:." \
-   --additional-hooks-dir "./hooks" \
-   --add-data "./*.m:." \
-   "./main.py"
-
-or:
-pyinstaller --noconfirm --onedir --windowed ./main.py --add-data "./SzDetectCat.m:." --add-data "./save_channel_to_mat.m:." --add-data "./getChs.m:." --add-data "./get_cat_envelop.m:." --additional-hooks-dir "./hooks" --add-data "./*.m:."
-
-or (onefile):
-pyinstaller --noconfirm --onefile --windowed ./main.py --icon=./icon.ico --add-data "./SzDetectCat.m:." --add-data "./save_channel_to_mat.m:." --add-data "./getChs.m:." --add-data "./get_cat_envelop.m:." --additional-hooks-dir "./hooks" --add-data "./*.m:."
-
-Package macOS version with:
-pkgbuild --install-location /Applications --component main.app/ MEA\ GUI.pkg
-
-macOS with font:
-rm -rf package_root/Applications/MEA\ GUI.app
-cp -R dist/main.app package_root/Applications/MEA\ GUI.app 
-cp fonts/HackNerdFontMono-Regular.ttf package_root/Library/Fonts 
-pkgbuild --root package_root --identifier com.booka66.meagui MEA_GUI_MacOS.pkg
-
-"""
-
 import gc
 import math
 import os
 import sys
-import zipfile
-from subprocess import call
 import glob
 import h5py
 from scipy.signal import butter, filtfilt, spectrogram
 from scipy.interpolate import interp1d
 from sklearn.cluster import DBSCAN
 import multiprocessing
+from Updater import check_for_update, download_and_install_update
 from VideoEditor import VideoEditor
 from GridWidget import GridWidget
 from GraphWidget import GraphWidget
@@ -118,6 +89,7 @@ from Constants import (
     STROKE_WIDTH,
     MAC,
     WIN,
+    VERSION,
 )
 
 
@@ -195,7 +167,7 @@ class MainWindow(QMainWindow):
         )
         self.analysis_thread.analysis_completed.connect(self.on_analysis_completed)
 
-        self.setWindowTitle("Spatial SE Viewer")
+        self.setWindowTitle(f"--- MEA GUI {VERSION} ---")
 
         self.menuBar = QMenuBar(self)
         self.menuBar.setNativeMenuBar(False)
@@ -222,7 +194,6 @@ class MainWindow(QMainWindow):
         self.editMenu = QMenu("Edit", self)
         self.menuBar.addMenu(self.editMenu)
 
-        # Add new action for setting low pass filter
         self.setLowPassFilterAction = QAction("Set Low Pass Filter", self)
         self.setLowPassFilterAction.triggered.connect(self.set_low_pass_filter)
         self.editMenu.addAction(self.setLowPassFilterAction)
@@ -254,7 +225,6 @@ class MainWindow(QMainWindow):
         self.viewMenu = QMenu("View", self)
         self.menuBar.addMenu(self.viewMenu)
 
-        # Create checkable actions
         self.toggleLegendAction = QAction("Legend", self, checkable=True)
         self.toggleLegendAction.setChecked(False)
         self.toggleLegendAction.triggered.connect(self.toggle_legend)
@@ -357,42 +327,35 @@ class MainWindow(QMainWindow):
 
         self.cluster_tracker = ClusterTracker()
 
-        # Create a QGraphicsView for the legend
         self.legend_view = QGraphicsView()
         self.legend_scene = QGraphicsScene()
         self.legend_view.setScene(self.legend_scene)
-        self.legend_view.setFixedHeight(100)  # Adjust this value as needed
+        self.legend_view.setFixedHeight(100)
 
-        # Initialize ClusterLegend
         legend_width = self.grid_widget.width()
         self.cluster_legend = ClusterLegend(
             self.legend_scene,
-            0,  # x
-            0,  # y
+            0,
+            0,
             legend_width,
-            100,  # Initial height, will be adjusted dynamically
+            100,
         )
 
         self.legend_widget = LegendWidget()
         self.legend_widget.setVisible(False)
 
-        # Create a vertical layout for the MEA Grid tab
         mea_grid_layout = QVBoxLayout()
 
-        # Create a horizontal layout for the square widget and legend widget
         top_layout = QHBoxLayout()
         top_layout.addWidget(self.legend_widget)
         top_layout.addWidget(square_widget)
 
-        # Add layouts and widgets to the MEA Grid tab layout
         mea_grid_layout.addLayout(top_layout)
         mea_grid_layout.addWidget(self.legend_view)
 
-        # Create a widget to hold the MEA Grid tab layout
         mea_grid_widget = QWidget()
         mea_grid_widget.setLayout(mea_grid_layout)
 
-        # Add the MEA Grid widget to the tab widget
         self.tab_widget.addTab(mea_grid_widget, "MEA Grid")
 
         self.second_tab_widget = QWidget()
@@ -534,16 +497,16 @@ class MainWindow(QMainWindow):
         )
         self.speed_combo.setCurrentIndex(2)
         self.speed_combo.currentIndexChanged.connect(self.setPlaybackSpeed)
-        # Increase the width of the speed combo box dropdown
+
         self.speed_combo.view().setMinimumWidth(100)
         self.progress_bar.control_layout.addWidget(self.speed_combo)
 
         self.set_widgets_enabled()
 
         cwd = os.path.dirname(os.path.realpath(__file__))
-        # display a popup with the cwd
+
         print(f"Current working directory: {cwd}")
-        # Start MATLAB engine
+
         self.matlab_thread = MatlabEngineThread(cwd)
         self.matlab_thread.engine_started.connect(self.on_engine_started)
         self.matlab_thread.start()
@@ -554,9 +517,33 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         self.redraw_arrows()
 
+    def handle_update_button(self, button):
+        if button.text() == "&Yes":
+            if download_and_install_update(self.latest_release):
+                sys.exit()
+            else:
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Warning)
+                msg.setText("Update process failed.")
+                msg.setWindowTitle("Update")
+                msg.exec_()
+
+    def confirm_latest_version(self):
+        update_available, self.latest_release = check_for_update()
+        if update_available:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Information)
+            msg.setText("An update is available. Would you like to update now?")
+            msg.setWindowTitle("Update")
+            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            msg.buttonClicked.connect(self.handle_update_button)
+            msg.exec_()
+        else:
+            print("No update available.")
+
     def update_cluster_legend(self, cluster_stats):
         self.cluster_legend.update(cluster_stats)
-        # Adjust the view to show the entire legend scene
+
         self.legend_view.setSceneRect(self.legend_scene.sceneRect())
         self.legend_view.fitInView(self.legend_scene.sceneRect(), Qt.KeepAspectRatio)
 
@@ -630,7 +617,7 @@ class MainWindow(QMainWindow):
                 ):
                     self.graph_widget.plot_widgets[i].removeItem(item)
             ignore = int(10 * self.sampling_rate)
-            # Restore the original black trace
+
             if self.plotted_channels[i] is not None:
                 row, col = self.plotted_channels[i].row, self.plotted_channels[i].col
                 x = self.time_vector[ignore:-ignore]
@@ -673,7 +660,6 @@ class MainWindow(QMainWindow):
 
         layout = QVBoxLayout(dialog)
 
-        # Downsample factor
         downsample_layout = QHBoxLayout()
         downsample_label = QLabel("Downsample Factor:")
         downsample_input = QLineEdit(str(self.raster_downsample_factor))
@@ -681,7 +667,6 @@ class MainWindow(QMainWindow):
         downsample_layout.addWidget(downsample_input)
         layout.addLayout(downsample_layout)
 
-        # Spike threshold
         threshold_layout = QHBoxLayout()
         threshold_label = QLabel("Spike Threshold:")
         threshold_input = QLineEdit(str(self.raster_plot.spike_threshold))
@@ -689,7 +674,6 @@ class MainWindow(QMainWindow):
         threshold_layout.addWidget(threshold_input)
         layout.addLayout(threshold_layout)
 
-        # OK and Cancel buttons
         button_layout = QHBoxLayout()
         ok_button = QPushButton("Apply")
         ok_button.clicked.connect(dialog.accept)
@@ -791,7 +775,6 @@ class MainWindow(QMainWindow):
 
         layout = QVBoxLayout(dialog)
 
-        # Chunk size
         chunk_layout = QHBoxLayout()
         chunk_label = QLabel("Chunk Size:")
         chunk_input = QLineEdit(str(self.chunk_size))
@@ -799,7 +782,6 @@ class MainWindow(QMainWindow):
         chunk_layout.addWidget(chunk_input)
         layout.addLayout(chunk_layout)
 
-        # Overlap
         overlap_layout = QHBoxLayout()
         overlap_label = QLabel("Overlap:")
         overlap_input = QLineEdit(str(self.overlap))
@@ -807,11 +789,9 @@ class MainWindow(QMainWindow):
         overlap_layout.addWidget(overlap_input)
         layout.addLayout(overlap_layout)
 
-        # Frequency range
         fs_range_layout = QHBoxLayout()
         fs_range_label = QLabel("Frequency Range:")
 
-        # Separate inputs for min and max frequency
         fs_min_label = QLabel("Min:")
         fs_min_input = QLineEdit(str(self.fs_range[0]))
         fs_max_label = QLabel("Max:")
@@ -825,7 +805,6 @@ class MainWindow(QMainWindow):
 
         layout.addLayout(fs_range_layout)
 
-        # OK and Cancel buttons
         button_layout = QHBoxLayout()
         ok_button = QPushButton("Apply")
         ok_button.clicked.connect(dialog.accept)
@@ -854,27 +833,22 @@ class MainWindow(QMainWindow):
                 )
 
     def show_DBSCAN_settings(self):
-        # Position the DBSCAN settings widget to the right of the menu item
         menu_item_rect = self.editMenu.actionGeometry(self.setDBSCANSettingsAction)
         global_pos = self.editMenu.mapToGlobal(menu_item_rect.topRight())
         self.db_scan_settings_widget.move(global_pos)
 
-        # Show the DBSCAN settings widget
         self.db_scan_settings_widget.show()
 
     def show_spectrogram_settings_widget(self):
-        # Position the spectrogram settings widget to the right of the menu item
         menu_item_rect = self.editMenu.actionGeometry(self.setSpectrogramSettingsAction)
         global_pos = self.editMenu.mapToGlobal(menu_item_rect.topRight())
         self.spectrogram_settings_widget.move(global_pos)
 
-        # Show the spectrogram settings widget
         self.spectrogram_settings_widget.show()
 
     def show_spectrograms(self):
         for i in range(4):
             if self.plotted_channels[i] is not None:
-                # Load EEG data from file
                 eeg_data = self.data[
                     self.plotted_channels[i].row,
                     self.plotted_channels[i].col,
@@ -882,7 +856,6 @@ class MainWindow(QMainWindow):
 
                 print(f"Creating spectrogram for channel {i + 1}")
 
-                # Calculate spectrogram
                 f, t, Sxx = spectrogram(
                     eeg_data,
                     fs=self.sampling_rate,
@@ -894,24 +867,19 @@ class MainWindow(QMainWindow):
                     mode="psd",
                 )
 
-                # Convert power spectral density to dB scale
                 Sxx_db = 10 * np.log10(Sxx)
 
-                # Extract the frequency range of interest
                 freq_mask = (f >= self.fs_range[0]) & (f <= self.fs_range[1])
                 Sxx_db = Sxx_db[freq_mask, :]
 
-                # Set colormap
                 cmap = pg.colormap.get("inferno")
                 lut = cmap.getLookupTable()
 
-                # Create image item and set the spectrogram data
                 img = pg.ImageItem()
                 img.setLookupTable(lut)
                 img.setLevels([np.min(Sxx_db), np.max(Sxx_db)])
                 img.setImage(Sxx_db.T, autoLevels=False)
 
-                # Get the min and max of the time vecotr
                 x_range = (self.time_vector[0], self.time_vector[-1])
                 y_range = (min(eeg_data) + max(eeg_data), 2 * max(eeg_data))
                 img.setRect(
@@ -923,13 +891,8 @@ class MainWindow(QMainWindow):
                     )
                 )
 
-                # Set the spectrogram to be partially transparent
-                # img.setOpacity(0.7)
-
-                # Add the image item to the existing plot
                 self.graph_widget.plot_widgets[i].addItem(img)
 
-                # Move the spectrogram image behind the trace data
                 img.setZValue(-1)
 
     def hide_spectrograms(self):
@@ -974,7 +937,6 @@ class MainWindow(QMainWindow):
 
         layout = QVBoxLayout(dialog)
 
-        # Peak threshold
         threshold_layout = QHBoxLayout()
         threshold_label = QLabel("Peak Threshold:")
         threshold_input = QLineEdit(str(self.n_std_dev))
@@ -982,7 +944,6 @@ class MainWindow(QMainWindow):
         threshold_layout.addWidget(threshold_input)
         layout.addLayout(threshold_layout)
 
-        # Distance
         distance_layout = QHBoxLayout()
         distance_label = QLabel("Distance:")
         distance_input = QLineEdit(str(self.distance))
@@ -990,7 +951,6 @@ class MainWindow(QMainWindow):
         distance_layout.addWidget(distance_input)
         layout.addLayout(distance_layout)
 
-        # OK and Cancel buttons
         button_layout = QHBoxLayout()
         ok_button = QPushButton("Apply")
         ok_button.clicked.connect(dialog.accept)
@@ -1307,7 +1267,6 @@ class MainWindow(QMainWindow):
         else:
             self.hide_seizure_order()
 
-        # Update plotted channels on the raster plot
         self.update_raster_plotted_channels()
 
     def update_raster(self):
@@ -1473,19 +1432,16 @@ class MainWindow(QMainWindow):
                         volt_signal = self.data[row, col]["signal"]
                         start, stop = self.graph_widget.plot_widgets[i].viewRange()[0]
 
-                        # Analyze signal for peaks and discharges
                         peak_x, peak_y, discharge_start_x, discharge_start_y = (
                             self.signal_analyzer.analyze_signal(
                                 volt_signal, start, stop
                             )
                         )
 
-                        # Clear any previous scatter plots and plateau items
                         for item in self.graph_widget.plot_widgets[i].items():
                             if isinstance(item, pg.ScatterPlotItem):
                                 self.graph_widget.plot_widgets[i].removeItem(item)
 
-                        # Plot red circles for peaks
                         peak_plot = pg.ScatterPlotItem(
                             x=peak_x,
                             y=peak_y,
@@ -1496,13 +1452,12 @@ class MainWindow(QMainWindow):
                         )
                         self.graph_widget.plot_widgets[i].addItem(peak_plot)
 
-                        # Plot orange dots for discharge starts
                         discharge_plot = pg.ScatterPlotItem(
                             x=discharge_start_x,
                             y=discharge_start_y,
                             symbol="o",
                             size=8,
-                            brush=pg.mkBrush(color=(255, 165, 0)),  # Orange color
+                            brush=pg.mkBrush(color=(255, 165, 0)),
                             pen=pg.mkPen(color=(255, 165, 0), width=STROKE_WIDTH),
                         )
                         self.graph_widget.plot_widgets[i].addItem(discharge_plot)
@@ -1656,7 +1611,7 @@ class MainWindow(QMainWindow):
         ):
             if self.is_auto_analyzing:
                 print("Auto-analysis complete")
-                # Save the seizures to the hdf file
+
                 self.cluster_tracker.save_seizures_to_hdf(
                     self.file_path, *self.custom_region
                 )
@@ -1762,7 +1717,7 @@ class MainWindow(QMainWindow):
 
             try:
                 baseName = os.path.basename(file_path)
-                # Set the window title to the file name
+
                 self.setWindowTitle(f"BRW Viewer - {baseName}")
                 brwFileName = os.path.basename(file_path)
                 dateSlice = "_".join(brwFileName.split("_")[:4])
@@ -1831,27 +1786,24 @@ class MainWindow(QMainWindow):
             seizure_times = self.data[row - 1, col - 1]["SzTimes"]
             se_times = self.data[row - 1, col - 1]["SETimes"]
 
-            # Handle empty arrays
             if seizure_times.size == 0 and se_times.size == 0:
                 continue
 
-            # Ensure seizure_times is 2D and not empty
             if seizure_times.size > 0:
                 if seizure_times.ndim == 1:
                     seizure_times = seizure_times.reshape(1, -1)
                 elif seizure_times.ndim == 0:
                     seizure_times = seizure_times.reshape(1, 1)
             else:
-                seizure_times = np.empty((0, 3))  # Empty 2D array with 3 columns
+                seizure_times = np.empty((0, 3))
 
-            # Ensure se_times is 2D and not empty
             if se_times.size > 0:
                 if se_times.ndim == 1:
                     se_times = se_times.reshape(1, -1)
                 elif se_times.ndim == 0:
                     se_times = se_times.reshape(1, 1)
             else:
-                se_times = np.empty((0, 3))  # Empty 2D array with 3 columns
+                se_times = np.empty((0, 3))
 
             times = np.concatenate((seizure_times, se_times), axis=0)
 
@@ -1912,8 +1864,7 @@ class MainWindow(QMainWindow):
                 discharge_start_x,
                 discharge_start_y,
             )
-            # Save the discharges to the HDF5 file
-            # self.save_discharges_to_hdf5(row - 1, col - 1, start, stop)
+
         for i in range(4):
             if self.plotted_channels[i] is not None:
                 row, col = (
@@ -1961,7 +1912,6 @@ class MainWindow(QMainWindow):
                     if not discharge_found and (row, col) in self.prop_cells:
                         cells_to_remove.append((row, col))
 
-            # Perform DBSCAN on discharged cells
             if discharged_cells:
                 X = np.array(discharged_cells)
                 db = DBSCAN(eps=self.eps, min_samples=self.min_samples).fit(X)
@@ -1974,7 +1924,7 @@ class MainWindow(QMainWindow):
                 unique_labels = set(labels)
                 centroids = []
                 for label in unique_labels:
-                    if label != -1:  # Ignore noise points
+                    if label != -1:
                         cluster_points = X[labels == label]
                         centroid = np.mean(cluster_points, axis=0)
                         centroids.append(centroid)
@@ -1991,21 +1941,17 @@ class MainWindow(QMainWindow):
                         self.grid_widget.scene.addItem(centroid_item)
                         self.centroids.append(centroid_item)
 
-                # Update ClusterTracker with new centroids
                 self.cluster_tracker.update(centroids, current_time)
 
-                # Draw cluster lines and points
                 cell_width = self.grid_widget.cells[0][0].rect().width()
                 cell_height = self.grid_widget.cells[0][0].rect().height()
                 self.cluster_tracker.draw_cluster_lines(
                     self.grid_widget.scene, cell_width, cell_height
                 )
 
-                # Update cluster legend
                 cluster_stats = self.cluster_tracker.get_cluster_stats()
                 self.cluster_legend.update(cluster_stats)
             else:
-                # No discharged cells, update ClusterTracker with empty list
                 self.cluster_tracker.update([], current_time)
                 self.cluster_legend.update([])
                 cell_width = self.grid_widget.cells[0][0].rect().width()
@@ -2281,13 +2227,10 @@ class MainWindow(QMainWindow):
 
             print(f"Closest cell: {closest_cell}, distance: {min_distance}")
 
-            if (
-                closest_cell and min_distance <= 10
-            ):  # Adjust the maximum distance as needed
+            if closest_cell and min_distance <= 10:
                 start_cell = self.grid_widget.cells[closest_cell[0]][closest_cell[1]]
                 end_cell = self.grid_widget.cells[row][col]
 
-                # Draw the propagation arrow similar to the spread arrows
                 cell_width = start_cell.rect().width()
                 cell_height = start_cell.rect().height()
 
@@ -2530,7 +2473,6 @@ class MainWindow(QMainWindow):
             self.run_button.setEnabled(False)
             self.update()
 
-            # Prompt the user to select the drive for temp_data if multiple drives are detected
             available_drives = self.get_available_drives()
             if len(available_drives) > 1:
                 drive_dialog = QDialog(self)
@@ -2560,7 +2502,6 @@ class MainWindow(QMainWindow):
                     selected_drive = drive_combo.currentText()
                     temp_data_path = os.path.join(selected_drive, "temp_data")
                 else:
-                    # Make it the home directory
                     temp_data_path = os.path.expanduser("~/temp_data")
             else:
                 temp_data_path = os.path.expanduser("~/temp_data")
@@ -2619,22 +2560,16 @@ class MainWindow(QMainWindow):
                     signal = self.data_cache[row, col]["signal"]
                     time = np.arange(len(signal)) / self.sampling_rate
 
-                    # Calculate slopes
                     slopes = np.diff(signal) / np.diff(time)
 
-                    # Find indices where slope exceeds threshold
                     extreme_slopes = np.abs(slopes) > self.low_pass_cutoff
                     extreme_indices = np.where(extreme_slopes)[0]
 
                     if len(extreme_indices) > 0:
-                        # Create a mask for valid points
                         valid_mask = np.ones(len(signal), dtype=bool)
                         valid_mask[extreme_indices] = False
-                        valid_mask[extreme_indices + 1] = (
-                            False  # Also exclude the next point
-                        )
+                        valid_mask[extreme_indices + 1] = False
 
-                        # Interpolate
                         interp_func = interp1d(
                             time[valid_mask],
                             signal[valid_mask],
@@ -2642,13 +2577,10 @@ class MainWindow(QMainWindow):
                             fill_value="extrapolate",
                         )
 
-                        # Replace extreme points with interpolated values
                         signal[~valid_mask] = interp_func(time[~valid_mask])
 
-                        # Update the signal in the data structure
                         self.data[row, col]["signal"] = signal
 
-                        # Update min and max voltage if needed
                         self.min_voltage = min(self.min_voltage, np.min(signal))
                         self.max_voltage = max(self.max_voltage, np.max(signal))
 
@@ -2680,7 +2612,7 @@ class MainWindow(QMainWindow):
     def on_analysis_completed(self):
         self.loading_dialog.hide()
         self.data = self.analysis_thread.data
-        # self.data_cache = self.data.copy()
+
         self.min_strength = self.analysis_thread.min_strength
         self.max_strength = self.analysis_thread.max_strength
         self.recording_length = self.analysis_thread.recording_length
@@ -2899,20 +2831,17 @@ class MainWindow(QMainWindow):
             self.progress_bar.setValue(self.progress_bar.maximum())
 
     def setPlaybackSpeed(self, index):
-        interval = 100  # Sort of similar to FPS/ticks
+        interval = 100
         self.playback_timer.setInterval(interval)
 
     def seekPosition(self, value):
         self.graph_widget.update_red_lines(value, self.sampling_rate)
         if self.raster_plot is not None:
             if self.raster_plot.raster_red_line is not None:
-                # Calculate the percentage of the playback progress
                 percentage = value / self.progress_bar.maximum()
 
-                # Scale the percentage to the number of active channels
                 scaled_percentage = percentage * len(self.active_channels)
 
-                # Set the position of the red line in the raster plot
                 self.raster_plot.raster_red_line.setPos(scaled_percentage)
 
         if self.lock_to_playhead:
@@ -2934,30 +2863,18 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
 
-def install_font(font_url, font_dir):
-    zip_path = os.path.join(font_dir, "temp.zip")
-    os.makedirs(font_dir, exist_ok=True)
-    call(["curl", "-L", "-o", zip_path, font_url])
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        for file in zip_ref.namelist():
-            if file.endswith(".ttf") or file.endswith(".otf"):
-                zip_ref.extract(file, font_dir)
-    os.remove(zip_path)
-
-
 font_name = "Hack Nerd Font Mono"
 font_url = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/Hack.zip"
 
-if sys.platform == MAC:  # macOS
+if sys.platform == MAC:
     font_dir = "/Library/Fonts/"
-elif sys.platform == WIN:  # Windows
+elif sys.platform == WIN:
     font_dir = os.path.join(os.environ["WINDIR"], "Fonts")
 else:
     print("Unsupported operating system.")
     sys.exit(1)
 
 if __name__ == "__main__":
-    # Update the text on the splash screen
     multiprocessing.freeze_support()
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()
@@ -2977,11 +2894,12 @@ if __name__ == "__main__":
 
     window = MainWindow()
     window.showMaximized()
+    window.confirm_latest_version()
     try:
         if sys.argv[1]:
             window.file_path = sys.argv[1]
             window.set_widgets_enabled()
-            # Wait for the matlab engine to start
+
             while not window.engine_started:
                 app.processEvents()
             window.run_analysis()

@@ -368,6 +368,8 @@ class GraphWidget(QWidget):
         self.x_data[plot_index] = x
         self.y_data[plot_index] = y
 
+        print(f"We have {len(x)} points to plot")
+
         seizure_regions, se_regions = self.get_regions(seizures, se)
         downsample_x, downsample_y = self.downsample_data(x, y, GRAPH_DOWNSAMPLE)
         self.plots[plot_index].setData(downsample_x, downsample_y)
