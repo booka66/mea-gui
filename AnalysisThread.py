@@ -6,7 +6,6 @@ import h5py
 import numpy as np
 from scipy.io import loadmat
 from PyQt5.QtCore import QThread, pyqtSignal
-from PyQt5.QtWidgets import QMessageBox
 
 from alert import alert
 from ProgressUpdaterThread import ProgressUpdaterThread
@@ -36,6 +35,7 @@ class AnalysisThread(QThread):
         self.temp_data_path = None
         self.do_analysis = False
         self.use_low_ram = False
+        self.use_cpp = False
 
     def stop_engine(self):
         if self.eng is not None:
@@ -46,40 +46,19 @@ class AnalysisThread(QThread):
                 print(f"Error while stopping MATLAB engine: {e}")
 
     def run(self):
+        start = perf_counter()
         self.data = np.empty((64, 64), dtype=object)
-        if self.eng is None:
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Warning)
-            msg.setText("MATLAB engine not started. Please wait a few seconds.")
-            msg.setWindowTitle("Error")
-            msg.exec_()
         try:
-            start = perf_counter()
-            self.progress_updater_thread = ProgressUpdaterThread(self.temp_data_path)
-            self.progress_updater_thread.progress_updated.connect(self.progress_updated)
-            self.progress_updater_thread.start()
-
-            # Create temporary directory if it doesn't exist
-            os.makedirs(self.temp_data_path, exist_ok=True)
-            if self.use_low_ram:
-                total_channels, self.sampling_rate, num_rec_frames = (
-                    self.eng.low_ram_cat(
-                        self.file_path, self.temp_data_path, self.do_analysis, nargout=3
-                    )
+            if self.eng is None or self.use_cpp:
+                print("Using c++ version")
+                results = sz_se_detect.processAllChannels(
+                    self.file_path, self.do_analysis
                 )
-            else:
-                # total_channels, self.sampling_rate, num_rec_frames = (
-                #     self.eng.get_cat_envelop(
-                #         self.file_path, self.temp_data_path, self.do_analysis, nargout=3
-                #     )
-                # )
-                results = sz_se_detect.processAllChannels(self.file_path)
 
                 for result in results:
                     signal = np.array(result.signal, dtype=np.float16).squeeze()
                     name = (result.Row, result.Col)
                     SzTimes = np.array(result.result.SzTimes)
-                    print(SzTimes)
                     SETimes = np.array(result.result.SETimes)
                     DischargeTimes = np.array(result.result.DischargeTimes)
 
@@ -89,34 +68,68 @@ class AnalysisThread(QThread):
                         "SETimes": SETimes,
                         "DischargeTimes": DischargeTimes,
                     }
+            else:
+                print("Using matlab version")
+                self.progress_updater_thread = ProgressUpdaterThread(
+                    self.temp_data_path
+                )
+                self.progress_updater_thread.progress_updated.connect(
+                    self.progress_updated
+                )
+                self.progress_updater_thread.start()
 
-            # Load data from .mat files
-            for file in os.listdir(self.temp_data_path):
-                if file.endswith(".mat"):
-                    data = loadmat(os.path.join(self.temp_data_path, file))
-
-                    signal = np.array(data["signal"], dtype=np.float16).squeeze()
-
-                    name = np.array(data["name"]).squeeze()
-                    SzTimes = (
-                        np.array(data["SzTimes"]) if "SzTimes" in data else np.array([])
+                # Create temporary directory if it doesn't exist
+                os.makedirs(self.temp_data_path, exist_ok=True)
+                if self.use_low_ram:
+                    total_channels, self.sampling_rate, num_rec_frames = (
+                        self.eng.low_ram_cat(
+                            self.file_path,
+                            self.temp_data_path,
+                            self.do_analysis,
+                            nargout=3,
+                        )
                     )
-                    SETimes = (
-                        np.array(data["SETimes"]) if "SETimes" in data else np.array([])
-                    )
-                    DischargeTimes = (
-                        np.array(data["DischargeTimes"])
-                        if "DischargeTimes" in data
-                        else np.array([])
+                else:
+                    total_channels, self.sampling_rate, num_rec_frames = (
+                        self.eng.get_cat_envelop(
+                            self.file_path,
+                            self.temp_data_path,
+                            self.do_analysis,
+                            nargout=3,
+                        )
                     )
 
-                    row, col = name
-                    self.data[row - 1, col - 1] = {
-                        "signal": signal,
-                        "SzTimes": SzTimes,
-                        "SETimes": SETimes,
-                        "DischargeTimes": DischargeTimes,
-                    }
+                # Load data from .mat files
+                for file in os.listdir(self.temp_data_path):
+                    if file.endswith(".mat"):
+                        data = loadmat(os.path.join(self.temp_data_path, file))
+
+                        signal = np.array(data["signal"], dtype=np.float16).squeeze()
+
+                        name = np.array(data["name"]).squeeze()
+                        SzTimes = (
+                            np.array(data["SzTimes"])
+                            if "SzTimes" in data
+                            else np.array([])
+                        )
+                        SETimes = (
+                            np.array(data["SETimes"])
+                            if "SETimes" in data
+                            else np.array([])
+                        )
+                        DischargeTimes = (
+                            np.array(data["DischargeTimes"])
+                            if "DischargeTimes" in data
+                            else np.array([])
+                        )
+
+                        row, col = name
+                        self.data[row - 1, col - 1] = {
+                            "signal": signal,
+                            "SzTimes": SzTimes,
+                            "SETimes": SETimes,
+                            "DischargeTimes": DischargeTimes,
+                        }
 
             with h5py.File(self.file_path, "r") as f:
                 num_rec_frames = int(f["/3BRecInfo/3BRecVars/NRecFrames"][()])
@@ -134,14 +147,16 @@ class AnalysisThread(QThread):
             print(f"Error: {e}")
             alert(f"Error during analysis:\n{str(e)}")
         finally:
-            # Clean up .mat files
-            for file in os.listdir(self.temp_data_path):
-                if file.endswith(".mat"):
-                    os.remove(os.path.join(self.temp_data_path, file))
-            # Clean up temporary directory
-            os.rmdir(self.temp_data_path)
-            self.progress_updater_thread.requestInterruption()
-            self.progress_updater_thread.wait()
+            # Clean up .mat files in temporary directory if they exist
+            if os.path.exists(self.temp_data_path):
+                for file in os.listdir(self.temp_data_path):
+                    if file.endswith(".mat"):
+                        os.remove(os.path.join(self.temp_data_path, file))
+                # Clean up temporary directory
+                os.rmdir(self.temp_data_path)
+            if self.progress_updater_thread is not None:
+                self.progress_updater_thread.requestInterruption()
+                self.progress_updater_thread.wait()
 
     def get_channels(self):
         with h5py.File(self.file_path, "r") as f:

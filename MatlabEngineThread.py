@@ -1,6 +1,10 @@
 from PyQt5.QtCore import QThread, pyqtSignal
-import matlab.engine
 import os
+
+try:
+    import matlab.engine
+except ImportError:
+    pass
 
 
 class MatlabEngineThread(QThread):

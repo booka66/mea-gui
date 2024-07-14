@@ -454,8 +454,12 @@ class MainWindow(QMainWindow):
         self.open_button.clicked.connect(self.openFile)
         self.control_layout.addWidget(self.open_button)
 
-        self.low_ram_checkbox = QCheckBox("󰔳 Low RAM Mode")
+        self.low_ram_checkbox = QCheckBox("󰡵 Low RAM Mode")
         self.control_layout.addWidget(self.low_ram_checkbox)
+
+        self.cpp_mode_checkbox = QCheckBox(" Use C++")
+        self.cpp_mode_checkbox.stateChanged.connect(self.toggle_cpp_mode)
+        self.control_layout.addWidget(self.cpp_mode_checkbox)
 
         self.view_button = QPushButton(" Quick View")
         self.view_button.clicked.connect(self.run_analysis)
@@ -522,8 +526,10 @@ class MainWindow(QMainWindow):
 
         self.matlab_thread = MatlabEngineThread(cwd)
         self.matlab_thread.engine_started.connect(self.on_engine_started)
+        self.matlab_thread.error_occurred.connect(self.on_engine_error)
         self.matlab_thread.start()
         self.eng = None
+        self.use_cpp = False
         self.engine_started = False
 
     def resizeEvent(self, event):
@@ -578,6 +584,13 @@ class MainWindow(QMainWindow):
 
     def handle_checkable_action(self):
         QTimer.singleShot(0, self.viewMenu.show)
+
+    def on_engine_error(self, error):
+        print(f"Error starting MATLAB engine: {error}")
+        # Show a temporary notifaication saying that c++ will be used instead
+        self.use_cpp = True
+        self.eng = None
+        self.set_widgets_enabled()
 
     def on_engine_started(self, eng):
         self.engine_started = True
@@ -950,6 +963,10 @@ class MainWindow(QMainWindow):
     def toggle_playheads(self, checked):
         self.do_show_playheads = checked
         self.update_grid()
+
+    def toggle_cpp_mode(self, state):
+        self.use_cpp = state == Qt.Checked
+        self.set_widgets_enabled()
 
     def toggle_lines(self, checked):
         self.do_show_spread_lines = checked
@@ -1688,7 +1705,7 @@ class MainWindow(QMainWindow):
         self.selected_channel = (row, col)
 
     def set_widgets_enabled(self):
-        if self.file_path is not None and self.engine_started:
+        if self.file_path is not None and (self.engine_started or self.use_cpp):
             self.run_button.setEnabled(True)
             self.view_button.setEnabled(True)
         else:
@@ -2548,6 +2565,7 @@ class MainWindow(QMainWindow):
                 True if self.low_ram_checkbox.isChecked() else False
             )
             self.analysis_thread.eng = self.eng
+            self.analysis_thread.use_cpp = self.use_cpp
             self.analysis_thread.temp_data_path = temp_data_path
             self.loading_dialog.show()
             self.analysis_thread.start()
