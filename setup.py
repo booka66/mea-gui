@@ -23,10 +23,16 @@ link_args = []
 
 # Platform-specific settings
 if sys.platform == "win32":
-    compile_args = ["/std:c++17"]  # MSVC equivalent of -std=c++17
-    libraries = ["hdf5_cpp", "hdf5"]
+    libraries = ["libhdf5_cpp", "libhdf5"]
+    library_dirs = [hdf5_lib_dir]
+    extra_objects = [
+        os.path.join(hdf5_lib_dir, "libhdf5_cpp.lib"),
+        os.path.join(hdf5_lib_dir, "libhdf5.lib")
+    ]
 else:
     libraries = ["hdf5_cpp", "hdf5"]
+    library_dirs = [hdf5_lib_dir]
+    extra_objects = []
 
 # Add include and lib directories to compile and link args
 compile_args.append(f"-I{hdf5_include_dir}")
@@ -42,8 +48,9 @@ ext_modules = [
             pybind11.get_include(),
             hdf5_include_dir,
         ],
-        library_dirs=[hdf5_lib_dir],
+        library_dirs=library_dirs,
         libraries=libraries,
+        extra_objects=extra_objects,
         extra_compile_args=compile_args,
         extra_link_args=link_args,
     ),
