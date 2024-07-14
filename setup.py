@@ -22,16 +22,13 @@ else:
 print_debug(f"HDF5 include dir: {hdf5_include_dir}")
 print_debug(f"HDF5 lib dir: {hdf5_lib_dir}")
 
-# Check if HDF5 libraries exist
-required_libs = ["libhdf5_cpp.lib", "libhdf5.lib", "zlib.lib"]
-libraries = []
-for lib in required_libs:
-    lib_path = os.path.join(hdf5_lib_dir, lib)
-    if os.path.exists(lib_path):
-        print_debug(f"Library found: {lib_path}")
-        libraries.append(lib[:-4])  # Remove '.lib' extension
-    else:
-        print_debug(f"WARNING: Library not found: {lib_path}")
+# List all files in the HDF5 lib directory
+print_debug("Files in HDF5 lib directory:")
+for file in os.listdir(hdf5_lib_dir):
+    print_debug(f"  {file}")
+
+# Explicitly specify the libraries
+libraries = ["libhdf5_cpp", "libhdf5", "libszip", "libzlib"]
 
 # Compile and link arguments
 compile_args = ["/std:c++17", "/EHsc", "/bigobj", f"/I{hdf5_include_dir}"]
