@@ -10,9 +10,10 @@ if sys.platform == "darwin":
     hdf5_include_dir = os.path.join(hdf5_dir, "include")
     hdf5_lib_dir = os.path.join(hdf5_dir, "lib")
 elif sys.platform == "win32":
-    # Replace these with your actual HDF5 paths on Windows
     hdf5_include_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64\include"
     hdf5_lib_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64\lib"
+    # Specify the path to Visual Studio libraries
+    vs_dir = r"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.40.33807"
 else:
     hdf5_include_dir = ""
     hdf5_lib_dir = ""
@@ -23,8 +24,9 @@ link_args = []
 
 # Platform-specific settings
 if sys.platform == "win32":
-    compile_args = ["/std:c++17"]  # MSVC equivalent of -std=c++17
-    libraries = ["libhdf5_cpp", "libhdf5"]
+    compile_args = ["/std:c++17", "/EHsc", "/bigobj"]  # MSVC equivalent of -std=c++17
+    libraries = ["libhdf5_cpp", "libhdf5", "libcmt"]
+    link_args.append("/NODEFAULTLIB:libcmt.lib")
 else:
     libraries = ["hdf5_cpp", "hdf5"]
 
@@ -42,10 +44,14 @@ ext_modules = [
             pybind11.get_include(),
             hdf5_include_dir,
         ],
-        library_dirs=[hdf5_lib_dir],
+        library_dirs=[
+            hdf5_lib_dir,
+            os.path.join(vs_dir, "lib", "x64") if sys.platform == "win32" else None,
+        ],
         libraries=libraries,
         extra_compile_args=compile_args,
         extra_link_args=link_args,
+        define_macros=[("H5_BUILT_AS_DYNAMIC_LIB", None)],
     ),
 ]
 
