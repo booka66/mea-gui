@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import QMessageBox
 
 from alert import alert
 from ProgressUpdaterThread import ProgressUpdaterThread
+import sz_se_detect
 
 
 class AnalysisThread(QThread):
@@ -45,6 +46,7 @@ class AnalysisThread(QThread):
                 print(f"Error while stopping MATLAB engine: {e}")
 
     def run(self):
+        self.data = np.empty((64, 64), dtype=object)
         if self.eng is None:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Warning)
@@ -66,12 +68,27 @@ class AnalysisThread(QThread):
                     )
                 )
             else:
-                total_channels, self.sampling_rate, num_rec_frames = (
-                    self.eng.get_cat_envelop(
-                        self.file_path, self.temp_data_path, self.do_analysis, nargout=3
-                    )
-                )
-            self.data = np.empty((64, 64), dtype=object)
+                # total_channels, self.sampling_rate, num_rec_frames = (
+                #     self.eng.get_cat_envelop(
+                #         self.file_path, self.temp_data_path, self.do_analysis, nargout=3
+                #     )
+                # )
+                results = sz_se_detect.processAllChannels(self.file_path)
+
+                for result in results:
+                    signal = np.array(result.signal, dtype=np.float16).squeeze()
+                    name = (result.Row, result.Col)
+                    SzTimes = np.array(result.result.SzTimes)
+                    print(SzTimes)
+                    SETimes = np.array(result.result.SETimes)
+                    DischargeTimes = np.array(result.result.DischargeTimes)
+
+                    self.data[result.Row - 1, result.Col - 1] = {
+                        "signal": signal,
+                        "SzTimes": SzTimes,
+                        "SETimes": SETimes,
+                        "DischargeTimes": DischargeTimes,
+                    }
 
             # Load data from .mat files
             for file in os.listdir(self.temp_data_path):
@@ -101,9 +118,10 @@ class AnalysisThread(QThread):
                         "DischargeTimes": DischargeTimes,
                     }
 
-            total_channels = int(total_channels)
-            self.sampling_rate = float(self.sampling_rate)
-            num_rec_frames = int(num_rec_frames)
+            with h5py.File(self.file_path, "r") as f:
+                num_rec_frames = int(f["/3BRecInfo/3BRecVars/NRecFrames"][()])
+                self.sampling_rate = float(f["/3BRecInfo/3BRecVars/SamplingRate"][()])
+
             self.recording_length = (1 / self.sampling_rate) * (num_rec_frames - 1)
             self.time_vector = [i / self.sampling_rate for i in range(num_rec_frames)]
             rows, cols = self.get_channels()
