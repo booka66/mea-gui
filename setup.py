@@ -59,7 +59,6 @@ ext_modules = [
         ],
         library_dirs=library_dirs,
         libraries=libraries,
-        extra_objects=extra_objects,
         extra_compile_args=compile_args,
         extra_link_args=link_args,
     ),
