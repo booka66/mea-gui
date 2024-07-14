@@ -22,11 +22,16 @@ else:
 print_debug(f"HDF5 include dir: {hdf5_include_dir}")
 print_debug(f"HDF5 lib dir: {hdf5_lib_dir}")
 
-# Check if HDF5 C++ libraries exist
-cpp_lib = os.path.join(hdf5_lib_dir, "libhdf5_cpp.lib")
-if not os.path.exists(cpp_lib):
-    raise FileNotFoundError(f"HDF5 C++ library not found: {cpp_lib}")
-print_debug(f"HDF5 C++ library found: {cpp_lib}")
+# Check if HDF5 libraries exist
+required_libs = ["libhdf5_cpp.lib", "libhdf5.lib", "zlib.lib"]
+libraries = []
+for lib in required_libs:
+    lib_path = os.path.join(hdf5_lib_dir, lib)
+    if os.path.exists(lib_path):
+        print_debug(f"Library found: {lib_path}")
+        libraries.append(lib[:-4])  # Remove '.lib' extension
+    else:
+        print_debug(f"WARNING: Library not found: {lib_path}")
 
 # Compile and link arguments
 compile_args = ["/std:c++17", "/EHsc", "/bigobj", f"/I{hdf5_include_dir}"]
@@ -37,8 +42,6 @@ link_args = [
     f"/LIBPATH:{os.path.join(win_kit_dir, 'ucrt', 'x64')}",
     f"/LIBPATH:{os.path.join(win_kit_dir, 'um', 'x64')}",
 ]
-
-libraries = ["libhdf5_cpp", "libhdf5", "szip", "zlib"]
 
 print_debug(f"Compile args: {compile_args}")
 print_debug(f"Link args: {link_args}")
