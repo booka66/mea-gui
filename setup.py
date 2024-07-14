@@ -41,7 +41,7 @@ link_args.append(f"-L{hdf5_lib_dir}")
 if sys.platform == "win32":
     compile_args.extend(["/DWIN32", "/D_WINDOWS"])
 
-cpp_file = "sz_se_detect.cpp" if sys.platform == "darwin" else "sz_se_detect_win.cpp"
+cpp_file = "sz_se_detect.cpp" if sys.platform == "darwin" else "sz_se_detect.cpp"
 
 ext_modules = [
     Pybind11Extension(
