@@ -24,7 +24,7 @@ link_args = []
 # Platform-specific settings
 if sys.platform == "win32":
     compile_args = ["/std:c++17"]  # MSVC equivalent of -std=c++17
-    libraries = ["libhdf5_cpp", "libhdf5"]
+    libraries = ["hdf5_cpp", "hdf5"]
 else:
     libraries = ["hdf5_cpp", "hdf5"]
 
