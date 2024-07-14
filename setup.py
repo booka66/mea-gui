@@ -6,21 +6,23 @@ import pybind11
 
 # HDF5 paths
 h5py_path = r"D:\Users\booka66\AppData\Local\Programs\Python\Python311\Lib\site-packages\h5py"
-hdf5_dir = os.path.join(h5py_path, '.libs')
+hdf5_dir = h5py_path  # The .dll files are in the main h5py directory
 hdf5_include_dir = os.path.join(h5py_path, 'include')
 
 # Verify directories exist
 if not os.path.exists(hdf5_dir):
     raise RuntimeError(f"HDF5 library directory not found: {hdf5_dir}")
 if not os.path.exists(hdf5_include_dir):
-    raise RuntimeError(f"HDF5 include directory not found: {hdf5_include_dir}")
+    print(f"Warning: HDF5 include directory not found: {hdf5_include_dir}")
+    print("Using main h5py directory for includes.")
+    hdf5_include_dir = hdf5_dir
 
 # Common compile and link arguments
 compile_args = ["/std:c++17", "/DWIN32", "/D_WINDOWS", "/DH5_BUILT_AS_DYNAMIC_LIB", "/D_CRT_SECURE_NO_WARNINGS"]
 link_args = []
 
 # Libraries
-libraries = ["hdf5_cpp", "hdf5"]
+libraries = ["hdf5", "hdf5_hl"]  # Use the base HDF5 library names
 
 # Add include and lib directories to compile and link args
 compile_args.append(f"/I{hdf5_include_dir}")
