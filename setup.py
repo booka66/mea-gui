@@ -23,11 +23,17 @@ link_args = []
 
 # Platform-specific settings
 if sys.platform == "win32":
-    libraries = ["libhdf5_cpp", "libhdf5"]
-    library_dirs = [hdf5_lib_dir]
-    extra_objects = [
-        os.path.join(hdf5_lib_dir, "libhdf5_cpp.lib"),
-        os.path.join(hdf5_lib_dir, "libhdf5.lib")
+    libraries = ["libhdf5_cpp", "libhdf5", "libszip", "zlibstatic"]
+    library_dirs = [
+        hdf5_lib_dir,
+        r"D:\path\to\szip\lib",
+        r"D:\path\to\zlib\lib"
+    ]
+    include_dirs = [
+        pybind11.get_include(),
+        hdf5_include_dir,
+        r"D:\path\to\szip\include",
+        r"D:\path\to\zlib\include"
     ]
 else:
     libraries = ["hdf5_cpp", "hdf5"]
@@ -37,6 +43,9 @@ else:
 # Add include and lib directories to compile and link args
 compile_args.append(f"-I{hdf5_include_dir}")
 link_args.append(f"-L{hdf5_lib_dir}")
+
+if sys.platform == "win32":
+    compile_args.extend(["/DWIN32", "/D_WINDOWS"])
 
 cpp_file = "sz_se_detect.cpp" if sys.platform == "darwin" else "sz_se_detect_win.cpp"
 
