@@ -11,8 +11,8 @@ if sys.platform == "darwin":
     hdf5_lib_dir = os.path.join(hdf5_dir, "lib")
 elif sys.platform == "win32":
     # Replace these with your actual HDF5 paths on Windows
-    hdf5_include_dir = r"D:\Users\booka66\Desktop\HDF5-14.4-win64\include"
-    hdf5_lib_dir = r"D:\Users\booka66\Desktop\HDF5-14.4-win64\lib"
+    hdf5_include_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64\include"
+    hdf5_lib_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64\lib"
 else:
     hdf5_include_dir = ""
     hdf5_lib_dir = ""
