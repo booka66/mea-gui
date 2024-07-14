@@ -23,18 +23,12 @@ link_args = []
 
 # Platform-specific settings
 if sys.platform == "win32":
-    libraries = ["libhdf5_cpp", "libhdf5", "libszip", "zlibstatic"]
+    libraries = ["libhdf5_cpp", "libhdf5", "zlib"]
     library_dirs = [
         hdf5_lib_dir,
-        r"D:\path\to\szip\lib",
-        r"D:\path\to\zlib\lib"
+        r"D:\actual\path\to\zlib\lib"
     ]
-    include_dirs = [
-        pybind11.get_include(),
-        hdf5_include_dir,
-        r"D:\path\to\szip\include",
-        r"D:\path\to\zlib\include"
-    ]
+    compile_args.extend(["/DWIN32", "/D_WINDOWS", "/DH5_BUILT_AS_DYNAMIC_LIB"])
 else:
     libraries = ["hdf5_cpp", "hdf5"]
     library_dirs = [hdf5_lib_dir]
