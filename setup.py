@@ -28,7 +28,7 @@ for file in os.listdir(hdf5_lib_dir):
     print_debug(f"  {file}")
 
 # Explicitly specify the libraries
-libraries = ["libhdf5_cpp", "libhdf5", "libszip", "libzlib"]
+libraries = ["libhdf5_cpp", "libhdf5", "libszaec", "libzlib"]
 
 # Compile and link arguments
 compile_args = ["/std:c++17", "/EHsc", "/bigobj", f"/I{hdf5_include_dir}"]
