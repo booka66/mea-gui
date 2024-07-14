@@ -31,8 +31,8 @@ else:
     libraries = ["hdf5_cpp", "hdf5"]
 
 # Add include and lib directories to compile and link args
-compile_args.append(f"-I{hdf5_include_dir}")
-link_args.append(f"-L{hdf5_lib_dir}")
+compile_args.append(f"-I {hdf5_include_dir}")
+link_args.append(f"-L {hdf5_lib_dir}")
 
 cpp_file = "sz_se_detect.cpp" if sys.platform == "darwin" else "sz_se_detect_win.cpp"
 
