@@ -6,12 +6,20 @@
 #include <iostream>
 #include <mutex>
 #include <numeric>
-#include <pwd.h> // for getpwuid
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <string>
 #include <thread>
 #include <vector>
+
+#ifdef _WIN32
+#include <direct.h>
+#define GetCurrentDir _getcwd
+#else
+#include <unistd.h>
+#define GetCurrentDir getcwd
+#endif
 
 namespace py = pybind11;
 
@@ -514,9 +522,14 @@ std::string expandTilde(const std::string &path) {
     return path;
   }
 
-  const char *home = getenv("HOME");
+  const char *home = getenv("USERPROFILE");
   if (home == nullptr) {
-    home = getpwuid(getuid())->pw_dir;
+    char current_path[FILENAME_MAX];
+    if (GetCurrentDir(current_path, sizeof(current_path)) != nullptr) {
+      return std::string(current_path) + path.substr(1);
+    } else {
+      return path;
+    }
   }
 
   return std::string(home) + path.substr(1);
