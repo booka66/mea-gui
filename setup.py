@@ -4,54 +4,54 @@ import pybind11
 import os
 import sys
 
+
+def print_debug(message):
+    print(f"DEBUG: {message}")
+
+
 # HDF5 paths
-if sys.platform == "darwin":
-    hdf5_dir = "/opt/homebrew/Cellar/hdf5/1.14.3_1"
+if sys.platform == "win32":
+    hdf5_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64"
     hdf5_include_dir = os.path.join(hdf5_dir, "include")
     hdf5_lib_dir = os.path.join(hdf5_dir, "lib")
-elif sys.platform == "win32":
-    hdf5_include_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64\include"
-    hdf5_lib_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64\lib"
-    # Specify the path to Visual Studio libraries
     vs_dir = r"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.40.33807"
+    win_kit_dir = r"C:\Program Files (x86)\Windows Kits\10\lib\10.0.22621.0"
 else:
-    hdf5_include_dir = ""
-    hdf5_lib_dir = ""
+    raise NotImplementedError("This script is currently set up for Windows only.")
 
-# Common compile and link arguments
-compile_args = ["-std=c++17"]
-link_args = []
+print_debug(f"HDF5 include dir: {hdf5_include_dir}")
+print_debug(f"HDF5 lib dir: {hdf5_lib_dir}")
 
-# Platform-specific settings
-if sys.platform == "win32":
-    compile_args = ["/std:c++17", "/EHsc", "/bigobj"]  # MSVC equivalent of -std=c++17
-    libraries = ["libhdf5_cpp", "libhdf5"]
-    link_args.extend([f"/LIBPATH:{hdf5_lib_dir}", "/NODEFAULTLIB:libcmt.lib"])
-    # Add Windows Kit library paths
-    win_kit_lib = r"C:\Program Files (x86)\Windows Kits\10\lib\10.0.22621.0"
-    link_args.extend(
-        [f"/LIBPATH:{win_kit_lib}\\ucrt\\x64", f"/LIBPATH:{win_kit_lib}\\um\\x64"]
-    )
-else:
-    libraries = ["hdf5_cpp", "hdf5"]
+# Check if HDF5 C++ libraries exist
+cpp_lib = os.path.join(hdf5_lib_dir, "libhdf5_cpp.lib")
+if not os.path.exists(cpp_lib):
+    raise FileNotFoundError(f"HDF5 C++ library not found: {cpp_lib}")
+print_debug(f"HDF5 C++ library found: {cpp_lib}")
 
-# Add include directory to compile args
-compile_args.append(f"-I{hdf5_include_dir}")
+# Compile and link arguments
+compile_args = ["/std:c++17", "/EHsc", "/bigobj", f"/I{hdf5_include_dir}"]
+link_args = [
+    f"/LIBPATH:{hdf5_lib_dir}",
+    "/NODEFAULTLIB:libcmt.lib",
+    f"/LIBPATH:{os.path.join(vs_dir, 'lib', 'x64')}",
+    f"/LIBPATH:{os.path.join(win_kit_dir, 'ucrt', 'x64')}",
+    f"/LIBPATH:{os.path.join(win_kit_dir, 'um', 'x64')}",
+]
 
-cpp_file = "sz_se_detect.cpp" if sys.platform == "darwin" else "sz_se_detect_win.cpp"
+libraries = ["libhdf5_cpp", "libhdf5", "szip", "zlib"]
+
+print_debug(f"Compile args: {compile_args}")
+print_debug(f"Link args: {link_args}")
+print_debug(f"Libraries: {libraries}")
+
+cpp_file = "sz_se_detect_win.cpp"
 
 ext_modules = [
     Pybind11Extension(
         "sz_se_detect",
         [cpp_file],
-        include_dirs=[
-            pybind11.get_include(),
-            hdf5_include_dir,
-        ],
-        library_dirs=[
-            hdf5_lib_dir,
-            os.path.join(vs_dir, "lib", "x64") if sys.platform == "win32" else None,
-        ],
+        include_dirs=[pybind11.get_include(), hdf5_include_dir],
+        library_dirs=[hdf5_lib_dir],
         libraries=libraries,
         extra_compile_args=compile_args,
         extra_link_args=link_args,
