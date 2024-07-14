@@ -4,6 +4,7 @@ import pybind11
 import os
 import sys
 import h5py
+import numpy as np
 
 
 def print_debug(message):
@@ -12,8 +13,31 @@ def print_debug(message):
 
 # Get HDF5 info from h5py
 hdf5_version = h5py.version.hdf5_version
-hdf5_dir = h5py.get_config().hdf5_dir
 print_debug(f"HDF5 version: {hdf5_version}")
+
+# Try to find HDF5 installation directory
+hdf5_dir = None
+for path in os.environ.get("PATH", "").split(os.pathsep):
+    if os.path.exists(os.path.join(path, "h5cc")) or os.path.exists(
+        os.path.join(path, "h5cc.exe")
+    ):
+        hdf5_dir = os.path.dirname(path)
+        break
+
+if not hdf5_dir:
+    # If we can't find it in PATH, let's try a common location
+    possible_dirs = [
+        r"C:\Program Files\HDF_Group\HDF5",
+        r"C:\Program Files (x86)\HDF_Group\HDF5",
+    ]
+    for dir in possible_dirs:
+        if os.path.exists(dir):
+            hdf5_dir = dir
+            break
+
+if not hdf5_dir:
+    raise RuntimeError("Could not find HDF5 installation directory")
+
 print_debug(f"HDF5 dir: {hdf5_dir}")
 
 if sys.platform == "win32":
@@ -42,7 +66,11 @@ ext_modules = [
     Pybind11Extension(
         "sz_se_detect",
         [cpp_file],
-        include_dirs=[pybind11.get_include(), hdf5_include_dir],
+        include_dirs=[
+            pybind11.get_include(),
+            hdf5_include_dir,
+            np.get_include(),  # Include NumPy headers
+        ],
         library_dirs=[hdf5_lib_dir],
         libraries=libraries,
         extra_compile_args=compile_args,
@@ -61,5 +89,5 @@ setup(
     cmdclass={"build_ext": build_ext},
     zip_safe=False,
     python_requires=">=3.6",
-    install_requires=["h5py"],
+    install_requires=["h5py", "numpy"],
 )
