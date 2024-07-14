@@ -25,14 +25,18 @@ link_args = []
 # Platform-specific settings
 if sys.platform == "win32":
     compile_args = ["/std:c++17", "/EHsc", "/bigobj"]  # MSVC equivalent of -std=c++17
-    libraries = ["libhdf5_cpp", "libhdf5", "libcmt"]
-    link_args.append("/NODEFAULTLIB:libcmt.lib")
+    libraries = ["libhdf5_cpp", "libhdf5"]
+    link_args.extend([f"/LIBPATH:{hdf5_lib_dir}", "/NODEFAULTLIB:libcmt.lib"])
+    # Add Windows Kit library paths
+    win_kit_lib = r"C:\Program Files (x86)\Windows Kits\10\lib\10.0.22621.0"
+    link_args.extend(
+        [f"/LIBPATH:{win_kit_lib}\\ucrt\\x64", f"/LIBPATH:{win_kit_lib}\\um\\x64"]
+    )
 else:
     libraries = ["hdf5_cpp", "hdf5"]
 
-# Add include and lib directories to compile and link args
-compile_args.append(f"-I {hdf5_include_dir}")
-link_args.append(f"-L {hdf5_lib_dir}")
+# Add include directory to compile args
+compile_args.append(f"-I{hdf5_include_dir}")
 
 cpp_file = "sz_se_detect.cpp" if sys.platform == "darwin" else "sz_se_detect_win.cpp"
 
