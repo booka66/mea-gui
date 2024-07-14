@@ -19,3 +19,4 @@ Dockerfile
 fonts.zip
 *.pkg
 package_root/
+compile_commands.json

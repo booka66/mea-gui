@@ -101,13 +101,11 @@ DetectionResult SzSEDetectLEGIT(std::vector<double> V, double sampRate,
   double RefInc = 1.2;
 
   double Refsize = 2.0;
-  int step_size = std::max(1, static_cast<int>(floor(sampRate)));
+  int step_size = static_cast<int>(floor(sampRate));
   double TotRefCheck = floor(t.back() / 4);
 
-  int window_size =
-      std::max(1, static_cast<int>(ceil(sampRate * 60 * Refsize)));
-  int VtoCheck = std::min(static_cast<int>(V.size()),
-                          static_cast<int>(floor(sampRate * 60 * TotRefCheck)));
+  int window_size = static_cast<int>(ceil(sampRate * 60 * Refsize));
+  int VtoCheck = static_cast<int>(floor(sampRate * 60 * TotRefCheck));
 
   std::vector<int> range;
   for (int i = ceil(sampRate * 15); i <= (VtoCheck - window_size + 1);
@@ -444,8 +442,8 @@ std::vector<ChannelData> get_cat_envelop(const std::string &FileName) {
     int bitDepth =
         static_cast<int>(readDataset("/3BRecInfo/3BRecVars/BitDepth"));
 
-    uint64_t qLevel = static_cast<uint64_t>(1)
-                      << static_cast<uint64_t>(bitDepth);
+    uint64_t qLevel =
+        static_cast<uint64_t>(1) ^ static_cast<uint64_t>(bitDepth);
 
     double fromQLevelToUVolt =
         (maxUVolt - minUVolt) / static_cast<double>(qLevel);
