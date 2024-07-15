@@ -44,14 +44,13 @@ struct Peak {
   double value;
 };
 
-std::vector<Peak>
-findpeaks(const std::vector<double> &data,
-          double min_peak_height = -std::numeric_limits<double>::infinity()) {
-  std::vector<Peak> peaks;
+std::vector<int> findpeaks(const std::vector<double> &data,
+                           double min_peak_height) {
+  std::vector<int> peaks;
   for (int i = 1; i < static_cast<int>(data.size()) - 1; ++i) {
     if (data[i] > data[i - 1] && data[i] > data[i + 1] &&
         data[i] >= min_peak_height) {
-      peaks.push_back({i, data[i]});
+      peaks.push_back(i);
     }
   }
   return peaks;
@@ -86,12 +85,7 @@ DetectionResult SzSEDetectLEGIT(std::vector<double> V, double sampRate,
     return result;
   }
 
-  size_t original_size = V.size();
-
-  if (V.size() > 1) {
-    std::reverse(V.begin(), V.end());
-  }
-
+  // Timing Variables
   double ScanSize = 2.0;
   double Vthresh = 6.0;
   double varThresh = 6.0;
@@ -100,6 +94,7 @@ DetectionResult SzSEDetectLEGIT(std::vector<double> V, double sampRate,
   int SEDurLim = ceil(5 * 60 * sampRate);
   double RefInc = 1.2;
 
+  // Determine Reference section
   double Refsize = 2.0;
   int step_size = static_cast<int>(floor(sampRate));
   double TotRefCheck = floor(t.back() / 4);
@@ -328,14 +323,19 @@ DetectionResult SzSEDetectLEGIT(std::vector<double> V, double sampRate,
       if (events[i] && start == -1)
         start = i;
       else if (!events[i] && start != -1) {
-        // Adjust the time values to account for the reversal
-        times.push_back(
-            {t[original_size - i], t[original_size - start - 1], 0});
+        double event_power = std::accumulate(moving_varMod.begin() + start,
+                                             moving_varMod.begin() + i, 0.0) /
+                             (i - start);
+        times.push_back({t[start], t[i - 1], event_power});
         start = -1;
       }
     }
-    if (start != -1 && start < t.size())
-      times.push_back({t[0], t[original_size - start - 1], 0});
+    if (start != -1 && start < t.size()) {
+      double event_power = std::accumulate(moving_varMod.begin() + start,
+                                           moving_varMod.end(), 0.0) /
+                           (t.size() - start);
+      times.push_back({t[start], t.back(), event_power});
+    }
     return times;
   };
 

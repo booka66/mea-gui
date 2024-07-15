@@ -112,6 +112,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         pg.setConfigOptions(antialias=False)
+        # pg.setConfigOptions(enableExperimental=True)
+        # pg.setConfigOptions(useOpenGL=True)
         self.file_path = None
         self.tolerance = 40
         self.recording_length = None
