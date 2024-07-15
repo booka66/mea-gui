@@ -1,39 +1,48 @@
-import os
-import sys
 from setuptools import setup, Extension
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 import pybind11
+import os
+import sys
 
 # HDF5 paths
-h5py_path = r"D:\Users\booka66\AppData\Local\Programs\Python\Python311\Lib\site-packages\h5py"
-hdf5_dir = h5py_path  # The .dll files are in the main h5py directory
-hdf5_include_dir = os.path.join(h5py_path, 'include')
-
-# Verify directories exist
-if not os.path.exists(hdf5_dir):
-    raise RuntimeError(f"HDF5 library directory not found: {hdf5_dir}")
-if not os.path.exists(hdf5_include_dir):
-    print(f"Warning: HDF5 include directory not found: {hdf5_include_dir}")
-    print("Using main h5py directory for includes.")
-    hdf5_include_dir = hdf5_dir
+if sys.platform == "darwin":
+    hdf5_dir = "/opt/homebrew/Cellar/hdf5/1.14.3_1"
+    hdf5_include_dir = os.path.join(hdf5_dir, "include")
+    hdf5_lib_dir = os.path.join(hdf5_dir, "lib")
+elif sys.platform == "win32":
+    # Replace these with your actual HDF5 paths on Windows
+    hdf5_include_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64\include"
+    hdf5_lib_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64\lib"
+else:
+    hdf5_include_dir = ""
+    hdf5_lib_dir = ""
 
 # Common compile and link arguments
-compile_args = ["/std:c++17", "/DWIN32", "/D_WINDOWS", "/DH5_BUILT_AS_DYNAMIC_LIB", "/D_CRT_SECURE_NO_WARNINGS"]
+compile_args = ["-std=c++17"]
 link_args = []
 
-# Libraries
-libraries = ["hdf5", "hdf5_hl"]  # Use the base HDF5 library names
+# Platform-specific settings
+if sys.platform == "win32":
+    compile_args = ["/std:c++17"]  # MSVC equivalent of -std=c++17
+    libraries = ["libhdf5_cpp", "libhdf5"]
+else:
+    libraries = ["hdf5_cpp", "hdf5"]
 
 # Add include and lib directories to compile and link args
-compile_args.append(f"/I{hdf5_include_dir}")
-link_args.append(f"/LIBPATH:{hdf5_dir}")
+compile_args.append(f"-I{hdf5_include_dir}")
+link_args.append(f"-L{hdf5_lib_dir}")
+
+cpp_file = "sz_se_detect.cpp" if sys.platform == "darwin" else "sz_se_detect_win.cpp"
 
 ext_modules = [
     Pybind11Extension(
         "sz_se_detect",
-        ["sz_se_detect_win.cpp"],
-        include_dirs=[pybind11.get_include(), hdf5_include_dir],
-        library_dirs=[hdf5_dir],
+        [cpp_file],
+        include_dirs=[
+            pybind11.get_include(),
+            hdf5_include_dir,
+        ],
+        library_dirs=[hdf5_lib_dir],
         libraries=libraries,
         extra_compile_args=compile_args,
         extra_link_args=link_args,
