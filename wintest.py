@@ -1,6 +1,7 @@
 import os
 import sys
 import ctypes
+import platform
 
 
 def print_dll_search_path():
@@ -48,6 +49,17 @@ except ImportError as e:
             print(f"  {dep}: Found")
         except Exception as e:
             print(f"  {dep}: Not found ({e})")
+
+    print("\nAttempting to load HDF5 DLLs explicitly:")
+    hdf5_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64\bin"
+    for dll in ["hdf5.dll", "hdf5_cpp.dll"]:
+        dll_path = os.path.join(hdf5_dir, dll)
+        try:
+            ctypes.CDLL(dll_path)
+            print(f"  {dll}: Loaded successfully from {dll_path}")
+        except Exception as e:
+            print(f"  {dll}: Failed to load from {dll_path}")
+            print(f"    Error: {e}")
 
 print("\nPython version:", sys.version)
 print("Python executable:", sys.executable)
