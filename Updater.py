@@ -11,6 +11,13 @@ GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 def check_for_update():
     try:
+        file_name = (
+            "mea_gui_update_parrish_lab_DELETE_ME.pkg"
+            if sys.platform == "darwin"
+            else "mea_gui_update_parrish_lab_DELETE_ME.exe"
+        )
+        if os.path.exists(os.path.expanduser(f"~/Downloads/{file_name}")):
+            os.remove(os.path.expanduser(f"~/Downloads/{file_name}"))
         response = requests.get(GITHUB_API_URL)
         if response.status_code == 200:
             latest_release = response.json()
