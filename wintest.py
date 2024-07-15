@@ -1,31 +1,54 @@
-from dependencies import DependencyScanner
 import os
+import sys
+import ctypes
 
-# Set the directory where your sz_se_detect.pyd file is located
-module_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Create a DependencyScanner object
-scanner = DependencyScanner(module_dir)
-
-# Scan the sz_se_detect.pyd file
-dependencies = scanner.scan_file(os.path.join(module_dir, "sz_se_detect.pyd"))
-
-# Print out all dependencies and their status
-for dep in dependencies:
-    print(f"Dependency: {dep.name}")
-    print(f"  Found: {dep.found}")
-    if dep.found:
-        print(f"  Path: {dep.path}")
-    else:
-        print(f"  Search paths:")
-        for path in dep.search_paths:
-            print(f"    {path}")
+def print_dll_search_path():
+    print("DLL search path:")
+    for path in os.environ.get("PATH", "").split(os.pathsep):
+        print(f"  {path}")
     print()
 
-# Now try to import the module
+
+def check_file_exists(filename):
+    if os.path.exists(filename):
+        print(f"File exists: {filename}")
+    else:
+        print(f"File does not exist: {filename}")
+
+
+print_dll_search_path()
+
+module_dir = os.path.dirname(os.path.abspath(__file__))
+module_path = os.path.join(module_dir, "sz_se_detect.pyd")
+
+check_file_exists(module_path)
+
+print("\nAttempting to load the module:")
 try:
     import sz_se_detect
 
     print("Module imported successfully!")
 except ImportError as e:
     print(f"Import failed: {e}")
+
+    # Try to load the DLL directly
+    try:
+        ctypes.CDLL(module_path)
+        print("DLL loaded successfully via ctypes!")
+    except Exception as e:
+        print(f"DLL load failed: {e}")
+
+    # Check for common dependencies
+    common_deps = ["hdf5.dll", "hdf5_cpp.dll", "vcruntime140.dll", "msvcp140.dll"]
+    print("\nChecking for common dependencies:")
+    for dep in common_deps:
+        try:
+            ctypes.CDLL(dep)
+            print(f"  {dep}: Found")
+        except Exception as e:
+            print(f"  {dep}: Not found ({e})")
+
+print("\nPython version:", sys.version)
+print("Python executable:", sys.executable)
+print("System architecture:", platform.architecture()[0])
