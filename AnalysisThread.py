@@ -15,16 +15,13 @@ import sz_se_detect
 class CppAnalysisThread(QThread):
     analysis_completed = pyqtSignal(object)
 
-    def __init__(self, file_path, temp_data_path, do_analysis):
+    def __init__(self, file_path, do_analysis):
         super().__init__()
         self.file_path = file_path
-        self.temp_data_path = temp_data_path
         self.do_analysis = do_analysis
 
     def run(self):
-        results = sz_se_detect.processAllChannels(
-            self.file_path, self.temp_data_path, self.do_analysis
-        )
+        results = sz_se_detect.processAllChannels(self.file_path, self.do_analysis)
         self.analysis_completed.emit(results)
 
 
