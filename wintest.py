@@ -3,7 +3,7 @@ import numpy as np
 
 # Assuming processAllChannels is a function in your module
 results = sz_se_detect.processAllChannels(
-    "D:\\Users\\booka66\\Downloads\\5_13_24_slice1B_resample_100.brw", True
+    "~/Jake-Squared/Sz_SE_Detection/5_13_24_slice1B_resample_100.brw", True
 )
 
 for result in results:
