@@ -521,7 +521,7 @@ class MainWindow(QMainWindow):
         self.speed_combo.setCurrentIndex(2)
         self.speed_combo.currentIndexChanged.connect(self.setPlaybackSpeed)
 
-        self.speed_combo.view().setMinimumWidth(100)
+        self.speed_combo.view().setMinimumWidth(50)
         self.progress_bar.control_layout.addWidget(self.speed_combo)
 
         self.set_widgets_enabled()
