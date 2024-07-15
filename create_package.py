@@ -105,9 +105,24 @@ async def upload_or_update_asset(session, release_data, file_path):
                     print(await response.text())
 
 
+def increment_tag():
+    # Increment the last digit of the tag
+    with open("Constants.py", "r") as f:
+        content = f.read()
+    match = re.search(r'VERSION = "v(\d+\.\d+\.)(\d+)"', content)
+    if match:
+        major_minor = match.group(1)
+        last_digit = int(match.group(2))
+        new_tag = f"v{major_minor}{last_digit + 1}"
+        return new_tag
+    return "Wah wah wahhhhh"
+
+
 async def main(tag=None, no_package=False):
     if tag:
         # Validate tag format (e.g., v1.0.0)
+        if tag == "next":
+            tag = increment_tag()
         if not re.match(r"^v\d+\.\d+\.\d+$", tag):
             print("Invalid tag format. Please use vX.Y.Z (e.g., v1.0.0)")
             return
