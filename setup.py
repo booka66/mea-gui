@@ -5,39 +5,24 @@ import os
 import sys
 
 # HDF5 paths
-if sys.platform == "darwin":
-    hdf5_dir = "/opt/homebrew/Cellar/hdf5/1.14.3_1"
-    hdf5_include_dir = os.path.join(hdf5_dir, "include")
-    hdf5_lib_dir = os.path.join(hdf5_dir, "lib")
-elif sys.platform == "win32":
-    # Replace these with your actual HDF5 paths on Windows
-    hdf5_include_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64\include"
-    hdf5_lib_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64\lib"
-else:
-    hdf5_include_dir = ""
-    hdf5_lib_dir = ""
-
-# Common compile and link arguments
-compile_args = ["-std=c++17"]
-link_args = []
-
-# Platform-specific settings
-if sys.platform == "win32":
-    compile_args = ["/std:c++17"]  # MSVC equivalent of -std=c++17
-    libraries = ["libhdf5_cpp", "libhdf5"]
-else:
+hdf5_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64"
+hdf5_include_dir = os.path.join(hdf5_dir, "include")
+hdf5_lib_dir = os.path.join(hdf5_dir, "lib")
+# Add HDF5 bin directory to PATH (for dynamic libraries)
+os.environ["PATH"] = os.path.join(hdf5_dir, "bin") + os.pathsep + os.environ["PATH"]
+# Choose between static and dynamic libraries
+use_dynamic = True  # Set to False for static libraries
+if use_dynamic:
+    compile_args = ["/std:c++17", f"/I{hdf5_include_dir}", "/DH5_BUILT_AS_DYNAMIC_LIB"]
     libraries = ["hdf5_cpp", "hdf5"]
-
-# Add include and lib directories to compile and link args
-compile_args.append(f"-I{hdf5_include_dir}")
-link_args.append(f"-L{hdf5_lib_dir}")
-
-cpp_file = "sz_se_detect.cpp" if sys.platform == "darwin" else "sz_se_detect_win.cpp"
-
+else:
+    compile_args = ["/std:c++17", f"/I{hdf5_include_dir}"]
+    libraries = ["libhdf5_cpp", "libhdf5"]
+link_args = [f"/LIBPATH:{hdf5_lib_dir}"]
 ext_modules = [
     Pybind11Extension(
         "sz_se_detect",
-        [cpp_file],
+        ["sz_se_detect_win.cpp"],
         include_dirs=[
             pybind11.get_include(),
             hdf5_include_dir,
@@ -48,7 +33,6 @@ ext_modules = [
         extra_link_args=link_args,
     ),
 ]
-
 setup(
     name="sz_se_detect",
     version="0.0.1",
