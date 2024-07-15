@@ -26,8 +26,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "D:\Users\booka66\mea-gui\dist\main\main.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
-Source: "D:\Users\booka66\mea-gui\dist\main\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "main.exe"
+Source: "D:\Users\booka66\mea-gui\dist\main.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
 Source: "D:\Users\booka66\mea-gui\fonts\HackNerdFontMono-Regular.ttf"; DestDir: "{fonts}"; FontInstall: "Hack Nerd Font Mono"; Flags: ignoreversion uninsneveruninstall
 Source: "{#MyAppIconName}"; DestDir: "{app}"; Flags: ignoreversion
 
