@@ -115,11 +115,10 @@ async def main(tag=None, no_package=False):
         update_constants_file(tag)
 
     print(f"Creating {'package' if not no_package else 'application'}...")
-    pyinstaller_command = """pyinstaller --noconfirm --onedir --windowed main.py --icon=icon.ico --add-data "SzDetectCat.m:." --add-data "save_channel_to_mat.m:." --add-data "getChs.m:." --add-data "get_cat_envelop.m:." --additional-hooks-dir "hooks" --add-data "*.m:."
-    """
 
     if sys.platform == "darwin":
-        pyinstaller_command = "sudo " + pyinstaller_command
+        pyinstaller_command = """sudo pyinstaller --noconfirm --onedir --windowed main.py --icon=icon.ico --add-data "SzDetectCat.m:." --add-data "save_channel_to_mat.m:." --add-data "getChs.m:." --add-data "get_cat_envelop.m:." --additional-hooks-dir "hooks" --add-data "*.m:."
+        """
         package_commands = [
             "rm -rf package_root/Applications/MEA\\ GUI.app",
             "cp -R dist/main.app package_root/Applications/MEA\\ GUI.app ",
@@ -128,6 +127,8 @@ async def main(tag=None, no_package=False):
         ]
         package_file = "MEA_GUI_MacOS.pkg"
     else:
+        pyinstaller_command = """pyinstaller --noconfirm --onedir --windowed main.py --icon=icon.ico --add-data "sz_se_detect.cp311-win_amd64.pyd" --add-data "hdf5.dll:." --add-data "hdf5_cpp.dll:." --add-data "SzDetectCat.m:." --add-data "save_channel_to_mat.m:." --add-data "getChs.m:." --add-data "get_cat_envelop.m:." --additional-hooks-dir "hooks" --add-data "*.m:."
+            """
         package_commands = [
             r'"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q MEA_GUI_Installer.iss'
         ]
