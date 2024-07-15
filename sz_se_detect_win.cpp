@@ -3,14 +3,12 @@
 #include <atomic>
 #include <cmath>
 #include <cstdlib> // for getenv
-#include <future>
 #include <iostream>
 #include <mutex>
 #include <numeric>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <queue>
 #include <string>
 #include <thread>
 #include <vector>
@@ -561,14 +559,10 @@ processAllChannels(const std::string &filename, bool do_analysis) {
     std::cout << "processAllChannels: Sampling rate: " << sampRate << std::endl;
 
     std::vector<ChannelDetectionResult> allResults(channelDataList.size());
-    std::atomic<size_t> processedCount(0);
-    std::mutex resultsMutex;
-    std::mutex coutMutex;
 
-    // Define the worker function
-    auto processChannel = [&](size_t index) {
+    for (size_t i = 0; i < channelDataList.size(); ++i) {
       try {
-        const auto &channelData = channelDataList[index];
+        const auto &channelData = channelDataList[i];
         ChannelDetectionResult channelResult;
         channelResult.Row = channelData.name[0];
         channelResult.Col = channelData.name[1];
@@ -582,44 +576,19 @@ processAllChannels(const std::string &filename, bool do_analysis) {
         channelResult.result =
             SzSEDetectLEGIT(channelData.signal, sampRate, t, do_analysis);
 
-        {
-          std::lock_guard<std::mutex> lock(resultsMutex);
-          allResults[index] = std::move(channelResult);
-        }
+        allResults[i] = std::move(channelResult);
 
-        size_t currentProcessed = ++processedCount;
-        if (currentProcessed % 10 == 0 ||
-            currentProcessed == channelDataList.size()) {
-          std::lock_guard<std::mutex> lock(coutMutex);
-          std::cout << "processAllChannels: Processed " << currentProcessed
-                    << " of " << channelDataList.size() << " channels"
-                    << std::endl;
+        if ((i + 1) % 10 == 0 || i == channelDataList.size() - 1) {
+          std::cout << "processAllChannels: Processed " << (i + 1) << " of "
+                    << channelDataList.size() << " channels" << std::endl;
         }
       } catch (const std::exception &e) {
-        std::lock_guard<std::mutex> lock(coutMutex);
-        std::cerr << "Error processing channel " << index << ": " << e.what()
+        std::cerr << "Error processing channel " << i << ": " << e.what()
                   << std::endl;
+        // Optionally, you can choose to continue processing other channels
+        // or throw an exception to stop the entire process
+        // throw;
       }
-    };
-
-    // Create a thread pool
-    unsigned int numThreads = std::thread::hardware_concurrency();
-    std::vector<std::thread> threads;
-    std::queue<std::future<void>> futures;
-
-    // Process channels using the thread pool
-    for (size_t i = 0; i < channelDataList.size(); ++i) {
-      if (futures.size() >= numThreads) {
-        futures.front().wait();
-        futures.pop();
-      }
-      futures.push(std::async(std::launch::async, processChannel, i));
-    }
-
-    // Wait for all tasks to complete
-    while (!futures.empty()) {
-      futures.front().wait();
-      futures.pop();
     }
 
     std::cout << "processAllChannels: Finished processing all channels"

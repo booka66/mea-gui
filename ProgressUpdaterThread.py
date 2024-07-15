@@ -17,9 +17,7 @@ class ProgressUpdaterThread(QThread):
             if not os.path.exists(self.temp_data_path):
                 temp_files = []
             else:
-                temp_files = [
-                    f for f in os.listdir(self.temp_data_path) if f.endswith(".mat")
-                ]
+                temp_files = [f for f in os.listdir(self.temp_data_path)]
             num_files = len(temp_files)
             elapsed_time = perf_counter() - self.start_time
             hours = int(elapsed_time // 3600)

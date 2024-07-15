@@ -36,18 +36,21 @@ def download_and_install_update(release):
             break
 
     if download_url:
+        file_name = (
+            "mea_gui_update_parrish_lab_DELETE_ME.pkg"
+            if sys.platform == "darwin"
+            else "mea_gui_update_parrish_lab_DELETE_ME.exe"
+        )
         if sys.platform == "darwin":
             print("Downloading and installing update...")
             # Download to downloads folder
             download_folder = os.path.expanduser("~/Downloads")
-            file_name = "mea_gui_update_" + VERSION + ".pkg"
             os.system(f"curl -sL {download_url} -o {download_folder}/{file_name}")
             os.system(f"open {download_folder}/{file_name}")
             print("Update installed successfully.")
             return True
         elif sys.platform == "win32":
             download_folder = os.path.expanduser("~\\Downloads")
-            file_name = "mea_gui_update_" + VERSION + ".exe"
             os.system(f"curl -sL {download_url} -o {download_folder}\\{file_name}")
             os.system(f"start {download_folder}\\{file_name}")
             print("Update installed successfully.")
