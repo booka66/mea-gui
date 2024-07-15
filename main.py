@@ -405,10 +405,15 @@ class MainWindow(QMainWindow):
         self.right_pane.setLayout(self.right_layout)
         self.main_tab_layout.addWidget(self.right_pane)
 
+        # Create a splitter for the right pane
+        self.right_splitter = QSplitter(Qt.Vertical)
+        self.right_layout.addWidget(self.right_splitter)
+
+        # Add graph pane to the splitter
         self.graph_pane = QWidget()
         self.graph_layout = QVBoxLayout()
         self.graph_pane.setLayout(self.graph_layout)
-        self.right_layout.addWidget(self.graph_pane)
+        self.right_splitter.addWidget(self.graph_pane)
 
         self.graph_widget = GraphWidget(self)
         self.graph_layout.addWidget(self.graph_widget)
@@ -418,10 +423,11 @@ class MainWindow(QMainWindow):
         )
         self.graph_widget.save_all_plots.connect(self.save_channel_plots)
 
+        # Add settings pane to the splitter
         self.settings_pane = QWidget()
         self.settings_layout = QVBoxLayout()
         self.settings_pane.setLayout(self.settings_layout)
-        self.right_layout.addWidget(self.settings_pane)
+        self.right_splitter.addWidget(self.settings_pane)
 
         self.settings_top_layout = QHBoxLayout()
         self.settings_layout.addLayout(self.settings_top_layout)

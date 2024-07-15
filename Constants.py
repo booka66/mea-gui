@@ -1,6 +1,6 @@
 from PyQt5.QtGui import QColor
 
-VERSION = "v1.0.9"
+VERSION = "v1.0.8"
 
 BACKGROUND = QColor("#4a4e69")
 ACTIVE = QColor("#808080")
