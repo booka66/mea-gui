@@ -20,7 +20,7 @@ def check_file_exists(filename):
 print_dll_search_path()
 
 module_dir = os.path.dirname(os.path.abspath(__file__))
-module_path = os.path.join(module_dir, "sz_se_detect.pyd")
+module_path = os.path.join(module_dir, "sz_se_detect.cp311-win_amd64.pyd")
 
 check_file_exists(module_path)
 
