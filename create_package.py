@@ -127,7 +127,7 @@ async def main(tag=None, no_package=False):
         ]
         package_file = "MEA_GUI_MacOS.pkg"
     else:
-        pyinstaller_command = """pyinstaller --collect-submodules=sz_se_detect --noconfirm --onefile --windowed main.py --icon=icon.ico --add-data "sz_se_detect.cp311-win_amd64.pyd:." --add-data "hdf5.dll:." --add-data "hdf5_cpp.dll:." --add-data "SzDetectCat.m:." --add-data "save_channel_to_mat.m:." --add-data "getChs.m:." --add-data "get_cat_envelop.m:." --additional-hooks-dir "hooks" --add-data "*.m:."
+        pyinstaller_command = """pyinstaller --collect-submodules=sz_se_detect --noconfirm --onedir main.py --icon=icon.ico --add-data "sz_se_detect.cp311-win_amd64.pyd:." --add-data "hdf5.dll:." --add-data "hdf5_cpp.dll:." --add-data "SzDetectCat.m:." --add-data "save_channel_to_mat.m:." --add-data "getChs.m:." --add-data "get_cat_envelop.m:." --additional-hooks-dir "hooks" --add-data "*.m:."
             """
         package_commands = [
             r'"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q MEA_GUI_Installer.iss'
