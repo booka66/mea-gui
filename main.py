@@ -112,8 +112,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         pg.setConfigOptions(antialias=False)
-        # pg.setConfigOptions(enableExperimental=True)
-        # pg.setConfigOptions(useOpenGL=True)
+        pg.setConfigOptions(enableExperimental=True)
+        pg.setConfigOptions(useOpenGL=True)
         self.file_path = None
         self.tolerance = 40
         self.recording_length = None
@@ -2931,6 +2931,8 @@ else:
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()
     if not any(font_name in font for font in QFontDatabase().families()):
