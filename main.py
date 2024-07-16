@@ -111,9 +111,24 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        pg.setConfigOptions(antialias=False)
+        pg.setConfigOptions(antialias=True)
         pg.setConfigOptions(enableExperimental=True)
-        pg.setConfigOptions(useOpenGL=True)
+        try:
+            pg.setConfigOptions(useNumba=True)
+            pg.setConfigOptions(useOpenGL=True)
+            win = pg.plot()
+            win.setWindowTitle('pyqtgraph 2D Plot Test')
+            x = np.linspace(0, 10, 100)
+            y = np.sin(x)
+            win.plot(x, y, pen='r', symbol='o')
+            win.hide()
+            del win
+            del x, y
+        except Exception as e:
+            print(f"Error: {e}")
+            pg.setConfigOptions(antialias=False)
+            pg.setConfigOptions(enableExperimental=False)
+            pg.setConfigOptions(useOpenGL=False)
         self.file_path = None
         self.tolerance = 40
         self.recording_length = None

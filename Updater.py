@@ -2,6 +2,9 @@ import os
 import sys
 import requests
 from packaging import version
+import urllib.request
+import subprocess
+from multiprocessing import Process, freeze_support
 
 from Constants import VERSION
 
@@ -48,20 +51,38 @@ def download_and_install_update(release):
             if sys.platform == "darwin"
             else "mea_gui_update_parrish_lab_DELETE_ME.exe"
         )
-        if sys.platform == "darwin":
-            print("Downloading and installing update...")
-            # Download to downloads folder
-            download_folder = os.path.expanduser("~/Downloads")
-            os.system(f"curl -sL {download_url} -o {download_folder}/{file_name}")
-            os.system(f"open {download_folder}/{file_name}")
-            print("Update installed successfully.")
-            return True
-        elif sys.platform == "win32":
-            download_folder = os.path.expanduser("~\\Downloads")
-            os.system(f"curl -sL {download_url} -o {download_folder}\\{file_name}")
-            os.system(f"start {download_folder}\\{file_name}")
-            print("Update installed successfully.")
-            return True
+        download_folder = os.path.join(os.path.expanduser("~"), "Downloads")
+        file_path = os.path.join(download_folder, file_name)
+
+        # Ensure the download folder exists
+        os.makedirs(download_folder, exist_ok=True)
+
+        print(f"Downloading {download_url} to {file_path}")
+
+        # Download the file
+        try:
+            urllib.request.urlretrieve(download_url, file_path)
+        except Exception as e:
+            print(f"Error downloading file: {e}")
+            return
+
+        print("Download completed.")
+
+        # Run the file
+        try:
+            if sys.platform == "win32":
+                os.startfile(file_path)
+            elif sys.platform == "darwin":
+                freeze_support()
+                Process(target=subprocess.run, args=(["open", file_path],)).start()
+                return True
+            else:
+                freeze_support()
+                Process(target=subprocess.run, args=(["xdg-open", file_path],)).start()
+                return True
+            print(f"Launched {file_path}")
+        except Exception as e:
+            print(f"Error launching file: {e}")
     else:
         print("No suitable update found for your platform.")
         return False

@@ -9,7 +9,12 @@ from PyQt5.QtCore import QThread, pyqtSignal
 
 from alert import alert
 from ProgressUpdaterThread import ProgressUpdaterThread
-import sz_se_detect
+
+cpp_import_failed = False
+try:
+    import sz_se_detect
+except ImportError:
+    cpp_import_failed = True
 
 
 class CppAnalysisThread(QThread):
@@ -78,7 +83,7 @@ class AnalysisThread(QThread):
         # Create temporary directory if it doesn't exist
         os.makedirs(self.temp_data_path, exist_ok=True)
         try:
-            if self.eng is None or self.use_cpp:
+            if self.eng is None or (self.use_cpp and not cpp_import_failed):
                 print("Using c++ version")
                 cpp_thread = CppAnalysisThread(self.file_path, self.do_analysis)
                 cpp_thread.analysis_completed.connect(self.process_cpp_results)

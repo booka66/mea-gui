@@ -1,9 +1,9 @@
-from PyQt5.QtSvg import QSvgGenerator
 import colorsys
 import numpy as np
 import pyqtgraph as pg
-from PyQt5.QtCore import QRect, QSize, Qt
-from PyQt5.QtGui import QColor, QFont, QPainter
+import pyqtgraph.exporters
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import QFileDialog, QGraphicsDropShadowEffect, QMessageBox
 from scipy.signal import find_peaks
 from CustomViewBox import RasterViewBoxMenu
@@ -443,16 +443,13 @@ class RasterPlot:
 
     def save_raster_plot(self):
         file_dialog = QFileDialog()
-        default_file = os.path.join(
-            os.path.expanduser("~/Downloads"), "raster_plot.svg"
-        )
+        default_file = os.path.join(os.path.expanduser("~/Downloads"), "raster_plot")
         file_path, _ = file_dialog.getSaveFileName(
             self.main_window,
             "Save Raster Plot",
             default_file,
             "PNG Files (*.png);;SVG Files (*.svg)",
         )
-
         if file_path:
             if file_path.lower().endswith(".svg"):
                 self.export_as_svg(file_path)
@@ -466,24 +463,8 @@ class RasterPlot:
                 )
 
     def export_as_svg(self, file_path):
-        # Create a QSvgGenerator object
-        generator = QSvgGenerator()
-        generator.setFileName(file_path)
-        generator.setSize(QSize(800, 600))
-        generator.setViewBox(QRect(0, 0, 800, 600))
-        generator.setTitle("Raster Plot")
-        generator.setDescription("Raster plot generated from PyQt application")
-
-        # Create a QPainter to paint on the SVG generator
-        painter = QPainter()
-        painter.begin(generator)
-
-        # Render the plot onto the SVG
-        self.plot_widget.scene().render(painter)
-
-        # End painting
-        painter.end()
-
+        exporter = pg.exporters.SVGExporter(self.plot_widget.plotItem)
+        exporter.export(file_path)
         QMessageBox.information(
             self.main_window,
             "Export Successful",
@@ -491,8 +472,13 @@ class RasterPlot:
         )
 
     def export_as_png(self, file_path):
-        pixmap = self.plot_widget.grab()
-        pixmap.save(file_path, "PNG")
+        exporter = pg.exporters.ImageExporter(self.plot_widget.plotItem)
+        # Make it higher resolution (4x the orginal plot size)
+        height = self.plot_widget.height() * 4
+        width = self.plot_widget.width() * 4
+        exporter.parameters()["height"] = height
+        exporter.parameters()["width"] = width
+        exporter.export(file_path)
         QMessageBox.information(
             self.main_window,
             "Export Successful",

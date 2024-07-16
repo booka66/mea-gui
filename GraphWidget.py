@@ -443,6 +443,20 @@ class GraphWidget(QWidget):
         if plot_index == 0:
             self.update_minimap()
 
+    def restore_points(self, plot_index):
+        x = self.x_data[plot_index]
+        y = self.y_data[plot_index]
+        self.plots[plot_index].setData(x, y)
+
+    def get_num_points(self, plot_index):
+        return len(self.x_data[plot_index])
+
+    def downsample_plot(self, plot_index, num_points=GRAPH_DOWNSAMPLE):
+        x = self.x_data[plot_index]
+        y = self.y_data[plot_index]
+        downsample_x, downsample_y = self.downsample_data(x, y, num_points)
+        self.plots[plot_index].setData(downsample_x, downsample_y)
+
     def downsample_data(self, x, y, num_points):
         if len(x) <= num_points:
             return x, y
