@@ -1,10 +1,4 @@
-from PyQt5.QtGui import (
-    QImage,
-    QIntValidator,
-    QOpenGLFramebufferObject,
-    QOpenGLPaintDevice,
-    QPainter,
-)
+from PyQt5.QtGui import QImage, QIntValidator, QPainter
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtWidgets import (
     QCheckBox,
@@ -209,15 +203,40 @@ def save_mea_with_plots(self):
 
 
 def save_mea_with_selected_plots(self, selected_plots, file_path, file_format):
-    scale_factor = 4
-    mea_width = self.grid_widget.width() * scale_factor
-    mea_height = self.grid_widget.height() * scale_factor
+    mea_width = self.grid_widget.width()
+    mea_height = self.grid_widget.height()
 
     # Determine the width of the plots
-    plot_width = max(p.width() for p in selected_plots) * scale_factor
+    plot_width = max(p.width() for p in selected_plots)
 
     image_width = mea_width + plot_width
     image_height = mea_height
+
+    # Create a QImage to draw on
+    image = QImage(image_width, image_height, QImage.Format_ARGB32)
+    image.fill(Qt.white)
+
+    painter = QPainter(image)
+
+    # Draw MEA grid
+    grid_pixmap = self.grid_widget.grab()
+    painter.drawPixmap(0, 0, grid_pixmap)
+
+    # Draw plots vertically stacked without spacing
+    for i, plot_widget in enumerate(selected_plots[:4]):  # Limit to 4 plots
+        x = mea_width
+        y = i * (mea_height // 4)  # Divide total height by 4 for each plot
+        plot_height = mea_height // 4  # Height of each plot
+
+        # Grab the plot and scale it to fit exactly
+        plot_pixmap = plot_widget.grab()
+        scaled_pixmap = plot_pixmap.scaled(
+            plot_width, plot_height, Qt.IgnoreAspectRatio, Qt.SmoothTransformation
+        )
+
+        painter.drawPixmap(x, y, scaled_pixmap)
+
+    painter.end()
 
     if file_format == "SVG Files (*.svg)":
         # Save as SVG
@@ -225,34 +244,11 @@ def save_mea_with_selected_plots(self, selected_plots, file_path, file_format):
         svg_generator.setFileName(file_path)
         svg_generator.setSize(QSize(image_width, image_height))
         svg_generator.setViewBox(QRect(0, 0, image_width, image_height))
-        painter = QPainter(svg_generator)
+
+        svg_painter = QPainter(svg_generator)
+        svg_painter.drawImage(QRect(0, 0, image_width, image_height), image)
+        svg_painter.end()
     else:
-        # Create a QImage to draw on for PNG
-        image = QImage(image_width, image_height, QImage.Format_ARGB32)
-        image.fill(Qt.white)
-        painter = QPainter(image)
-
-    painter.setRenderHint(QPainter.Antialiasing, True)
-    painter.setRenderHint(QPainter.TextAntialiasing, True)
-    painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
-
-    # Draw MEA grid with scaling
-    grid_pixmap = self.grid_widget.grab().scaled(
-        mea_width, mea_height, Qt.KeepAspectRatio, Qt.SmoothTransformation
-    )
-    painter.drawPixmap(0, 0, grid_pixmap)
-
-    # Draw plots vertically stacked without spacing
-    for i, plot_widget in enumerate(selected_plots[:4]):  # Limit to 4 plots
-        x = mea_width
-        y = i * (mea_height // 4)  # Divide total height by 4 for each plot
-
-        # Use OpenGL rendering for the plot
-        render_opengl_widget(painter, plot_widget, x, y, scale_factor)
-
-    painter.end()
-
-    if file_format != "SVG Files (*.svg)":
         # Save as PNG
         image.save(file_path, "PNG")
 
@@ -300,7 +296,8 @@ def save_plots_to_image(
 
         y_offset = 0
         for plot_widget in selected_plots:
-            render_opengl_widget(painter, plot_widget, 0, y_offset, 1)
+            plot_pixmap = plot_widget.grab()
+            painter.drawPixmap(0, y_offset, plot_pixmap)
             y_offset += plot_widget.height()
 
         painter.end()
@@ -319,8 +316,21 @@ def save_plots_to_image(
 
         y_offset = 0
         for plot_widget in selected_plots:
-            render_opengl_widget(
-                painter, plot_widget, 0, y_offset * scale_factor, scale_factor
+            plot_pixmap = plot_widget.grab()
+
+            scaled_pixmap = plot_pixmap.scaled(
+                max_width * scale_factor,
+                plot_widget.height() * scale_factor,
+                Qt.KeepAspectRatioByExpanding,
+                Qt.SmoothTransformation,
+            )
+
+            painter.drawPixmap(
+                0,
+                y_offset * scale_factor,
+                max_width * scale_factor,
+                plot_widget.height() * scale_factor,
+                scaled_pixmap,
             )
             y_offset += plot_widget.height()
 
@@ -333,28 +343,6 @@ def save_plots_to_image(
         self.toggle_mini_map(self.toggleMiniMapAction.isChecked())
     if hide_red_lines:
         self.graph_widget.show_red_lines()
-
-
-def render_opengl_widget(painter, widget, x, y, scale_factor):
-    fbo = QOpenGLFramebufferObject(widget.size() * scale_factor)
-    fbo.bind()
-
-    paint_device = QOpenGLPaintDevice(fbo.size())
-
-    gl_painter = QPainter(paint_device)
-
-    widget.render(gl_painter)
-
-    gl_painter.end()
-
-    fbo_image = fbo.toImage()
-
-    painter.drawImage(
-        QRect(x, y, widget.width() * scale_factor, widget.height() * scale_factor),
-        fbo_image,
-    )
-
-    fbo.release()
 
 
 def save_grid_as_png(self):

@@ -1,4 +1,4 @@
-from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtCore import QTimer, pyqtSignal, Qt
 from PyQt5.QtWidgets import (
     QApplication,
     QMessageBox,
@@ -109,7 +109,9 @@ class GraphWidget(QWidget):
             plot_widget.setBackground("w")
 
             plot_widget.getPlotItem().getViewBox().sigRangeChanged.connect(
-                self.update_minimap
+                lambda view_box, range_: self.sync_ranges(
+                    i, range_[0], update_minimap=True
+                )
             )
 
             plot_widget.scene().sigMouseMoved.connect(
@@ -118,60 +120,86 @@ class GraphWidget(QWidget):
 
             self.plots_layout.addWidget(plot_widget)
 
+        self.sync_timer = QTimer()
+        self.sync_timer.setSingleShot(True)
+        self.sync_timer.timeout.connect(self.apply_synced_range)
+
+        self.synced_range = None
         self.plots = [
             plot_widget.plot(pen=pg.mkPen(color=(0, 0, 255), width=STROKE_WIDTH))
             for plot_widget in self.plot_widgets
         ]
 
-    def minimap_region_changed(self):
-        if not self.updating_from_plot:
-            self.updating_from_minimap = True
-            self.update_plot_views()
-            self.updating_from_minimap = False
-
-    def update_plot_views(self):
-        if self.updating_from_minimap:
-            # Get the current region of the minimap
-            region_min, region_max = self.minimap_region.getRegion()
-
-            # Update the view range for all plot widgets
-            for plot_widget in self.plot_widgets:
-                view_box = plot_widget.getPlotItem().getViewBox()
-                view_box.setRange(xRange=(region_min, region_max), padding=0)
-
-    def update_minimap(self):
+    def sync_ranges(self, source_index, x_range, update_minimap=False):
         if self.updating_from_minimap:
             return
 
-        if self.do_show_mini_map:
-            self.updating_from_plot = True
-            active_x_data = self.x_data[self.active_plot_index]
-            active_y_data = self.y_data[self.active_plot_index]
+        self.synced_range = x_range
+        if not self.sync_timer.isActive():
+            self.sync_timer.start(100)
 
-            if active_x_data is None or active_y_data is None:
-                self.updating_from_plot = False
-                return
+        if update_minimap:
+            self.update_minimap()
 
-            # Only update the minimap data if the active plot has changed
-            if self.active_plot_index != self.last_active_plot_index:
-                downsampled_x, downsampled_y = self.downsample_data(
-                    active_x_data, active_y_data, GRAPH_DOWNSAMPLE // 2
+    def apply_synced_range(self):
+        if self.synced_range is None:
+            return
+
+        for i, plot_widget in enumerate(self.plot_widgets):
+            if (
+                plot_widget.getPlotItem().getViewBox().viewRange()[0]
+                != self.synced_range
+            ):
+                plot_widget.getPlotItem().getViewBox().setXRange(
+                    *self.synced_range, padding=0
                 )
-                self.minimap_plot.setData(downsampled_x, downsampled_y)
-                self.last_active_plot_index = self.active_plot_index
 
-            # Always update the region
-            view_range = (
-                self.plot_widgets[self.active_plot_index]
-                .getPlotItem()
-                .getViewBox()
-                .viewRange()
-            )
-            x_min, x_max = view_range[0]
-            self.minimap_region.setRegion((x_min, x_max))
+        self.synced_range = None
+
+    def update_minimap(self):
+        if self.updating_from_minimap or not self.do_show_mini_map:
+            return
+
+        self.updating_from_plot = True
+        active_x_data = self.x_data[self.active_plot_index]
+        active_y_data = self.y_data[self.active_plot_index]
+
+        if active_x_data is None or active_y_data is None:
             self.updating_from_plot = False
-        else:
-            self.minimap_plot.setData([], [])
+            return
+
+        # Only update the minimap data if the active plot has changed
+        if self.active_plot_index != self.last_active_plot_index:
+            downsampled_x, downsampled_y = self.downsample_data(
+                active_x_data, active_y_data, GRAPH_DOWNSAMPLE // 2
+            )
+            self.minimap_plot.setData(downsampled_x, downsampled_y)
+            self.last_active_plot_index = self.active_plot_index
+
+        # Always update the region
+        view_range = (
+            self.plot_widgets[self.active_plot_index]
+            .getPlotItem()
+            .getViewBox()
+            .viewRange()
+        )
+        x_min, x_max = view_range[0]
+        self.minimap_region.setRegion((x_min, x_max))
+        self.updating_from_plot = False
+
+    def minimap_region_changed(self):
+        if self.updating_from_plot:
+            return
+
+        self.updating_from_minimap = True
+        region_min, region_max = self.minimap_region.getRegion()
+
+        for plot_widget in self.plot_widgets:
+            plot_widget.getPlotItem().getViewBox().setXRange(
+                region_min, region_max, padding=0
+            )
+
+        self.updating_from_minimap = False
 
     def toggle_regions(self):
         self.do_show_regions = not self.do_show_regions
@@ -301,9 +329,9 @@ class GraphWidget(QWidget):
             # Recalculate the GRAPH_DOWNSAMPLE for the beginning and end traces
             if len(self.x_data[i]) == 0:
                 continue
-            percent_begninning = len(beginning_trace_x) / len(self.x_data[i])
+            percent_beginning = len(beginning_trace_x) / len(self.x_data[i])
             percent_end = len(end_trace_x) / len(self.x_data[i])
-            num_points_begninning = int(GRAPH_DOWNSAMPLE * percent_begninning)
+            num_points_beginning = int(GRAPH_DOWNSAMPLE * percent_beginning)
             num_points_end = int(GRAPH_DOWNSAMPLE * percent_end)
 
             # Remove existing beginning and end plots
@@ -326,7 +354,7 @@ class GraphWidget(QWidget):
             beginning_downsampled_x, beginning_downsampled_y = self.downsample_data(
                 beginning_trace_x,
                 beginning_trace_y,
-                num_points_begninning,
+                num_points_beginning,
             )
             end_downsampled_x, end_downsampled_y = self.downsample_data(
                 end_trace_x, end_trace_y, num_points_end

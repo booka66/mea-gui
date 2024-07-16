@@ -1,5 +1,6 @@
 import gc
 import math
+from time import perf_counter
 import os
 import sys
 import glob
@@ -111,24 +112,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        pg.setConfigOptions(antialias=True)
-        pg.setConfigOptions(enableExperimental=True)
-        try:
-            pg.setConfigOptions(useNumba=True)
-            pg.setConfigOptions(useOpenGL=True)
-            win = pg.plot()
-            win.setWindowTitle('pyqtgraph 2D Plot Test')
-            x = np.linspace(0, 10, 100)
-            y = np.sin(x)
-            win.plot(x, y, pen='r', symbol='o')
-            win.hide()
-            del win
-            del x, y
-        except Exception as e:
-            print(f"Error: {e}")
-            pg.setConfigOptions(antialias=False)
-            pg.setConfigOptions(enableExperimental=False)
-            pg.setConfigOptions(useOpenGL=False)
+        pg.setConfigOptions(antialias=False)
         self.file_path = None
         self.tolerance = 40
         self.recording_length = None
@@ -568,13 +552,11 @@ class MainWindow(QMainWindow):
             self.download_msg.setStandardButtons(QMessageBox.NoButton)
             self.download_msg.show()
 
-            # Start the update thread
             self.update_thread = UpdateThread(self.latest_release)
             self.update_thread.update_completed.connect(self.on_update_completed)
             self.update_thread.start()
 
     def on_update_completed(self, success):
-        # Close the "Downloading update..." message box
         self.download_msg.close()
 
         if success:
@@ -1957,7 +1939,28 @@ class MainWindow(QMainWindow):
                 )
                 self.graph_widget.plot_widgets[i].addItem(discharge_plot)
 
-    def update_grid(self):
+    def update_grid(self, first=False):
+        start = perf_counter()
+        if first:
+            self.cells = [
+                self.grid_widget.cells[row - 1][col - 1]
+                for row, col in self.active_channels
+            ]
+            self.signals = np.array(
+                [
+                    self.data[row - 1, col - 1]["signal"]
+                    for row, col in self.active_channels
+                ]
+            )
+            self.se_times_list = [
+                self.data[row - 1, col - 1]["SETimes"]
+                for row, col in self.active_channels
+            ]
+            self.seizure_times_list = [
+                self.data[row - 1, col - 1]["SzTimes"]
+                for row, col in self.active_channels
+            ]
+
         current_time = self.progress_bar.value() / self.sampling_rate
 
         if self.do_show_prop_lines and self.custom_region:
@@ -2061,37 +2064,16 @@ class MainWindow(QMainWindow):
         if self.min_strength is None or self.max_strength is None:
             self.get_min_max_strengths()
 
-        rows, cols = zip(*self.active_channels)
-        cells = [
-            self.grid_widget.cells[row - 1][col - 1]
-            for row, col in self.active_channels
-        ]
-        signals = [
-            self.data[row - 1, col - 1]["signal"] for row, col in self.active_channels
-        ]
-        se_times_list = [
-            self.data[row - 1, col - 1]["SETimes"] for row, col in self.active_channels
-        ]
-        seizure_times_list = [
-            self.data[row - 1, col - 1]["SzTimes"] for row, col in self.active_channels
-        ]
-
         if self.do_show_false_color_map:
             bin_start = int((current_time - self.bin_size) * self.sampling_rate)
             bin_end = int((current_time + self.bin_size) * self.sampling_rate)
-            bin_voltages = [signal[bin_start:bin_end] for signal in signals]
+            bin_voltages = [signal[bin_start:bin_end] for signal in self.signals]
 
             if self.overall_min_voltage is None or self.overall_max_voltage is None:
                 ignore_samples = int(10 * self.sampling_rate)
-                trimmed_signals = [
-                    signal[ignore_samples:-ignore_samples] for signal in signals
-                ]
-                self.overall_min_voltage = min(
-                    min(signal) for signal in trimmed_signals
-                )
-                self.overall_max_voltage = max(
-                    max(signal) for signal in trimmed_signals
-                )
+                trimmed_signals = self.signals[:, ignore_samples:-ignore_samples]
+                self.overall_min_voltage = np.min(trimmed_signals)
+                self.overall_max_voltage = np.max(trimmed_signals)
 
             voltage_ranges = []
             for voltages in bin_voltages:
@@ -2118,8 +2100,8 @@ class MainWindow(QMainWindow):
         found_seizure = [False] * len(self.active_channels)
 
         for i, (row, col) in enumerate(self.active_channels):
-            se_times = np.array(se_times_list[i])
-            seizure_times = np.array(seizure_times_list[i])
+            se_times = np.array(self.se_times_list[i])
+            seizure_times = np.array(self.seizure_times_list[i])
 
             if self.do_show_events:
                 if se_times.size > 0:
@@ -2133,7 +2115,7 @@ class MainWindow(QMainWindow):
                             se_color = self.blend_colors(colors[i], SE, strength)
                         else:
                             se_color = SE
-                        cells[i].setColor(se_color, strength**0.25, self.opacity)
+                        self.cells[i].setColor(se_color, strength**0.25, self.opacity)
                         found_se[i] = True
                         if (
                             self.do_show_spread_lines
@@ -2156,7 +2138,7 @@ class MainWindow(QMainWindow):
                             )
                         else:
                             seizure_color = SEIZURE
-                        cells[i].setColor(seizure_color, strength, self.opacity)
+                        self.cells[i].setColor(seizure_color, strength, self.opacity)
                         found_seizure[i] = True
                         if (
                             self.do_show_spread_lines
@@ -2165,7 +2147,7 @@ class MainWindow(QMainWindow):
                             newly_seized_cells.append((row, col))
 
             if not found_se[i] and not found_seizure[i]:
-                cells[i].setColor(colors[i], 1, self.opacity)
+                self.cells[i].setColor(colors[i], 1, self.opacity)
                 if self.do_show_spread_lines and (row, col) in self.seized_cells:
                     cells_to_remove.append((row, col))
 
@@ -2181,6 +2163,8 @@ class MainWindow(QMainWindow):
                 self.remove_seizure_arrows(row, col)
 
         self.grid_widget.update()
+        end = perf_counter()
+        print(f"Grid update took {end - start:.4f} seconds")
 
     def blend_colors(self, color1, color2, strength):
         r1, g1, b1, _ = color1.getRgb()
@@ -2680,6 +2664,7 @@ class MainWindow(QMainWindow):
         print(f"Low-pass filter applied. Cutoff frequency: {cutoff_frequency} Hz")
 
     def on_analysis_completed(self):
+        start = perf_counter()
         self.loading_dialog.hide()
         self.data = self.analysis_thread.data
 
@@ -2696,6 +2681,8 @@ class MainWindow(QMainWindow):
         self.active_channels = self.analysis_thread.active_channels
         self.min_voltage = float("inf")
         self.max_voltage = float("-inf")
+        end = perf_counter()
+        print(f"Data transfered in {end - start:.2f} seconds")
 
         self.peak_settings_widget.threshold_slider.setValue(self.n_std_dev)
         self.peak_settings_widget.threshold_value.setText(str(self.n_std_dev))
@@ -2712,6 +2699,7 @@ class MainWindow(QMainWindow):
             [delta_t_str, "0.1", "0.25", "0.5", "1.0", "2.0", "4.0", "16.0"]
         )
 
+        start = perf_counter()
         for row, col in self.active_channels:
             volt_signal = self.data[row - 1, col - 1]["signal"]
             voltages = np.abs(np.diff(volt_signal))
@@ -2722,11 +2710,21 @@ class MainWindow(QMainWindow):
 
             self.grid_widget.cells[row - 1][col - 1].setCursor(Qt.PointingHandCursor)
 
+        end = perf_counter()
+        print(f"Min/max voltages calculated in {end - start:.2f} seconds")
+
         self.progress_bar.setSamplingRate(self.sampling_rate)
         self.progress_bar.setRange(0, int(self.recording_length * self.sampling_rate))
 
+        start = perf_counter()
         self.create_grid()
-        self.update_grid()
+        end = perf_counter()
+        print(f"Grid created in {end - start:.2f} seconds")
+        start = perf_counter()
+        self.update_grid(first=True)
+        end = perf_counter()
+        print(f"Grid updated in {end - start:.2f} seconds")
+        start = perf_counter()
         self.raster_plot = RasterPlot(
             self.data,
             self.sampling_rate,
@@ -2736,6 +2734,8 @@ class MainWindow(QMainWindow):
         self.raster_plot.generate_raster()
         self.raster_plot.create_raster_plot(self.second_plot_widget)
         self.raster_plot.set_main_window(self)
+        end = perf_counter()
+        print(f"Raster plot created in {end - start:.2f} seconds")
 
         title = "Select Channel"
         for i in range(4):
@@ -2751,13 +2751,13 @@ class MainWindow(QMainWindow):
                 np.array([]),
             )
 
-        for i in range(1, 4):
-            self.graph_widget.plot_widgets[i].setXLink(
-                self.graph_widget.plot_widgets[0]
-            )
-            self.graph_widget.plot_widgets[i].setYLink(
-                self.graph_widget.plot_widgets[0]
-            )
+        # for i in range(1, 4):
+        #     self.graph_widget.plot_widgets[i].setXLink(
+        #         self.graph_widget.plot_widgets[0]
+        #     )
+        #     self.graph_widget.plot_widgets[i].setYLink(
+        #         self.graph_widget.plot_widgets[0]
+        #     )
 
         self.set_widgets_enabled()
 
@@ -2946,8 +2946,6 @@ else:
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()
     if not any(font_name in font for font in QFontDatabase().families()):
