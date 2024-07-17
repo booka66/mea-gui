@@ -57,7 +57,7 @@ class AnalysisThread(QThread):
 
     def process_cpp_results(self, results):
         for result in results:
-            signal = np.array(result.signal, dtype=np.float16).squeeze()
+            signal = np.array(result.signal, dtype=np.float32).squeeze()
             SzTimes = np.array(result.result.SzTimes)
             SETimes = np.array(result.result.SETimes)
             DischargeTimes = np.array(result.result.DischargeTimes)
@@ -123,7 +123,7 @@ class AnalysisThread(QThread):
                     if file.endswith(".mat"):
                         data = loadmat(os.path.join(self.temp_data_path, file))
 
-                        signal = np.array(data["signal"], dtype=np.float16).squeeze()
+                        signal = np.array(data["signal"], dtype=np.float32).squeeze()
 
                         name = np.array(data["name"]).squeeze()
                         SzTimes = (

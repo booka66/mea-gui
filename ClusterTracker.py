@@ -103,8 +103,10 @@ class ClusterTracker:
                     "points": valid_points,
                     "start_point": valid_points[0],
                     "end_point": valid_points[-1],
-                    "time_since_last_discharge": start_time
-                    - self.last_seizure["start_time"]
+                    "time_since_last_discharge": (
+                        start_time - self.last_seizure["start_time"]
+                    )
+                    * 1000
                     if self.last_seizure
                     else 0,
                 }

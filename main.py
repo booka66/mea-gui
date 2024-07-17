@@ -4,6 +4,7 @@ from time import perf_counter
 import os
 import sys
 import glob
+from types import NoneType
 import h5py
 from scipy.signal import butter, filtfilt, spectrogram
 from scipy.interpolate import interp1d
@@ -28,7 +29,8 @@ from Settings import (
     PeakSettingsWidget,
 )
 from ClusterTracker import ClusterLegend, ClusterTracker
-from SignalAnalyzer import SignalAnalyzer
+
+# from SignalAnalyzer import SignalAnalyzer
 from Media import SaveChannelPlotsDialog, save_grid_as_png, save_mea_with_plots
 from ProgressBar import EEGScrubberWidget
 
@@ -94,6 +96,11 @@ from Constants import (
     VERSION,
 )
 
+try:
+    from signal_analyzer import SignalAnalyzer
+except ImportError:
+    print("Failed to import signal_analyzer module.")
+
 
 class UpdateThread(QThread):
     update_completed = pyqtSignal(bool)
@@ -105,6 +112,33 @@ class UpdateThread(QThread):
     def run(self):
         success = download_and_install_update(self.latest_release)
         self.update_completed.emit(success)
+
+
+class DischargeFinder(QThread):
+    finished = pyqtSignal(dict)
+
+    def __init__(self, data, active_channels, signal_analyzer, start, stop):
+        super().__init__()
+        self.data = data
+        self.active_channels = active_channels
+        self.signal_analyzer = signal_analyzer
+        self.start_range = start
+        self.stop_range = stop
+
+    def run(self):
+        discharges = {}
+        for row, col in self.active_channels:
+            volt_signal = self.data[row - 1, col - 1]["signal"]
+            peak_x, peak_y, discharge_start_x, discharge_start_y = (
+                self.signal_analyzer.analyze_signal(
+                    volt_signal, self.start_range, self.stop_range
+                )
+            )
+            discharges[(row - 1, col - 1)] = (
+                discharge_start_x,
+                discharge_start_y,
+            )
+        self.finished.emit(discharges)
 
 
 class MainWindow(QMainWindow):
@@ -161,12 +195,12 @@ class MainWindow(QMainWindow):
         self.centroids = []
         self.eps = 4.8
         self.min_samples = 4
-        self.percentile = 99
         self.max_distance = 10
         self.bin_size = 0.0133
         self.signal_analyzer = None
+        self.show_discharge_peaks = False
         self.active_discharges = []
-        self.snr_threshold = 7
+        self.snr_threshold = 35
         self.current_discharge_index = 0
         self.is_auto_analyzing = False
         self.low_pass_cutoff = 35  # Default value
@@ -980,53 +1014,6 @@ class MainWindow(QMainWindow):
         else:
             self.hide_spread_lines()
 
-    def set_peak_settings(self):
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Set Peak Settings")
-        dialog.setWindowModality(Qt.ApplicationModal)
-        dialog.setMinimumSize(300, 200)
-
-        layout = QVBoxLayout(dialog)
-
-        threshold_layout = QHBoxLayout()
-        threshold_label = QLabel("Peak Threshold:")
-        threshold_input = QLineEdit(str(self.n_std_dev))
-        threshold_layout.addWidget(threshold_label)
-        threshold_layout.addWidget(threshold_input)
-        layout.addLayout(threshold_layout)
-
-        distance_layout = QHBoxLayout()
-        distance_label = QLabel("Distance:")
-        distance_input = QLineEdit(str(self.distance))
-        distance_layout.addWidget(distance_label)
-        distance_layout.addWidget(distance_input)
-        layout.addLayout(distance_layout)
-
-        button_layout = QHBoxLayout()
-        ok_button = QPushButton("Apply")
-        ok_button.clicked.connect(dialog.accept)
-        cancel_button = QPushButton("Cancel")
-        cancel_button.clicked.connect(dialog.reject)
-        button_layout.addWidget(ok_button)
-        button_layout.addWidget(cancel_button)
-        layout.addLayout(button_layout)
-
-        if dialog.exec() == QDialog.Accepted:
-            try:
-                n_std_dev = int(threshold_input.text())
-                distance = int(distance_input.text())
-
-                self.n_std_dev = n_std_dev
-                self.distance = distance
-                self.signal_analyzer.n_std_dev = n_std_dev
-                self.signal_analyzer.distance = distance
-            except ValueError:
-                QMessageBox.warning(
-                    self,
-                    "Invalid Input",
-                    "Invalid input values. Please enter valid numbers.",
-                )
-
     def show_statistics_widgets(self):
         while self.stats_tab_layout.count():
             item = self.stats_tab_layout.takeAt(0)
@@ -1412,6 +1399,7 @@ class MainWindow(QMainWindow):
                     seizures,
                     se,
                 )
+                self.graph_widget.plot_peaks()
 
                 if self.current_region is not None:
                     start, stop = self.current_region
@@ -1474,44 +1462,15 @@ class MainWindow(QMainWindow):
                             self.lock_plots_to_playhead()
                         break
             elif event.key() == Qt.Key_F:
-                for i in range(4):
-                    if self.plotted_channels[i] is not None:
-                        row, col = (
-                            self.plotted_channels[i].row,
-                            self.plotted_channels[i].col,
-                        )
-                        volt_signal = self.data[row, col]["signal"]
-                        start, stop = self.graph_widget.plot_widgets[i].viewRange()[0]
-
-                        peak_x, peak_y, discharge_start_x, discharge_start_y = (
-                            self.signal_analyzer.analyze_signal(
-                                volt_signal, start, stop
-                            )
-                        )
-
-                        for item in self.graph_widget.plot_widgets[i].items():
-                            if isinstance(item, pg.ScatterPlotItem):
-                                self.graph_widget.plot_widgets[i].removeItem(item)
-
-                        peak_plot = pg.ScatterPlotItem(
-                            x=peak_x,
-                            y=peak_y,
-                            symbol="o",
-                            size=5,
-                            brush=pg.mkBrush(color=(255, 0, 0)),
-                            pen=pg.mkPen(color=(255, 0, 0), width=STROKE_WIDTH),
-                        )
-                        self.graph_widget.plot_widgets[i].addItem(peak_plot)
-
-                        discharge_plot = pg.ScatterPlotItem(
-                            x=discharge_start_x,
-                            y=discharge_start_y,
-                            symbol="o",
-                            size=8,
-                            brush=pg.mkBrush(color=(255, 165, 0)),
-                            pen=pg.mkPen(color=(255, 165, 0), width=STROKE_WIDTH),
-                        )
-                        self.graph_widget.plot_widgets[i].addItem(discharge_plot)
+                self.show_discharge_peaks = not self.show_discharge_peaks
+                if not self.show_discharge_peaks:
+                    for i in range(4):
+                        if self.plotted_channels[i] is not None:
+                            for item in self.graph_widget.plot_widgets[i].items():
+                                if isinstance(item, pg.ScatterPlotItem):
+                                    self.graph_widget.plot_widgets[i].removeItem(item)
+                else:
+                    self.graph_widget.plot_peaks()
 
             elif event.key() == Qt.Key_B:
                 self.set_custom_region()
@@ -1559,13 +1518,6 @@ class MainWindow(QMainWindow):
     def keyReleaseEvent(self, event):
         if event.key() == Qt.Key_Shift:
             self.graph_widget.change_view_mode("rect")
-        elif event.key() == Qt.Key_F:
-            print("Clearing peaks")
-            for i in range(4):
-                if self.plotted_channels[i] is not None:
-                    for item in self.graph_widget.plot_widgets[i].items():
-                        if isinstance(item, pg.ScatterPlotItem):
-                            self.graph_widget.plot_widgets[i].removeItem(item)
         elif event.key() in [Qt.Key_R, Qt.Key_H, Qt.Key_J, Qt.Key_K]:
             self.cluster_tracker.clear_plot(self.grid_widget.scene)
 
@@ -1621,7 +1573,7 @@ class MainWindow(QMainWindow):
                     seizure = {
                         "start_time": start_time,
                         "end_time": end_time,
-                        "duration": duration_s * 1000,
+                        "duration": duration_s,
                         "length": length_mm,
                         "avg_speed": avg_speed,
                         "points": points.tolist(),
@@ -1902,42 +1854,23 @@ class MainWindow(QMainWindow):
             channel_group.attrs["start_time"] = start_time
             channel_group.attrs["stop_time"] = stop_time
 
+    def clear_found_discharges(self):
+        self.discharges = {}
+        self.graph_widget.plot_peaks()
+
     def find_discharges(self):
         self.set_custom_region()
         start, stop = self.custom_region
-        for i, (row, col) in enumerate(self.active_channels):
-            volt_signal = self.data[row - 1, col - 1]["signal"]
-            peak_x, peak_y, discharge_start_x, discharge_start_y = (
-                self.signal_analyzer.analyze_signal(volt_signal, start, stop)
-            )
 
-            self.discharges[(row - 1, col - 1)] = (
-                discharge_start_x,
-                discharge_start_y,
-            )
+        self.discharge_finder = DischargeFinder(
+            self.data, self.active_channels, self.signal_analyzer, start, stop
+        )
+        self.discharge_finder.finished.connect(self.on_discharge_finder_finished)
+        self.discharge_finder.start()
 
-        for i in range(4):
-            if self.plotted_channels[i] is not None:
-                row, col = (
-                    self.plotted_channels[i].row,
-                    self.plotted_channels[i].col,
-                )
-
-                discharge_start_x, discharge_start_y = self.discharges[(row, col)]
-
-                for item in self.graph_widget.plot_widgets[i].items():
-                    if isinstance(item, pg.ScatterPlotItem):
-                        self.graph_widget.plot_widgets[i].removeItem(item)
-
-                discharge_plot = pg.ScatterPlotItem(
-                    x=discharge_start_x,
-                    y=discharge_start_y,
-                    symbol="o",
-                    size=8,
-                    brush=pg.mkBrush(color=(255, 165, 0)),
-                    pen=pg.mkPen(color=(255, 165, 0), width=STROKE_WIDTH),
-                )
-                self.graph_widget.plot_widgets[i].addItem(discharge_plot)
+    def on_discharge_finder_finished(self, discharges):
+        self.discharges = discharges
+        self.graph_widget.plot_peaks()
 
     def initialize_data(self):
         self.cells = [
@@ -2126,7 +2059,7 @@ class MainWindow(QMainWindow):
                     newly_seized_cells.append((row, col))
 
     def update_grid(self, first=False):
-        start = perf_counter()
+        # start = perf_counter()
         if first:
             self.initialize_data()
             self.get_min_max_strengths()
@@ -2183,8 +2116,8 @@ class MainWindow(QMainWindow):
                 self.remove_seizure_arrows(row, col)
 
         self.grid_widget.update()
-        end = perf_counter()
-        print(f"Grid update took {end - start:.4f} seconds")
+        # end = perf_counter()
+        # print(f"Grid update took {end - start:.4f} seconds")
 
     def blend_colors(self, color1, color2, strength):
         r1, g1, b1, _ = color1.getRgb()
@@ -2276,8 +2209,6 @@ class MainWindow(QMainWindow):
         for arrow_item in arrows_to_remove:
             self.prop_arrow_items.remove(arrow_item)
 
-        print(f"Removed propagation arrows for cell ({row}, {col})")
-
     def print_propagation_state(self):
         print("\nCurrent Propagation State:")
         print(f"do_show_prop_lines: {self.do_show_prop_lines}")
@@ -2287,7 +2218,6 @@ class MainWindow(QMainWindow):
         print(f"Number of discharges: {len(self.discharges)}")
 
     def draw_prop_arrows(self, row, col):
-        print(f"Drawing propagation arrow for cell ({row}, {col})")
         if len(self.prop_cells) > 1:
             min_distance = float("inf")
             closest_cell = None
@@ -2297,8 +2227,6 @@ class MainWindow(QMainWindow):
                 if distance < min_distance and distance > 0:
                     min_distance = distance
                     closest_cell = (prop_row, prop_col)
-
-            print(f"Closest cell: {closest_cell}, distance: {min_distance}")
 
             if closest_cell and min_distance <= 10:
                 start_cell = self.grid_widget.cells[closest_cell[0]][closest_cell[1]]
@@ -2362,20 +2290,13 @@ class MainWindow(QMainWindow):
                 )
 
                 self.prop_cells.append((row, col))
-                print(f"Added new cell to prop_cells: ({row}, {col})")
 
                 if self.do_show_prop_lines:
                     arrow.show()
                     arrow_head_item.show()
-                    print("Arrow shown")
                 else:
                     arrow.hide()
                     arrow_head_item.hide()
-                    print("Arrow hidden")
-            else:
-                print("No suitable cell found for drawing arrow")
-        else:
-            print("Not enough cells in prop_cells to draw arrow")
 
     def draw_spread_arrows(self, row, col, event_type):
         if len(self.seized_cells) > 1:
@@ -2517,6 +2438,8 @@ class MainWindow(QMainWindow):
                         self.on_analysis_completed
                     )
                     self.hide_spread_lines()
+                    self.show_discharge_peaks = False
+                    self.clear_found_discharges()
                     self.arrow_items = []
                     self.prop_arrow_items = []
                     self.seized_cells = []
@@ -2692,8 +2615,7 @@ class MainWindow(QMainWindow):
         self.max_strength = self.analysis_thread.max_strength
         self.recording_length = self.analysis_thread.recording_length
         self.sampling_rate = self.analysis_thread.sampling_rate
-        self.distance = int(self.sampling_rate / 10)
-        self.bin_size = 100 / self.sampling_rate
+        self.distance = int(self.sampling_rate / 10) + 20
         self.db_scan_settings_widget.set_bin_size_range(1 / self.sampling_rate, 0.5)
         self.cluster_tracker.sampling_rate = self.sampling_rate
         self.fs_range = (0.5, self.sampling_rate / 2)
@@ -2709,8 +2631,12 @@ class MainWindow(QMainWindow):
         self.peak_settings_widget.distance_slider.setValue(self.distance)
         self.peak_settings_widget.distance_value.setText(str(self.distance))
         self.signal_analyzer = SignalAnalyzer(
-            self.time_vector, sampling_rate=self.sampling_rate, distance=self.distance
+            self.time_vector,
+            n_std_dev=4,
+            distance=70,
+            sampling_rate=self.sampling_rate,
         )
+        self.signal_analyzer.snr_threshold = 35
 
         delta_t = 1 / self.sampling_rate
         delta_t_str = str(delta_t)
@@ -2972,7 +2898,7 @@ if __name__ == "__main__":
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Information)
         msg.setText(
-            f"Please install the font: {font_name}. Go to the release page to download the font.\nhttps://github.com/booka66/mea-gui/releases/"
+            f"Please install the font: {font_name}. Go to the first release to download the font.\nhttps://github.com/booka66/mea-gui/releases/"
         )
         msg.setWindowTitle("Font Installation")
         msg.setStandardButtons(QMessageBox.Ok)
@@ -2989,9 +2915,7 @@ if __name__ == "__main__":
         if sys.argv[1]:
             window.file_path = sys.argv[1]
             window.set_widgets_enabled()
-
-            while not window.engine_started:
-                app.processEvents()
+            window.use_cpp = True
             window.run_analysis()
     except IndexError:
         print("No file path provided")

@@ -1,8 +1,7 @@
-from setuptools import setup, Extension
+from setuptools import setup
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 import pybind11
 import os
-import sys
 
 # HDF5 paths
 hdf5_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64"
@@ -31,6 +30,12 @@ ext_modules = [
         libraries=libraries,
         extra_compile_args=compile_args,
         extra_link_args=link_args,
+    ),
+    Pybind11Extension(
+        "signal_analyzer",
+        ["signal_analyzer.cpp"],
+        include_dirs=[pybind11.get_include()],
+        extra_compile_args=["/std=c++17", "-O3"],
     ),
 ]
 setup(

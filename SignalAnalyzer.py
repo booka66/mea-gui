@@ -16,7 +16,7 @@ class SignalAnalyzer:
         self.distance = distance
         self.slope_threshold = slope_threshold
         self.sampling_rate = sampling_rate
-        self.baseline_window = int(sampling_rate * 0.1)  # 0.1 second worth of samples
+        self.baseline_window = int(sampling_rate * 0.2)  # 0.1 second worth of samples
         self.snr_threshold = 4
 
     @staticmethod

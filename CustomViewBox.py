@@ -15,6 +15,7 @@ class TraceViewBoxMenu(QMenu):
         find_discharges_action = QAction("Find discharges", self)
         track_discharges_action = QAction("Track discharges", self)
         load_discharges_action = QAction("Load discharges", self)
+        clear_discharges_action = QAction("Clear discharges", self)
         save_single_plot_action = QAction("Save this plot", self)
         save_all_plots_action = QAction("Save all plots", self)
         toggle_regions_action = QAction("Toggle regions", self)
@@ -28,6 +29,9 @@ class TraceViewBoxMenu(QMenu):
         load_discharges_action.triggered.connect(
             self.parent.main_window.load_discharges
         )
+        clear_discharges_action.triggered.connect(
+            self.parent.main_window.clear_found_discharges
+        )
 
         save_single_plot_action.triggered.connect(self.save_single_plot.emit)
         save_all_plots_action.triggered.connect(self.save_all_plots.emit)
@@ -39,6 +43,7 @@ class TraceViewBoxMenu(QMenu):
         self.addAction(find_discharges_action)
         self.addAction(track_discharges_action)
         self.addAction(load_discharges_action)
+        self.addAction(clear_discharges_action)
         self.addSeparator()
         self.addAction(save_single_plot_action)
         self.addAction(save_all_plots_action)

@@ -141,6 +141,64 @@ class GraphWidget(QWidget):
         if update_minimap:
             self.update_minimap()
 
+    def plot_peaks(self):
+        for i, plot_widget in enumerate(self.plot_widgets):
+            if self.main_window.plotted_channels[i] is not None:
+                row, col = (
+                    self.main_window.plotted_channels[i].row,
+                    self.main_window.plotted_channels[i].col,
+                )
+                if len(self.main_window.discharges) > 0:
+                    discharge_start_x, discharge_start_y = self.main_window.discharges[
+                        (row, col)
+                    ]
+                    for item in self.plot_widgets[i].items():
+                        if isinstance(item, pg.ScatterPlotItem):
+                            self.plot_widgets[i].removeItem(item)
+
+                    discharge_plot = pg.ScatterPlotItem(
+                        x=discharge_start_x,
+                        y=discharge_start_y,
+                        symbol="o",
+                        size=8,
+                        brush=pg.mkBrush(color=(255, 165, 0)),
+                        pen=pg.mkPen(color=(255, 165, 0), width=STROKE_WIDTH),
+                    )
+                    self.plot_widgets[i].addItem(discharge_plot)
+
+                elif self.main_window.show_discharge_peaks:
+                    volt_signal = self.main_window.data[row, col]["signal"]
+                    start, stop = self.plot_widgets[i].viewRange()[0]
+
+                    peak_x, peak_y, discharge_start_x, discharge_start_y = (
+                        self.main_window.signal_analyzer.analyze_signal(
+                            volt_signal, start, stop
+                        )
+                    )
+                    for item in self.plot_widgets[i].items():
+                        if isinstance(item, pg.ScatterPlotItem):
+                            self.plot_widgets[i].removeItem(item)
+
+                    peak_plot = pg.ScatterPlotItem(
+                        x=peak_x,
+                        y=peak_y,
+                        symbol="o",
+                        size=5,
+                        brush=pg.mkBrush(color=(255, 0, 0)),
+                        pen=pg.mkPen(color=(255, 0, 0), width=STROKE_WIDTH),
+                    )
+                    self.plot_widgets[i].addItem(peak_plot)
+
+                    discharge_plot = pg.ScatterPlotItem(
+                        x=discharge_start_x,
+                        y=discharge_start_y,
+                        symbol="o",
+                        size=8,
+                        brush=pg.mkBrush(color=(255, 165, 0)),
+                        pen=pg.mkPen(color=(255, 165, 0), width=STROKE_WIDTH),
+                    )
+                    self.plot_widgets[i].addItem(discharge_plot)
+
     def apply_synced_range(self):
         if self.synced_range is None:
             return
@@ -153,7 +211,8 @@ class GraphWidget(QWidget):
                 plot_widget.getPlotItem().getViewBox().setXRange(
                     *self.synced_range, padding=0
                 )
-
+        if self.main_window.show_discharge_peaks:
+            self.plot_peaks()
         self.synced_range = None
 
     def update_minimap(self):

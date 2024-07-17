@@ -40,7 +40,7 @@ class PeakSettingsWidget(QWidget):
         threshold_layout = QHBoxLayout()
         threshold_label = QLabel("Peak Threshold (std dev):")
         self.threshold_slider = QSlider(Qt.Horizontal)
-        self.threshold_slider.setRange(1, 10)  # Range 1 to 10
+        self.threshold_slider.setRange(1, 20)  # Range 1 to 10
         self.threshold_slider.setValue(int(parent.n_std_dev))
         self.threshold_value = QLineEdit(str(parent.n_std_dev))
         threshold_layout.addWidget(threshold_label)
@@ -52,7 +52,7 @@ class PeakSettingsWidget(QWidget):
         distance_layout = QHBoxLayout()
         distance_label = QLabel("Min Distance Between Peaks:")
         self.distance_slider = QSlider(Qt.Horizontal)
-        self.distance_slider.setRange(1, 500)  # Range 1 to 100
+        self.distance_slider.setRange(1, 100)  # Range 1 to 100
         self.distance_slider.setValue(parent.distance)
         self.distance_value = QLineEdit(str(parent.distance))
         distance_layout.addWidget(distance_label)
@@ -64,7 +64,7 @@ class PeakSettingsWidget(QWidget):
         snr_layout = QHBoxLayout()
         snr_label = QLabel("SNR Threshold:")
         self.snr_slider = QSlider(Qt.Horizontal)
-        self.snr_slider.setRange(1, 10)  # Range 1 to 10
+        self.snr_slider.setRange(1, 100)  # Range 1 to 10
         self.snr_slider.setValue(parent.snr_threshold)
         self.snr_value = QLineEdit(str(parent.snr_threshold))
         snr_layout.addWidget(snr_label)
@@ -86,14 +86,16 @@ class PeakSettingsWidget(QWidget):
         self.snr_value.setText(str(value))
         self.parent.snr_threshold = value
         self.parent.signal_analyzer.snr_threshold = value
+        self.parent.graph_widget.plot_peaks()
 
     def update_snr_from_text(self):
         try:
             snr_threshold = int(self.snr_value.text())
-            if 1 <= snr_threshold <= 10:
+            if 1 <= snr_threshold <= 100:
                 self.snr_slider.setValue(snr_threshold)
                 self.parent.snr_threshold = snr_threshold
                 self.parent.signal_analyzer.snr_threshold = snr_threshold
+                self.parent.graph_widget.plot_peaks()
             else:
                 raise ValueError("SNR threshold must be between 1 and 10.")
         except ValueError:
@@ -103,14 +105,16 @@ class PeakSettingsWidget(QWidget):
         self.threshold_value.setText(str(value))
         self.parent.n_std_dev = value
         self.parent.signal_analyzer.n_std_dev = value
+        self.parent.graph_widget.plot_peaks()
 
     def update_threshold_from_text(self):
         try:
             threshold = int(self.threshold_value.text())
-            if 1 <= threshold <= 10:
+            if 1 <= threshold <= 20:
                 self.threshold_slider.setValue(threshold)
                 self.parent.n_std_dev = threshold
                 self.parent.signal_analyzer.n_std_dev = threshold
+                self.parent.graph_widget.plot_peaks()
             else:
                 raise ValueError("Threshold must be between 1 and 10.")
         except ValueError:
@@ -121,6 +125,7 @@ class PeakSettingsWidget(QWidget):
         self.parent.distance = value
         if self.parent.signal_analyzer is not None:
             self.parent.signal_analyzer.distance = value
+            self.parent.graph_widget.plot_peaks()
 
     def update_distance_from_text(self):
         try:
@@ -129,6 +134,7 @@ class PeakSettingsWidget(QWidget):
                 self.distance_slider.setValue(distance)
                 self.parent.distance = distance
                 self.parent.signal_analyzer.distance = distance
+                self.parent.graph_widget.plot_peaks()
             else:
                 raise ValueError("Distance must be between 1 and 100.")
         except ValueError:
@@ -179,18 +185,6 @@ class DBSCANSettingsWidget(QWidget):
         max_distance_layout.addWidget(self.max_distance_value)
         self.layout().addLayout(max_distance_layout)
 
-        # Percentile slider
-        percentile_layout = QHBoxLayout()
-        percentile_label = QLabel("Percentile:")
-        self.percentile_slider = QSlider(Qt.Horizontal)
-        self.percentile_slider.setRange(0, 100)
-        self.percentile_slider.setValue(int(parent.percentile))
-        self.percentile_value = QLineEdit(f"{parent.percentile:.0f}")
-        percentile_layout.addWidget(percentile_label)
-        percentile_layout.addWidget(self.percentile_slider)
-        percentile_layout.addWidget(self.percentile_value)
-        self.layout().addLayout(percentile_layout)
-
         # Bin size slider
         bin_size_layout = QHBoxLayout()
         bin_size_label = QLabel("Bin Size:")
@@ -212,7 +206,6 @@ class DBSCANSettingsWidget(QWidget):
         self.max_distance_slider.valueChanged.connect(
             self.update_max_distance_from_slider
         )
-        self.percentile_slider.valueChanged.connect(self.update_percentile_from_slider)
         self.bin_size_slider.valueChanged.connect(self.update_bin_size_from_slider)
 
         # Connect line edits to update functions
@@ -220,7 +213,6 @@ class DBSCANSettingsWidget(QWidget):
         self.max_distance_value.editingFinished.connect(
             self.update_max_distance_from_text
         )
-        self.percentile_value.editingFinished.connect(self.update_percentile_from_text)
         self.min_samples_input.editingFinished.connect(self.update_min_samples)
         self.bin_size_value.editingFinished.connect(self.update_bin_size_from_text)
 
@@ -262,20 +254,6 @@ class DBSCANSettingsWidget(QWidget):
                 self.parent.update_grid()
             else:
                 raise ValueError("Max distance must be between 1 and 64.")
-        except ValueError:
-            pass
-
-    def update_percentile_from_slider(self, value):
-        self.percentile_value.setText(f"{value}")
-        self.parent.percentile = value
-        self.parent.update_grid()
-
-    def update_percentile_from_text(self):
-        try:
-            percentile = int(self.percentile_value.text())
-            self.percentile_slider.setValue(percentile)
-            self.parent.percentile = percentile
-            self.parent.update_grid()
         except ValueError:
             pass
 

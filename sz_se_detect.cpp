@@ -601,8 +601,6 @@ processAllChannels(const std::string &filename, bool do_analysis) {
 }
 
 PYBIND11_MODULE(sz_se_detect, m) {
-  std::cout << "Initializing sz_se_detect module" << std::endl;
-
   py::class_<DetectionResult>(m, "DetectionResult")
       .def_readwrite("SzTimes", &DetectionResult::SzTimes)
       .def_readwrite("DischargeTimes", &DetectionResult::DischargeTimes)
@@ -617,6 +615,4 @@ PYBIND11_MODULE(sz_se_detect, m) {
   m.def("processAllChannels", &processAllChannels,
         "Process all channels in the given file", py::arg("filename"),
         py::arg("do_analysis") = true);
-
-  std::cout << "sz_se_detect module initialized" << std::endl;
 }

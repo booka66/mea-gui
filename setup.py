@@ -1,4 +1,4 @@
-from setuptools import setup, Extension
+from setuptools import setup
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 import pybind11
 import os
@@ -22,14 +22,20 @@ ext_modules = [
         extra_compile_args=["-std=c++17", f"-I{hdf5_include_dir}"],
         extra_link_args=[f"-L{hdf5_lib_dir}"],
     ),
+    Pybind11Extension(
+        "signal_analyzer",
+        ["signal_analyzer.cpp"],
+        include_dirs=[pybind11.get_include()],
+        extra_compile_args=["-std=c++17", "-O3"],
+    ),
 ]
 
 setup(
-    name="sz_se_detect",
-    version="0.0.1",
+    name="neuro_signal_processing",
+    version="0.0.2",
     author="Jake Cahoon",
     author_email="jacobbcahoon@gmail.com",
-    description="A module for seizure and status epilepticus detection",
+    description="A module for seizure and status epilepticus detection, and signal analysis",
     ext_modules=ext_modules,
     cmdclass={"build_ext": build_ext},
     zip_safe=False,
