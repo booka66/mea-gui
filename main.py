@@ -1939,162 +1939,166 @@ class MainWindow(QMainWindow):
                 )
                 self.graph_widget.plot_widgets[i].addItem(discharge_plot)
 
-    def update_grid(self, first=False):
-        start = perf_counter()
-        if first:
-            self.cells = [
-                self.grid_widget.cells[row - 1][col - 1]
-                for row, col in self.active_channels
-            ]
-            self.signals = np.array(
-                [
-                    self.data[row - 1, col - 1]["signal"]
-                    for row, col in self.active_channels
-                ]
-            )
-            self.se_times_list = [
-                self.data[row - 1, col - 1]["SETimes"]
-                for row, col in self.active_channels
-            ]
-            self.seizure_times_list = [
-                self.data[row - 1, col - 1]["SzTimes"]
-                for row, col in self.active_channels
-            ]
+    def initialize_data(self):
+        self.cells = [
+            self.grid_widget.cells[row - 1][col - 1]
+            for row, col in self.active_channels
+        ]
+        self.signals = np.array(
+            [self.data[row - 1, col - 1]["signal"] for row, col in self.active_channels]
+        )
+        self.se_times_list = [
+            self.data[row - 1, col - 1]["SETimes"] for row, col in self.active_channels
+        ]
+        self.seizure_times_list = [
+            self.data[row - 1, col - 1]["SzTimes"] for row, col in self.active_channels
+        ]
 
-        current_time = self.progress_bar.value() / self.sampling_rate
+    def handle_prop_lines(self, current_time):
+        start, stop = self.custom_region
+        newly_discharged_cells = []
+        cells_to_remove = []
+        discharged_cells = []
+        for row, col in self.active_channels:
+            if (row - 1, col - 1) in self.discharges:
+                discharge_times, _ = self.discharges[(row - 1, col - 1)]
+                discharge_found = False
+                for discharge_time in discharge_times:
+                    if (
+                        start <= discharge_time <= stop
+                        and abs(discharge_time - current_time) < self.bin_size
+                    ):
+                        newly_discharged_cells.append((row, col))
+                        discharged_cells.append((row, col))
+                        discharge_found = True
+                        break
+                if not discharge_found and (row, col) in self.prop_cells:
+                    cells_to_remove.append((row, col))
 
-        if self.do_show_prop_lines and self.custom_region:
-            start, stop = self.custom_region
-            newly_discharged_cells = []
-            cells_to_remove = []
-            discharged_cells = []
-            for row, col in self.active_channels:
-                if (row - 1, col - 1) in self.discharges:
-                    discharge_times, _ = self.discharges[(row - 1, col - 1)]
-                    discharge_found = False
-                    for discharge_time in discharge_times:
-                        if (
-                            start <= discharge_time <= stop
-                            and abs(discharge_time - current_time) < self.bin_size
-                        ):
-                            newly_discharged_cells.append((row, col))
-                            discharged_cells.append((row, col))
-                            discharge_found = True
-                            break
-                    if not discharge_found and (row, col) in self.prop_cells:
-                        cells_to_remove.append((row, col))
-
-            if discharged_cells:
-                X = np.array(discharged_cells)
-                db = DBSCAN(eps=self.eps, min_samples=self.min_samples).fit(X)
-                labels = db.labels_
-
-                for item in self.centroids:
-                    self.grid_widget.scene.removeItem(item)
-                self.centroids.clear()
-
-                unique_labels = set(labels)
-                centroids = []
-                for label in unique_labels:
-                    if label != -1:
-                        cluster_points = X[labels == label]
-                        centroid = np.mean(cluster_points, axis=0)
-                        centroids.append(centroid)
-
-                        centroid_row, centroid_col = centroid
-                        centroid_item = QGraphicsEllipseItem(0, 0, 10, 10)
-                        centroid_item.setBrush(Qt.red)
-                        centroid_item.setPos(
-                            centroid_col * self.grid_widget.cells[0][0].rect().width()
-                            - 5,
-                            centroid_row * self.grid_widget.cells[0][0].rect().height()
-                            - 5,
-                        )
-                        self.grid_widget.scene.addItem(centroid_item)
-                        self.centroids.append(centroid_item)
-
-                self.cluster_tracker.update(centroids, current_time)
-
-                cell_width = self.grid_widget.cells[0][0].rect().width()
-                cell_height = self.grid_widget.cells[0][0].rect().height()
-                self.cluster_tracker.draw_cluster_lines(
-                    self.grid_widget.scene, cell_width, cell_height
-                )
-
-                cluster_stats = self.cluster_tracker.get_cluster_stats()
-                self.cluster_legend.update(cluster_stats)
-            else:
-                self.cluster_tracker.update([], current_time)
-                self.cluster_legend.update([])
-                cell_width = self.grid_widget.cells[0][0].rect().width()
-                cell_height = self.grid_widget.cells[0][0].rect().height()
-                self.cluster_tracker.draw_cluster_lines(
-                    self.grid_widget.scene, cell_width, cell_height
-                )
-
-            for row, col in newly_discharged_cells:
-                if (row, col) not in self.prop_cells:
-                    self.draw_prop_arrows(row, col)
-                    self.prop_cells.append((row, col))
-
-            for row, col in cells_to_remove:
-                self.remove_prop_arrows(row, col)
-                self.prop_cells.remove((row, col))
-        else:
-            # If prop lines are not being shown or there's no custom region, remove all prop arrows
-            for row, col in list(self.prop_cells):
-                self.remove_prop_arrows(row, col)
-            self.prop_cells.clear()
+        if discharged_cells:
+            X = np.array(discharged_cells)
+            db = DBSCAN(eps=self.eps, min_samples=self.min_samples).fit(X)
+            labels = db.labels_
 
             for item in self.centroids:
                 self.grid_widget.scene.removeItem(item)
             self.centroids.clear()
 
-            self.cluster_tracker.update([], current_time)
+            unique_labels = set(labels)
+            centroids = []
+            for label in unique_labels:
+                if label != -1:
+                    cluster_points = X[labels == label]
+                    centroid = np.mean(cluster_points, axis=0)
+                    centroids.append(centroid)
+
+                    centroid_row, centroid_col = centroid
+                    centroid_item = QGraphicsEllipseItem(0, 0, 10, 10)
+                    centroid_item.setBrush(Qt.red)
+                    centroid_item.setPos(
+                        centroid_col * self.grid_widget.cells[0][0].rect().width() - 5,
+                        centroid_row * self.grid_widget.cells[0][0].rect().height() - 5,
+                    )
+                    self.grid_widget.scene.addItem(centroid_item)
+                    self.centroids.append(centroid_item)
+
+            self.cluster_tracker.update(centroids, current_time)
+
             cell_width = self.grid_widget.cells[0][0].rect().width()
             cell_height = self.grid_widget.cells[0][0].rect().height()
             self.cluster_tracker.draw_cluster_lines(
                 self.grid_widget.scene, cell_width, cell_height
             )
 
+            cluster_stats = self.cluster_tracker.get_cluster_stats()
+            self.cluster_legend.update(cluster_stats)
+        else:
+            self.cluster_tracker.update([], current_time)
+            self.cluster_legend.update([])
+            cell_width = self.grid_widget.cells[0][0].rect().width()
+            cell_height = self.grid_widget.cells[0][0].rect().height()
+            self.cluster_tracker.draw_cluster_lines(
+                self.grid_widget.scene, cell_width, cell_height
+            )
+
+        for row, col in newly_discharged_cells:
+            if (row, col) not in self.prop_cells:
+                self.draw_prop_arrows(row, col)
+                self.prop_cells.append((row, col))
+
+        for row, col in cells_to_remove:
+            self.remove_prop_arrows(row, col)
+            self.prop_cells.remove((row, col))
+
+    def clear_discharges(self, current_time):
+        for row, col in list(self.prop_cells):
+            self.remove_prop_arrows(row, col)
+        self.prop_cells.clear()
+
+        for item in self.centroids:
+            self.grid_widget.scene.removeItem(item)
+        self.centroids.clear()
+
+        self.cluster_tracker.update([], current_time)
+        cell_width = self.grid_widget.cells[0][0].rect().width()
+        cell_height = self.grid_widget.cells[0][0].rect().height()
+        self.cluster_tracker.draw_cluster_lines(
+            self.grid_widget.scene, cell_width, cell_height
+        )
+
+    def get_false_color_map_colors(self, current_time):
+        bin_start = int((current_time - self.bin_size) * self.sampling_rate)
+        bin_end = int((current_time + self.bin_size) * self.sampling_rate)
+        bin_voltages = [signal[bin_start:bin_end] for signal in self.signals]
+
+        if self.overall_min_voltage is None or self.overall_max_voltage is None:
+            ignore_samples = int(10 * self.sampling_rate)
+            trimmed_signals = self.signals[:, ignore_samples:-ignore_samples]
+            self.overall_min_voltage = np.min(trimmed_signals)
+            self.overall_max_voltage = np.max(trimmed_signals)
+
+        voltage_ranges = []
+        for voltages in bin_voltages:
+            if voltages.size > 0:
+                min_voltage = np.min(voltages)
+                max_voltage = np.max(voltages)
+                normalized_range = (max_voltage - min_voltage) / (
+                    self.overall_max_voltage - self.overall_min_voltage
+                )
+                voltage_ranges.append(normalized_range)
+            else:
+                voltage_ranges.append(None)
+
+        colors = [
+            self.voltage_range_to_color(voltage_range)
+            if voltage_range is not None
+            else ACTIVE
+            for voltage_range in voltage_ranges
+        ]
+        return colors
+
+    def update_grid(self, first=False):
+        start = perf_counter()
+        if first:
+            self.initialize_data()
+            self.get_min_max_strengths()
+
+        current_time = self.progress_bar.value() / self.sampling_rate
+
+        if self.do_show_prop_lines and self.custom_region:
+            self.handle_prop_lines(current_time)
+        else:
+            self.clear_discharges(current_time)
+
+        if self.do_show_false_color_map:
+            colors = self.get_false_color_map_colors(current_time)
+        else:
+            colors = [ACTIVE] * len(self.active_channels)
+
         if self.do_show_spread_lines:
             newly_seized_cells = []
             newly_se_cells = []
             cells_to_remove = []
-        if self.min_strength is None or self.max_strength is None:
-            self.get_min_max_strengths()
-
-        if self.do_show_false_color_map:
-            bin_start = int((current_time - self.bin_size) * self.sampling_rate)
-            bin_end = int((current_time + self.bin_size) * self.sampling_rate)
-            bin_voltages = [signal[bin_start:bin_end] for signal in self.signals]
-
-            if self.overall_min_voltage is None or self.overall_max_voltage is None:
-                ignore_samples = int(10 * self.sampling_rate)
-                trimmed_signals = self.signals[:, ignore_samples:-ignore_samples]
-                self.overall_min_voltage = np.min(trimmed_signals)
-                self.overall_max_voltage = np.max(trimmed_signals)
-
-            voltage_ranges = []
-            for voltages in bin_voltages:
-                if voltages.size > 0:
-                    min_voltage = np.min(voltages)
-                    max_voltage = np.max(voltages)
-                    normalized_range = (max_voltage - min_voltage) / (
-                        self.overall_max_voltage - self.overall_min_voltage
-                    )
-                    voltage_ranges.append(normalized_range)
-                else:
-                    voltage_ranges.append(None)
-
-            colors = [
-                self.voltage_range_to_color(voltage_range)
-                if voltage_range is not None
-                else ACTIVE
-                for voltage_range in voltage_ranges
-            ]
-        else:
-            colors = [ACTIVE] * len(self.active_channels)
 
         found_se = [False] * len(self.active_channels)
         found_seizure = [False] * len(self.active_channels)
