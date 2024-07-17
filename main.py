@@ -686,26 +686,31 @@ class MainWindow(QMainWindow):
         self.enhanced_region = None
         self.current_region = None
         for i in range(4):
+            # Clear region plots
             if i in self.graph_widget.region_plots:
-                self.graph_widget.plot_widgets[i].removeItem(
-                    self.graph_widget.region_plots[i]
-                )
+                self.graph_widget.plot_widgets[i].removeItem(self.graph_widget.region_plots[i])
                 del self.graph_widget.region_plots[i]
+            
+            # Clear beginning and end plots
+            if hasattr(self.graph_widget, 'beginning_plots') and self.graph_widget.beginning_plots[i]:
+                self.graph_widget.plot_widgets[i].removeItem(self.graph_widget.beginning_plots[i])
+                self.graph_widget.beginning_plots[i] = None
+            if hasattr(self.graph_widget, 'end_plots') and self.graph_widget.end_plots[i]:
+                self.graph_widget.plot_widgets[i].removeItem(self.graph_widget.end_plots[i])
+                self.graph_widget.end_plots[i] = None
+            
+            # Clear any other additional plots
             for item in self.graph_widget.plot_widgets[i].items():
-                if (
-                    isinstance(item, (pg.ScatterPlotItem, pg.PlotDataItem))
-                    and item != self.graph_widget.plots[i]
-                ):
+                if isinstance(item, (pg.ScatterPlotItem, pg.PlotDataItem)) and item != self.graph_widget.plots[i]:
                     self.graph_widget.plot_widgets[i].removeItem(item)
+            
+            # Redraw the original downsampled plot
             ignore = int(10 * self.sampling_rate)
-
             if self.plotted_channels[i] is not None:
                 row, col = self.plotted_channels[i].row, self.plotted_channels[i].col
                 x = self.time_vector[ignore:-ignore]
                 y = self.data[row, col]["signal"][ignore:-ignore]
-                downsampled_x, downsampled_y = self.graph_widget.downsample_data(
-                    x, y, GRAPH_DOWNSAMPLE
-                )
+                downsampled_x, downsampled_y = self.graph_widget.downsample_data(x, y, GRAPH_DOWNSAMPLE)
                 self.graph_widget.plots[i].setData(downsampled_x, downsampled_y)
 
     def handle_region_clicked(self, start, stop):
@@ -1399,12 +1404,15 @@ class MainWindow(QMainWindow):
                     seizures,
                     se,
                 )
-                self.graph_widget.plot_peaks()
+                if self.enhanced_region is not None:
+                    start, stop = self.enhanced_region
+                    self.graph_widget.redraw_regions(start, stop, self.plotted_channels)
 
                 if self.current_region is not None:
                     start, stop = self.current_region
                     self.graph_widget.redraw_regions(start, stop, self.plotted_channels)
 
+                self.graph_widget.plot_peaks()
                 self.grid_widget.cells[row][col].clicked_state = False
                 self.grid_widget.cells[row][col].selected_tooltip.hide()
                 self.grid_widget.cells[row][col].update()

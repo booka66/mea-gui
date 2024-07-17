@@ -211,6 +211,7 @@ class GraphWidget(QWidget):
                 plot_widget.getPlotItem().getViewBox().setXRange(
                     *self.synced_range, padding=0
                 )
+                plot_widget.enableAutoRange(axis="y")
         if self.main_window.show_discharge_peaks:
             self.plot_peaks()
         self.synced_range = None
@@ -359,68 +360,75 @@ class GraphWidget(QWidget):
 
     def redraw_region(self, start, stop, plot_index):
         for i in range(4):
-            if self.x_data[i] is None:
+            if self.x_data[i] is None or len(self.x_data[i]) == 0:
                 continue
 
             region_start_index = np.searchsorted(self.x_data[i], start)
             region_stop_index = np.searchsorted(self.x_data[i], stop)
+
+            # Prepare data for region plot
             region_x = self.x_data[i][region_start_index:region_stop_index]
             region_y = self.y_data[i][region_start_index:region_stop_index]
 
+            # Update or create region plot
             if i in self.region_plots:
-                self.plot_widgets[i].removeItem(self.region_plots[i])
+                self.region_plots[i].setData(region_x, region_y)
             else:
-                self.region_plots[i] = None
+                self.region_plots[i] = self.plot_widgets[i].plot(
+                    region_x,
+                    region_y,
+                    pen=pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH),
+                )
 
-            region_plot = self.plot_widgets[i].plot(
-                pen=pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH)
-            )
-            region_plot.setData(region_x, region_y)
-
-            self.region_plots[i] = region_plot
-
-            # Hide the original plot line within the region
+            # Prepare data for beginning and end traces
             beginning_trace_x = self.x_data[i][:region_start_index]
             beginning_trace_y = self.y_data[i][:region_start_index]
             end_trace_x = self.x_data[i][region_stop_index:]
             end_trace_y = self.y_data[i][region_stop_index:]
 
-            # Recalculate the GRAPH_DOWNSAMPLE for the beginning and end traces
-            if len(self.x_data[i]) == 0:
-                continue
-            percent_beginning = len(beginning_trace_x) / len(self.x_data[i])
-            percent_end = len(end_trace_x) / len(self.x_data[i])
-            num_points_beginning = int(GRAPH_DOWNSAMPLE * percent_beginning)
-            num_points_end = int(GRAPH_DOWNSAMPLE * percent_end)
-
-            # Remove existing beginning and end plots
-            for item in self.plot_widgets[i].items():
-                if (
-                    isinstance(item, pg.PlotDataItem)
-                    and item != self.plots[i]
-                    and item != region_plot
-                ):
-                    self.plot_widgets[i].removeItem(item)
-
-            # Create two separate plot items for the beginning and end traces
-            beginning_plot = self.plot_widgets[i].plot(
-                pen=pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH)
+            # Calculate downsample sizes
+            total_points = len(self.x_data[i])
+            num_points_beginning = max(
+                int(GRAPH_DOWNSAMPLE * (region_start_index / total_points)), 2
             )
-            end_plot = self.plot_widgets[i].plot(
-                pen=pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH)
+            num_points_end = max(
+                int(
+                    GRAPH_DOWNSAMPLE
+                    * ((total_points - region_stop_index) / total_points)
+                ),
+                2,
             )
 
+            # Downsample data
             beginning_downsampled_x, beginning_downsampled_y = self.downsample_data(
-                beginning_trace_x,
-                beginning_trace_y,
-                num_points_beginning,
+                beginning_trace_x, beginning_trace_y, num_points_beginning
             )
             end_downsampled_x, end_downsampled_y = self.downsample_data(
                 end_trace_x, end_trace_y, num_points_end
             )
 
-            beginning_plot.setData(beginning_downsampled_x, beginning_downsampled_y)
-            end_plot.setData(end_downsampled_x, end_downsampled_y)
+            # Ensure beginning_plots and end_plots attributes exist
+            if not hasattr(self, "beginning_plots"):
+                self.beginning_plots = [None] * 4
+                self.end_plots = [None] * 4
+
+            # Create or update beginning plot
+            if self.beginning_plots[i] is None:
+                self.beginning_plots[i] = self.plot_widgets[i].plot(
+                    pen=pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH)
+                )
+            self.beginning_plots[i].setData(
+                beginning_downsampled_x, beginning_downsampled_y
+            )
+
+            # Create or update end plot
+            if self.end_plots[i] is None:
+                self.end_plots[i] = self.plot_widgets[i].plot(
+                    pen=pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH)
+                )
+            self.end_plots[i].setData(end_downsampled_x, end_downsampled_y)
+
+            # Hide the original plot
             self.plots[i].setData([], [])
 
     def get_regions(self, seizures, se):

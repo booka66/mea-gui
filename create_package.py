@@ -119,6 +119,13 @@ def increment_tag():
 
 
 async def main(tag=None, no_package=False):
+    # Try to compile the c++ extensions
+    try:
+        setup_file = "setup.py" if sys.platform == "darwin" else "win_setup.py"
+        subprocess.run(["python", setup_file, "build_ext", "--inplace"])
+    except Exception as e:
+        print(f"Failed to compile c++ extensions: {e}")
+        return
     if tag:
         # Validate tag format (e.g., v1.0.0)
         if tag == "next":
@@ -132,7 +139,7 @@ async def main(tag=None, no_package=False):
     print(f"Creating {'package' if not no_package else 'application'}...")
 
     if sys.platform == "darwin":
-        pyinstaller_command = """sudo pyinstaller --noconfirm --onedir --windowed main.py --icon=icon.ico --add-data "SzDetectCat.m:." --add-data "save_channel_to_mat.m:." --add-data "getChs.m:." --add-data "get_cat_envelop.m:." --additional-hooks-dir "hooks" --add-data "*.m:."
+        pyinstaller_command = """sudo pyinstaller --noconfirm --onedir --argv-emulation --windowed main.py --icon=icon.ico --add-data "SzDetectCat.m:." --add-data "save_channel_to_mat.m:." --add-data "getChs.m:." --add-data "get_cat_envelop.m:." --additional-hooks-dir "hooks" --add-data "*.m:."
         """
         package_commands = [
             "rm -rf package_root/Applications/MEA\\ GUI.app",

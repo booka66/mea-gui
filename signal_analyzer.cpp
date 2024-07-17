@@ -15,7 +15,7 @@ public:
                  double sampling_rate = 100)
       : time_vector(time_vector), n_std_dev(n_std_dev), distance(distance),
         slope_threshold(slope_threshold), sampling_rate(sampling_rate),
-        baseline_window(static_cast<int>(sampling_rate * 0.2)),
+        baseline_window(static_cast<int>(sampling_rate * 0.1)),
         snr_threshold(35) {}
 
   static double find_baseline(const std::vector<double> &signal) {
