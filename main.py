@@ -2077,6 +2077,54 @@ class MainWindow(QMainWindow):
         ]
         return colors
 
+    def get_new_se_cells(
+        self, row, col, current_time, colors, i, newly_se_cells, found_se
+    ):
+        se_times = np.array(self.se_times_list[i])
+        if se_times.size > 0:
+            se_mask = (se_times[:, 0] <= current_time) & (
+                current_time <= se_times[:, 1]
+            )
+            if np.any(se_mask):
+                se_index = np.where(se_mask)[0][0]
+                strength = self.normalize_strength(se_times[se_index, 2])
+                if self.do_show_false_color_map:
+                    se_color = self.blend_colors(colors[i], SE, strength)
+                else:
+                    se_color = SE
+                self.cells[i].setColor(se_color, strength**0.25, self.opacity)
+                found_se[i] = True
+                if self.do_show_spread_lines and (row, col) not in self.seized_cells:
+                    newly_se_cells.append((row, col))
+
+    def get_new_seizure_cells(
+        self,
+        row,
+        col,
+        current_time,
+        colors,
+        i,
+        newly_seized_cells,
+        found_seizure,
+        found_se,
+    ):
+        seizure_times = np.array(self.seizure_times_list[i])
+        if not found_se[i] and seizure_times.size > 0:
+            seizure_mask = (seizure_times[:, 0] <= current_time) & (
+                current_time <= seizure_times[:, 1]
+            )
+            if np.any(seizure_mask):
+                seizure_index = np.where(seizure_mask)[0][0]
+                strength = self.normalize_strength(seizure_times[seizure_index, 2])
+                if self.do_show_false_color_map:
+                    seizure_color = self.blend_colors(colors[i], SEIZURE, strength)
+                else:
+                    seizure_color = SEIZURE
+                self.cells[i].setColor(seizure_color, strength, self.opacity)
+                found_seizure[i] = True
+                if self.do_show_spread_lines and (row, col) not in self.seized_cells:
+                    newly_seized_cells.append((row, col))
+
     def update_grid(self, first=False):
         start = perf_counter()
         if first:
@@ -2095,60 +2143,28 @@ class MainWindow(QMainWindow):
         else:
             colors = [ACTIVE] * len(self.active_channels)
 
-        if self.do_show_spread_lines:
-            newly_seized_cells = []
-            newly_se_cells = []
-            cells_to_remove = []
+        newly_seized_cells = []
+        newly_se_cells = []
+        cells_to_remove = []
 
         found_se = [False] * len(self.active_channels)
         found_seizure = [False] * len(self.active_channels)
 
         for i, (row, col) in enumerate(self.active_channels):
-            se_times = np.array(self.se_times_list[i])
-            seizure_times = np.array(self.seizure_times_list[i])
-
             if self.do_show_events:
-                if se_times.size > 0:
-                    se_mask = (se_times[:, 0] <= current_time) & (
-                        current_time <= se_times[:, 1]
-                    )
-                    if np.any(se_mask):
-                        se_index = np.where(se_mask)[0][0]
-                        strength = self.normalize_strength(se_times[se_index, 2])
-                        if self.do_show_false_color_map:
-                            se_color = self.blend_colors(colors[i], SE, strength)
-                        else:
-                            se_color = SE
-                        self.cells[i].setColor(se_color, strength**0.25, self.opacity)
-                        found_se[i] = True
-                        if (
-                            self.do_show_spread_lines
-                            and (row, col) not in self.seized_cells
-                        ):
-                            newly_se_cells.append((row, col))
-
-                if not found_se[i] and seizure_times.size > 0:
-                    seizure_mask = (seizure_times[:, 0] <= current_time) & (
-                        current_time <= seizure_times[:, 1]
-                    )
-                    if np.any(seizure_mask):
-                        seizure_index = np.where(seizure_mask)[0][0]
-                        strength = self.normalize_strength(
-                            seizure_times[seizure_index, 2]
-                        )
-                        if self.do_show_false_color_map:
-                            seizure_color = self.blend_colors(
-                                colors[i], SEIZURE, strength
-                            )
-                        else:
-                            seizure_color = SEIZURE
-                        self.cells[i].setColor(seizure_color, strength, self.opacity)
-                        found_seizure[i] = True
-                        if (
-                            self.do_show_spread_lines
-                            and (row, col) not in self.seized_cells
-                        ):
-                            newly_seized_cells.append((row, col))
+                self.get_new_se_cells(
+                    row, col, current_time, colors, i, newly_se_cells, found_se
+                )
+                self.get_new_seizure_cells(
+                    row,
+                    col,
+                    current_time,
+                    colors,
+                    i,
+                    newly_seized_cells,
+                    found_seizure,
+                    found_se,
+                )
 
             if not found_se[i] and not found_seizure[i]:
                 self.cells[i].setColor(colors[i], 1, self.opacity)
