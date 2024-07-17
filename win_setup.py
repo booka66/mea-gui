@@ -35,7 +35,7 @@ ext_modules = [
         "signal_analyzer",
         ["signal_analyzer.cpp"],
         include_dirs=[pybind11.get_include()],
-        extra_compile_args=["/std=c++17", "/O3"],
+        extra_compile_args=["/std=c++17"],
     ),
 ]
 setup(
