@@ -3,8 +3,6 @@ import sys
 import requests
 from packaging import version
 import urllib.request
-import subprocess
-from multiprocessing import Process, freeze_support
 
 from Constants import VERSION
 
@@ -73,12 +71,15 @@ def download_and_install_update(release):
             if sys.platform == "win32":
                 os.startfile(file_path)
             elif sys.platform == "darwin":
-                freeze_support()
-                Process(target=subprocess.run, args=(["open", file_path],)).start()
+                os.system(f"open {file_path}")
                 return True
             else:
-                freeze_support()
-                Process(target=subprocess.run, args=(["xdg-open", file_path],)).start()
+                try:
+                    os.startfile(file_path)
+                except Exception as e:
+                    print(f"Error launching file: {e}")
+                print(f"Trying to open {file_path} with xdg-open...")
+                os.system(f"xdg-open {file_path}")
                 return True
             print(f"Launched {file_path}")
         except Exception as e:
