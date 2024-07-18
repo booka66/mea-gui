@@ -2144,7 +2144,6 @@ class MainWindow(QMainWindow):
 
         self.grid_widget.update()
         end = perf_counter()
-        print(f"Grid update took {end - start:.4f} seconds")
 
     def blend_colors(self, color1, color2, strength):
         r1, g1, b1, _ = color1.getRgb()
