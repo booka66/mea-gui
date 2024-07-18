@@ -462,12 +462,19 @@ class GraphWidget(QWidget):
     def plot(self, x, y, title, xlabel, ylabel, plot_index, shape, seizures, se):
         self.x_data[plot_index] = x
         self.y_data[plot_index] = y
-
         print(f"We have {len(x)} points to plot")
-
         seizure_regions, se_regions = self.get_regions(seizures, se)
-        downsample_x, downsample_y = self.downsample_data(x, y, GRAPH_DOWNSAMPLE)
-        self.plots[plot_index].setData(downsample_x, downsample_y)
+
+        curve = pg.PlotDataItem(x, y, pen=pg.mkPen(color=(0, 0, 0), width=1))
+        curve.setDownsampling(auto=True, method="peak")
+        
+        self.plot_widgets[plot_index].clear()
+        self.plot_widgets[plot_index].addItem(curve)
+        self.plots[plot_index] = curve
+
+        #Add the red line after clearing....
+        self.plot_widgets[plot_index].addItem(self.red_lines[plot_index])
+
         if "(" in title:
             title_parts = title.split(" ", 1)
             shape_text = title_parts[0]
@@ -486,7 +493,6 @@ class GraphWidget(QWidget):
         }
         self.plot_widgets[plot_index].setLabel("bottom", xlabel, **axis_label_style)
         self.plot_widgets[plot_index].setLabel("left", ylabel, **axis_label_style)
-
         self.plot_widgets[plot_index].getAxis("bottom").setTextPen(
             pg.mkPen(color=(0, 0, 0), width=2)
         )
@@ -494,9 +500,6 @@ class GraphWidget(QWidget):
             pg.mkPen(color=(0, 0, 0), width=2)
         )
 
-        for item in self.plot_widgets[plot_index].items():
-            if isinstance(item, (pg.LinearRegionItem, pg.ScatterPlotItem)):
-                self.plot_widgets[plot_index].removeItem(item)
 
         if plot_index in self.region_plots:
             self.plot_widgets[plot_index].removeItem(self.region_plots[plot_index])
@@ -515,6 +518,7 @@ class GraphWidget(QWidget):
                 else None
             )
             self.plot_widgets[plot_index].addItem(region)
+
         for start, stop in seizure_regions:
             region = pg.LinearRegionItem(
                 values=(start, stop), brush="#0096c780", movable=False
@@ -528,7 +532,7 @@ class GraphWidget(QWidget):
                 else None
             )
             self.plot_widgets[plot_index].addItem(region)
-        self.plots[plot_index].setPen(pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH))
+
         if self.do_show_regions:
             self.show_regions()
         else:

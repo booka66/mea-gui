@@ -688,29 +688,46 @@ class MainWindow(QMainWindow):
         for i in range(4):
             # Clear region plots
             if i in self.graph_widget.region_plots:
-                self.graph_widget.plot_widgets[i].removeItem(self.graph_widget.region_plots[i])
+                self.graph_widget.plot_widgets[i].removeItem(
+                    self.graph_widget.region_plots[i]
+                )
                 del self.graph_widget.region_plots[i]
-            
+
             # Clear beginning and end plots
-            if hasattr(self.graph_widget, 'beginning_plots') and self.graph_widget.beginning_plots[i]:
-                self.graph_widget.plot_widgets[i].removeItem(self.graph_widget.beginning_plots[i])
+            if (
+                hasattr(self.graph_widget, "beginning_plots")
+                and self.graph_widget.beginning_plots[i]
+            ):
+                self.graph_widget.plot_widgets[i].removeItem(
+                    self.graph_widget.beginning_plots[i]
+                )
                 self.graph_widget.beginning_plots[i] = None
-            if hasattr(self.graph_widget, 'end_plots') and self.graph_widget.end_plots[i]:
-                self.graph_widget.plot_widgets[i].removeItem(self.graph_widget.end_plots[i])
+            if (
+                hasattr(self.graph_widget, "end_plots")
+                and self.graph_widget.end_plots[i]
+            ):
+                self.graph_widget.plot_widgets[i].removeItem(
+                    self.graph_widget.end_plots[i]
+                )
                 self.graph_widget.end_plots[i] = None
-            
+
             # Clear any other additional plots
             for item in self.graph_widget.plot_widgets[i].items():
-                if isinstance(item, (pg.ScatterPlotItem, pg.PlotDataItem)) and item != self.graph_widget.plots[i]:
+                if (
+                    isinstance(item, (pg.ScatterPlotItem, pg.PlotDataItem))
+                    and item != self.graph_widget.plots[i]
+                ):
                     self.graph_widget.plot_widgets[i].removeItem(item)
-            
+
             # Redraw the original downsampled plot
             ignore = int(10 * self.sampling_rate)
             if self.plotted_channels[i] is not None:
                 row, col = self.plotted_channels[i].row, self.plotted_channels[i].col
                 x = self.time_vector[ignore:-ignore]
                 y = self.data[row, col]["signal"][ignore:-ignore]
-                downsampled_x, downsampled_y = self.graph_widget.downsample_data(x, y, GRAPH_DOWNSAMPLE)
+                downsampled_x, downsampled_y = self.graph_widget.downsample_data(
+                    x, y, GRAPH_DOWNSAMPLE
+                )
                 self.graph_widget.plots[i].setData(downsampled_x, downsampled_y)
 
     def handle_region_clicked(self, start, stop):
@@ -1421,7 +1438,8 @@ class MainWindow(QMainWindow):
             if event.key() == Qt.Key_Shift:
                 self.graph_widget.change_view_mode("pan")
             elif event.key() == Qt.Key_C:
-                self.clear_enhanced_view()
+                pass
+                # self.clear_enhanced_view()
             elif event.key() == Qt.Key_Right:
                 if self.skip_backward_button.isEnabled():
                     self.stepForward()
@@ -1446,7 +1464,8 @@ class MainWindow(QMainWindow):
                 if self.lock_to_playhead:
                     self.lock_plots_to_playhead()
             elif event.key() == Qt.Key_E:
-                self.enhance_current_view()
+                pass
+                # self.enhance_current_view()
             elif event.key() == Qt.Key_S:
                 cursor_pos = QCursor.pos()
                 for i in range(4):
@@ -2067,7 +2086,7 @@ class MainWindow(QMainWindow):
                     newly_seized_cells.append((row, col))
 
     def update_grid(self, first=False):
-        # start = perf_counter()
+        start = perf_counter()
         if first:
             self.initialize_data()
             self.get_min_max_strengths()
@@ -2124,8 +2143,8 @@ class MainWindow(QMainWindow):
                 self.remove_seizure_arrows(row, col)
 
         self.grid_widget.update()
-        # end = perf_counter()
-        # print(f"Grid update took {end - start:.4f} seconds")
+        end = perf_counter()
+        print(f"Grid update took {end - start:.4f} seconds")
 
     def blend_colors(self, color1, color2, strength):
         r1, g1, b1, _ = color1.getRgb()
