@@ -352,6 +352,11 @@ class RasterPlot:
             y = num_channels - self.active_channels.index((row, col)) - 1
             self.plotted_channels_highlights[i].setRegion([y - 0.5, y + 0.5])
 
+        # Set x and y limits for the plot
+        self.plot_widget.getPlotItem().getViewBox().setLimits(
+            xMin=0, xMax=max(scaled_spike_times), yMin=-5, yMax=num_channels + 5
+        )
+
     def get_event_colors(self, channel_data, spike_times):
         colors = np.full(len(spike_times), pg.mkBrush(0, 0, 0))  # Default color (black)
 

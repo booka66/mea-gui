@@ -117,6 +117,10 @@ class GraphWidget(QWidget):
             plot_widget.scene().sigMouseMoved.connect(
                 lambda pos, i=i: self.update_active_plot(pos, i)
             )
+            # Stop the main_window playpause
+            plot_widget.getPlotItem().getViewBox().sigRangeChanged.connect(
+                lambda event: self.main_window.pause_playback()
+            )
 
             self.plots_layout.addWidget(plot_widget)
 

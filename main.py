@@ -4,7 +4,6 @@ from time import perf_counter
 import os
 import sys
 import glob
-from types import NoneType
 import h5py
 from scipy.signal import butter, filtfilt, spectrogram
 from scipy.interpolate import interp1d
@@ -90,7 +89,6 @@ from Constants import (
     SE,
     ACTIVE,
     GRAPH_DOWNSAMPLE,
-    STROKE_WIDTH,
     MAC,
     WIN,
     VERSION,
@@ -1421,13 +1419,14 @@ class MainWindow(QMainWindow):
                     seizures,
                     se,
                 )
-                if self.enhanced_region is not None:
-                    start, stop = self.enhanced_region
-                    self.graph_widget.redraw_regions(start, stop, self.plotted_channels)
 
-                if self.current_region is not None:
-                    start, stop = self.current_region
-                    self.graph_widget.redraw_regions(start, stop, self.plotted_channels)
+                # if self.enhanced_region is not None:
+                #     start, stop = self.enhanced_region
+                #     self.graph_widget.redraw_regions(start, stop, self.plotted_channels)
+                #
+                # if self.current_region is not None:
+                #     start, stop = self.current_region
+                #     self.graph_widget.redraw_regions(start, stop, self.plotted_channels)
 
                 self.graph_widget.plot_peaks()
                 self.grid_widget.cells[row][col].clicked_state = False
@@ -1470,6 +1469,7 @@ class MainWindow(QMainWindow):
                 cursor_pos = QCursor.pos()
                 for i in range(4):
                     plot_widget = self.graph_widget.plot_widgets[i]
+
                     plot_item = plot_widget.getPlotItem()
                     view_box = plot_item.getViewBox()
 
@@ -2788,6 +2788,10 @@ class MainWindow(QMainWindow):
             self.update_grid()
         else:
             self.progress_bar.setValue(0)
+
+    def pause_playback(self):
+        self.play_pause_button.setText("")
+        self.playback_timer.stop()
 
     def playPause(self):
         if self.play_pause_button.text() == "":
