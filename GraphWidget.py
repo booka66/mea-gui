@@ -223,26 +223,24 @@ class GraphWidget(QWidget):
 
     def render_plots(self):
         total_points = self.count_points_in_view()
-        print(f"Total points in view: {total_points}")
 
         thin_threshold = 250_000
-        medium_threshold = 100_000
+        medium_threshold = 150_000
         thick_threshold = TOTAL_POINTS
 
         for i in range(4):
             current_stroke = self.plots[i].opts["pen"].width()
-            print(f"Current stroke: {current_stroke}")
 
             if total_points > thin_threshold and current_stroke != 1:
                 self.current_stroke = 1
-                self.downsample_plot(i, TOTAL_POINTS // 4)
+                self.downsample_plot(i, TOTAL_POINTS // 2)
             elif (
                 total_points < medium_threshold
                 and total_points > thick_threshold
                 and current_stroke != 2
             ):
                 self.current_stroke = 2
-                self.downsample_plot(i, TOTAL_POINTS // 2)
+                self.downsample_plot(i, TOTAL_POINTS)
             elif total_points < thick_threshold and current_stroke != 3:
                 self.current_stroke = 3
                 self.upsample_plot(i)
@@ -570,6 +568,8 @@ class GraphWidget(QWidget):
                 else None
             )
             self.plot_widgets[plot_index].addItem(region)
+            # Make it appear under the curve
+            region.setZValue(-1)
 
         for start, stop in seizure_regions:
             region = pg.LinearRegionItem(
@@ -584,6 +584,7 @@ class GraphWidget(QWidget):
                 else None
             )
             self.plot_widgets[plot_index].addItem(region)
+            region.setZValue(-1)
 
         if self.do_show_regions:
             self.show_regions()
@@ -646,9 +647,10 @@ class GraphWidget(QWidget):
         )
         curve.setDownsampling(auto=True, method="peak")
 
-        self.plot_widgets[plot_index].clear()
+        for item in self.plot_widgets[plot_index].items():
+            if isinstance(item, pg.PlotDataItem):
+                self.plot_widgets[plot_index].removeItem(item)
         self.plot_widgets[plot_index].addItem(curve)
-        self.plot_widgets[plot_index].addItem(self.red_lines[plot_index])
         self.plots[plot_index] = curve
 
     def downsample_plot(self, plot_index, num_points=GRAPH_DOWNSAMPLE):
@@ -663,9 +665,10 @@ class GraphWidget(QWidget):
         )
         curve.setDownsampling(auto=True, method="peak")
 
-        self.plot_widgets[plot_index].clear()
+        for item in self.plot_widgets[plot_index].items():
+            if isinstance(item, pg.PlotDataItem):
+                self.plot_widgets[plot_index].removeItem(item)
         self.plot_widgets[plot_index].addItem(curve)
-        self.plot_widgets[plot_index].addItem(self.red_lines[plot_index])
         self.plots[plot_index] = curve
 
     def downsample_data(self, x, y, num_points):

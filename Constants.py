@@ -1,6 +1,6 @@
 from PyQt5.QtGui import QColor
 
-VERSION = "v1.1.0"
+VERSION = "v1.1.1"
 
 BACKGROUND = QColor("#4a4e69")
 ACTIVE = QColor("#808080")
@@ -18,6 +18,8 @@ MARKER = "s"
 STROKE_WIDTH = 3
 
 GRAPH_DOWNSAMPLE = 5_000
+
+TOTAL_POINTS = 20_000
 
 CELL_SIZE = 60  # micrometers
 
