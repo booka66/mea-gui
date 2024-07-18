@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
 )
 import pyqtgraph as pg
 import numpy as np
-from Constants import STROKE_WIDTH, GRAPH_DOWNSAMPLE
+from Constants import STROKE_WIDTH, GRAPH_DOWNSAMPLE, TOTAL_POINTS
 from CustomViewBox import TraceViewBoxMenu
 
 failed_import = False
@@ -35,6 +35,8 @@ class GraphWidget(QWidget):
         self.layout = QVBoxLayout(self)
         self.updating_from_minimap = False
         self.updating_from_plot = False
+        self.current_stroke = 1
+        self.graphs_downsampled = False
 
         # Create the minimap
         self.minimap = pg.PlotWidget()
@@ -117,10 +119,6 @@ class GraphWidget(QWidget):
             plot_widget.scene().sigMouseMoved.connect(
                 lambda pos, i=i: self.update_active_plot(pos, i)
             )
-            # Stop the main_window playpause
-            plot_widget.getPlotItem().getViewBox().sigRangeChanged.connect(
-                lambda event: self.main_window.pause_playback()
-            )
 
             self.plots_layout.addWidget(plot_widget)
 
@@ -140,7 +138,7 @@ class GraphWidget(QWidget):
 
         self.synced_range = x_range
         if not self.sync_timer.isActive():
-            self.sync_timer.start(250)
+            self.sync_timer.start(50)
 
         if update_minimap:
             self.update_minimap()
@@ -218,7 +216,36 @@ class GraphWidget(QWidget):
                 plot_widget.enableAutoRange(axis="y")
         if self.main_window.show_discharge_peaks:
             self.plot_peaks()
+
+        self.render_plots()
+
         self.synced_range = None
+
+    def render_plots(self):
+        total_points = self.count_points_in_view()
+        print(f"Total points in view: {total_points}")
+
+        thin_threshold = 250_000
+        medium_threshold = 100_000
+        thick_threshold = TOTAL_POINTS
+
+        for i in range(4):
+            current_stroke = self.plots[i].opts["pen"].width()
+            print(f"Current stroke: {current_stroke}")
+
+            if total_points > thin_threshold and current_stroke != 1:
+                self.current_stroke = 1
+                self.downsample_plot(i, TOTAL_POINTS // 4)
+            elif (
+                total_points < medium_threshold
+                and total_points > thick_threshold
+                and current_stroke != 2
+            ):
+                self.current_stroke = 2
+                self.downsample_plot(i, TOTAL_POINTS // 2)
+            elif total_points < thick_threshold and current_stroke != 3:
+                self.current_stroke = 3
+                self.upsample_plot(i)
 
     def update_minimap(self):
         if self.updating_from_minimap or not self.do_show_mini_map:
@@ -486,7 +513,7 @@ class GraphWidget(QWidget):
         print(f"We have {len(x)} points to plot")
         seizure_regions, se_regions = self.get_regions(seizures, se)
 
-        curve = pg.PlotDataItem(x, y, pen=pg.mkPen(color=(0, 0, 0), width=1))
+        curve = pg.PlotDataItem(x, y, pen=pg.mkPen(color=(0, 0, 0), width=4))
         curve.setDownsampling(auto=True, method="peak")
 
         self.plot_widgets[plot_index].clear()
@@ -494,6 +521,7 @@ class GraphWidget(QWidget):
         self.plots[plot_index] = curve
 
         self.plot_widgets[plot_index].addItem(self.red_lines[plot_index])
+        self.render_plots()
 
         if len(x) > 0:
             self.plot_widgets[plot_index].getPlotItem().getViewBox().setLimits(
@@ -573,13 +601,76 @@ class GraphWidget(QWidget):
     def get_num_points(self, plot_index):
         return len(self.x_data[plot_index])
 
+    def count_points_in_view(self):
+        active_plots = [
+            i for i, channel in enumerate(self.main_window.plotted_channels) if channel
+        ]
+
+        if not active_plots:
+            return 0
+
+        # Use the first active plot for calculation
+        first_active = active_plots[0]
+        plot_widget = self.plot_widgets[first_active]
+        view_box = plot_widget.getPlotItem().getViewBox()
+        x_range, _ = view_box.viewRange()
+
+        x_data = self.x_data[first_active]
+
+        if x_data is None or len(x_data) == 0:
+            return 0
+
+        # Convert to numpy array if it's a list
+        if isinstance(x_data, list):
+            x_data = np.array(x_data)
+
+        # Find the indices of points within the x-range
+        in_range = (x_data >= x_range[0]) & (x_data <= x_range[1])
+
+        # Count the points
+        point_count = int(np.sum(in_range))
+
+        # Multiply by the number of active plots
+        total_points = point_count * len(active_plots)
+
+        return total_points
+
+    def upsample_plot(self, plot_index):
+        x = self.x_data[plot_index]
+        y = self.y_data[plot_index]
+        if x is None or y is None:
+            return
+
+        curve = pg.PlotDataItem(
+            x, y, pen=pg.mkPen(color=(0, 0, 0), width=self.current_stroke)
+        )
+        curve.setDownsampling(auto=True, method="peak")
+
+        self.plot_widgets[plot_index].clear()
+        self.plot_widgets[plot_index].addItem(curve)
+        self.plot_widgets[plot_index].addItem(self.red_lines[plot_index])
+        self.plots[plot_index] = curve
+
     def downsample_plot(self, plot_index, num_points=GRAPH_DOWNSAMPLE):
         x = self.x_data[plot_index]
         y = self.y_data[plot_index]
         downsample_x, downsample_y = self.downsample_data(x, y, num_points)
-        self.plots[plot_index].setData(downsample_x, downsample_y)
+
+        curve = pg.PlotDataItem(
+            downsample_x,
+            downsample_y,
+            pen=pg.mkPen(color=(0, 0, 0), width=self.current_stroke),
+        )
+        curve.setDownsampling(auto=True, method="peak")
+
+        self.plot_widgets[plot_index].clear()
+        self.plot_widgets[plot_index].addItem(curve)
+        self.plot_widgets[plot_index].addItem(self.red_lines[plot_index])
+        self.plots[plot_index] = curve
 
     def downsample_data(self, x, y, num_points):
+        if x is None or y is None:
+            return [], []
         if len(x) <= num_points:
             return x, y
 
