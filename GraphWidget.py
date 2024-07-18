@@ -136,7 +136,7 @@ class GraphWidget(QWidget):
 
         self.synced_range = x_range
         if not self.sync_timer.isActive():
-            self.sync_timer.start(100)
+            self.sync_timer.start(250)
 
         if update_minimap:
             self.update_minimap()
@@ -231,10 +231,27 @@ class GraphWidget(QWidget):
         # Only update the minimap data if the active plot has changed
         if self.active_plot_index != self.last_active_plot_index:
             downsampled_x, downsampled_y = self.downsample_data(
-                active_x_data, active_y_data, GRAPH_DOWNSAMPLE // 2
+                active_x_data, active_y_data, GRAPH_DOWNSAMPLE
             )
-            self.minimap_plot.setData(downsampled_x, downsampled_y)
+            curve = pg.PlotDataItem(
+                downsampled_x, downsampled_y, pen=pg.mkPen(color=(0, 0, 0), width=1)
+            )
+            curve.setDownsampling(auto=True, method="peak")
+
+            # self.plot_widgets[plot_index].clear()
+            # self.plot_widgets[plot_index].addItem(curve)
+            # self.plots[plot_index] = curve
+
+            self.minimap.clear()
+            self.minimap.addItem(curve)
+            self.minimap.addItem(self.minimap_region)
+            self.minimap_plot = curve
+
             self.last_active_plot_index = self.active_plot_index
+            if len(active_x_data) > 0:
+                self.minimap.getPlotItem().getViewBox().setLimits(
+                    xMin=0, xMax=max(active_x_data)
+                )
 
         # Always update the region
         view_range = (
@@ -467,13 +484,17 @@ class GraphWidget(QWidget):
 
         curve = pg.PlotDataItem(x, y, pen=pg.mkPen(color=(0, 0, 0), width=1))
         curve.setDownsampling(auto=True, method="peak")
-        
+
         self.plot_widgets[plot_index].clear()
         self.plot_widgets[plot_index].addItem(curve)
         self.plots[plot_index] = curve
 
-        #Add the red line after clearing....
         self.plot_widgets[plot_index].addItem(self.red_lines[plot_index])
+
+        if len(x) > 0:
+            self.plot_widgets[plot_index].getPlotItem().getViewBox().setLimits(
+                xMin=0, xMax=max(x)
+            )
 
         if "(" in title:
             title_parts = title.split(" ", 1)
@@ -499,7 +520,6 @@ class GraphWidget(QWidget):
         self.plot_widgets[plot_index].getAxis("left").setTextPen(
             pg.mkPen(color=(0, 0, 0), width=2)
         )
-
 
         if plot_index in self.region_plots:
             self.plot_widgets[plot_index].removeItem(self.region_plots[plot_index])
@@ -538,7 +558,6 @@ class GraphWidget(QWidget):
         else:
             self.hide_regions()
 
-        # Update the minimap after plotting
         if plot_index == 0:
             self.update_minimap()
 
