@@ -561,8 +561,8 @@ class MainWindow(QMainWindow):
         cwd = os.path.dirname(os.path.realpath(__file__))
         matlab_path = os.path.join(cwd, "helpers", "mat")
 
-        print(f"Current working directory: {cwd}")
-        print(f"Matlab path: {matlab_path}")
+        # print(f"Current working directory: {cwd}")
+        # print(f"Matlab path: {matlab_path}")
 
         self.matlab_thread = MatlabEngineThread(cwd, matlab_path)
         self.matlab_thread.engine_started.connect(self.on_engine_started)
