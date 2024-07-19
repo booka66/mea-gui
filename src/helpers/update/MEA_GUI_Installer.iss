@@ -2,7 +2,7 @@
 #define MyAppVersion "1.0"
 #define MyAppPublisher "Booka66"
 #define MyAppExeName "MEA GUI.exe"
-#define MyAppIconName "icon.ico"
+#define MyAppIconName "../../../resources/icon.ico"
 
 [Setup]
 AppId={{COM.BOOKA66.MEAGUI}
