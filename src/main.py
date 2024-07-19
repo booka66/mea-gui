@@ -9,29 +9,39 @@ from scipy.signal import butter, filtfilt, spectrogram
 from scipy.interpolate import interp1d
 from sklearn.cluster import DBSCAN
 import multiprocessing
-from Updater import check_for_update, download_and_install_update
-from VideoEditor import VideoEditor
-from GridWidget import GridWidget
-from GraphWidget import GraphWidget
-from LoadingDialog import LoadingDialog
-from LegendWidget import LegendWidget
-from SquareWidget import SquareWidget
-from AnalysisThread import AnalysisThread
-from ColorCell import ColorCell
-from MatlabEngineThread import MatlabEngineThread
-from RasterPlot import RasterPlot
-from GroupSelectionDialog import GroupSelectionDialog, Group
-from Settings import (
+from helpers.update.Updater import check_for_update, download_and_install_update
+from widgets.VideoEditor import VideoEditor
+from widgets.GridWidget import GridWidget
+from widgets.GraphWidget import GraphWidget
+from widgets.LoadingDialog import LoadingDialog
+from widgets.LegendWidget import LegendWidget
+from widgets.SquareWidget import SquareWidget
+from threads.AnalysisThread import AnalysisThread
+from widgets.ColorCell import ColorCell
+from threads.MatlabEngineThread import MatlabEngineThread
+from widgets.RasterPlot import RasterPlot
+from widgets.GroupSelectionDialog import GroupSelectionDialog, Group
+from widgets.Settings import (
     SettingsWidgetManager,
     SpectrogramSettingsWidget,
     DBSCANSettingsWidget,
     PeakSettingsWidget,
 )
-from ClusterTracker import ClusterLegend, ClusterTracker
+from widgets.ClusterTracker import ClusterLegend, ClusterTracker
 
-# from SignalAnalyzer import SignalAnalyzer
-from Media import SaveChannelPlotsDialog, save_grid_as_png, save_mea_with_plots
-from ProgressBar import EEGScrubberWidget
+from widgets.Media import SaveChannelPlotsDialog, save_grid_as_png, save_mea_with_plots
+from widgets.ProgressBar import EEGScrubberWidget
+from helpers.Constants import (
+    BACKGROUND,
+    PROPAGATION,
+    SEIZURE,
+    SE,
+    ACTIVE,
+    GRAPH_DOWNSAMPLE,
+    MAC,
+    WIN,
+    VERSION,
+)
 
 import numpy as np
 import pyqtgraph as pg
@@ -82,20 +92,9 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 import qdarktheme
-from Constants import (
-    BACKGROUND,
-    PROPAGATION,
-    SEIZURE,
-    SE,
-    ACTIVE,
-    GRAPH_DOWNSAMPLE,
-    MAC,
-    WIN,
-    VERSION,
-)
 
 try:
-    from signal_analyzer import SignalAnalyzer
+    from helpers.extensions.signal_analyzer import SignalAnalyzer
 except ImportError:
     print("Failed to import signal_analyzer module.")
 
@@ -560,10 +559,12 @@ class MainWindow(QMainWindow):
         self.set_widgets_enabled()
 
         cwd = os.path.dirname(os.path.realpath(__file__))
+        matlab_path = os.path.join(cwd, "helpers", "mat")
 
         print(f"Current working directory: {cwd}")
+        print(f"Matlab path: {matlab_path}")
 
-        self.matlab_thread = MatlabEngineThread(cwd)
+        self.matlab_thread = MatlabEngineThread(cwd, matlab_path)
         self.matlab_thread.engine_started.connect(self.on_engine_started)
         self.matlab_thread.error_occurred.connect(self.on_engine_error)
         self.matlab_thread.start()
@@ -2086,7 +2087,7 @@ class MainWindow(QMainWindow):
                     newly_seized_cells.append((row, col))
 
     def update_grid(self, first=False):
-        start = perf_counter()
+        # start = perf_counter()
         if first:
             self.initialize_data()
             self.get_min_max_strengths()
@@ -2143,7 +2144,7 @@ class MainWindow(QMainWindow):
                 self.remove_seizure_arrows(row, col)
 
         self.grid_widget.update()
-        end = perf_counter()
+        # end = perf_counter()
 
     def blend_colors(self, color1, color2, strength):
         r1, g1, b1, _ = color1.getRgb()

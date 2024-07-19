@@ -1,6 +1,6 @@
 import math
 from time import perf_counter
-from alert import alert
+from helpers.alert import alert
 import numpy as np
 import cv2
 from PyQt5.QtCore import QEvent, QRectF, Qt, QTimer, pyqtSignal

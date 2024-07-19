@@ -19,13 +19,13 @@ def create_tag(tag):
 
 
 def update_constants_file(tag):
-    # Update Constants.py with the new version
-    with open("Constants.py", "r") as f:
+    constants_file = "../Constants.py"
+    with open(constants_file, "r") as f:
         content = f.read()
     updated_content = re.sub(
         r'VERSION = "v\d+\.\d+\.\d+"', f'VERSION = "{tag}"', content
     )
-    with open("Constants.py", "w") as f:
+    with open(constants_file, "w") as f:
         f.write(updated_content)
 
 
@@ -120,12 +120,16 @@ def increment_tag():
 
 async def main(tag=None, no_package=False):
     # Try to compile the c++ extensions
-    try:
-        setup_file = "setup.py" if sys.platform == "darwin" else "win_setup.py"
-        subprocess.run(["python", setup_file, "build_ext", "--inplace"])
-    except Exception as e:
-        print(f"Failed to compile c++ extensions: {e}")
-        return
+    # try:
+    #     setup_file = (
+    #         "../extensions/setup.py"
+    #         if sys.platform == "darwin"
+    #         else "../extensions/win_setup.py"
+    #     )
+    #     subprocess.run(["python", setup_file, "build_ext", "--inplace"])
+    # except Exception as e:
+    #     print(f"Failed to compile c++ extensions: {e}")
+    #     return
     if tag:
         # Validate tag format (e.g., v1.0.0)
         if tag == "next":
@@ -139,12 +143,12 @@ async def main(tag=None, no_package=False):
     print(f"Creating {'package' if not no_package else 'application'}...")
 
     if sys.platform == "darwin":
-        pyinstaller_command = """sudo pyinstaller --noconfirm --onedir --argv-emulation --windowed main.py --icon=icon.ico --add-data "SzDetectCat.m:." --add-data "save_channel_to_mat.m:." --add-data "getChs.m:." --add-data "get_cat_envelop.m:." --additional-hooks-dir "hooks" --add-data "*.m:."
+        pyinstaller_command = """sudo pyinstaller --noconfirm --onedir --argv-emulation --windowed ../../main.py --icon=../../../resources/icon.ico --add-data "../../helpers/mat/SzDetectCat.m:." --add-data "../../helpers/mat/save_channel_to_mat.m:." --add-data "../../helpers/mat/getChs.m:." --add-data "../../helpers/mat/get_cat_envelop.m:." --additional-hooks-dir "../../../hooks/" --add-data "../../helpers/mat/*.m:."
         """
         package_commands = [
             "rm -rf package_root/Applications/MEA\\ GUI.app",
             "cp -R dist/main.app package_root/Applications/MEA\\ GUI.app ",
-            "cp fonts/HackNerdFontMono-Regular.ttf package_root/Library/Fonts ",
+            "cp ../../../resources/fonts/HackNerdFontMono-Regular.ttf package_root/Library/Fonts ",
             "pkgbuild --root package_root --identifier com.booka66.meagui --install-location / --overwrite-files MEA_GUI_MacOS.pkg",
         ]
         package_file = "MEA_GUI_MacOS.pkg"

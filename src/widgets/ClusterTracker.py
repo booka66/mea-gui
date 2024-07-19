@@ -13,7 +13,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QPainterPath
 from PyQt5.QtCore import QPointF
-from Constants import CELL_SIZE
+from helpers.Constants import CELL_SIZE
 
 from scipy.ndimage import gaussian_filter
 

@@ -10,7 +10,7 @@ from PIL import Image
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import QMessageBox, QVBoxLayout, QWidget
 
-from Constants import MARKER, SIZE
+from helpers.Constants import MARKER, SIZE
 
 
 class ScatterPlot(QWidget):

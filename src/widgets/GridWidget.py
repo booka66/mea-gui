@@ -1,8 +1,8 @@
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QBrush, QPixmap, QTransform
 from PyQt5.QtWidgets import QAction, QGraphicsScene, QGraphicsView, QMenu
-from ColorCell import ColorCell
-from Constants import BACKGROUND
+from widgets.ColorCell import ColorCell
+from helpers.Constants import BACKGROUND
 
 
 class GridWidget(QGraphicsView):

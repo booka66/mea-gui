@@ -2,7 +2,7 @@ from PyQt5.QtCore import QRect, Qt
 from PyQt5.QtGui import QBrush, QLinearGradient, QPainter
 from PyQt5.QtWidgets import QWidget
 
-from Constants import ACTIVE, BACKGROUND, SE, SEIZURE
+from helpers.Constants import ACTIVE, BACKGROUND, SE, SEIZURE
 
 
 class LegendWidget(QWidget):

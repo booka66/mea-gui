@@ -7,12 +7,12 @@ import numpy as np
 from scipy.io import loadmat
 from PyQt5.QtCore import QThread, pyqtSignal
 
-from alert import alert
-from ProgressUpdaterThread import ProgressUpdaterThread
+from helpers.alert import alert
+from threads.ProgressUpdaterThread import ProgressUpdaterThread
 
 cpp_import_failed = False
 try:
-    import sz_se_detect
+    from helpers.extensions import sz_se_detect
 except ImportError:
     cpp_import_failed = True
 

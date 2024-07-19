@@ -4,7 +4,7 @@ import requests
 from packaging import version
 import urllib.request
 
-from Constants import VERSION
+from helpers.Constants import VERSION
 
 GITHUB_REPO = "booka66/mea-gui"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
