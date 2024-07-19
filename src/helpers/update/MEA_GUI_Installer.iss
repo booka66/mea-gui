@@ -26,8 +26,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "D:\Users\booka66\mea-gui\dist\main\main.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
-Source: "D:\Users\booka66\mea-gui\dist\main\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "main.exe"
+Source: "D:\Users\booka66\mea-gui\src\helpers\update\dist\main\main.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
+Source: "D:\Users\booka66\mea-gui\src\helpers\update\dist\main\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "main.exe"
 Source: "{#MyAppIconName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
