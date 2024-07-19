@@ -66,20 +66,12 @@ def download_and_install_update(release):
 
         print("Download completed.")
 
-        # Run the file
         try:
             if sys.platform == "win32":
                 os.startfile(file_path)
+                return True
             elif sys.platform == "darwin":
                 os.system(f"open {file_path}")
-                return True
-            else:
-                try:
-                    os.startfile(file_path)
-                except Exception as e:
-                    print(f"Error launching file: {e}")
-                print(f"Trying to open {file_path} with xdg-open...")
-                os.system(f"xdg-open {file_path}")
                 return True
             print(f"Launched {file_path}")
         except Exception as e:
