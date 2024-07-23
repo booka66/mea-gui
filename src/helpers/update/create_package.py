@@ -107,7 +107,7 @@ async def upload_or_update_asset(session, release_data, file_path):
 
 def increment_tag():
     # Increment the last digit of the tag
-    with open("Constants.py", "r") as f:
+    with open("../Constants.py", "r") as f:
         content = f.read()
     match = re.search(r'VERSION = "v(\d+\.\d+\.)(\d+)"', content)
     if match:

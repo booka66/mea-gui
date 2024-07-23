@@ -38,7 +38,6 @@ class GraphWidget(QWidget):
         self.current_stroke = 1
         self.graphs_downsampled = False
 
-        # Create the minimap
         self.minimap = pg.PlotWidget()
         self.minimap.hideAxis("bottom")
         self.minimap.hideAxis("left")
@@ -51,17 +50,13 @@ class GraphWidget(QWidget):
         self.minimap.addItem(self.minimap_region)
         self.minimap.setContextMenuPolicy(3)
 
-        # Connect the minimap region's sigRegionChanged signal to update_plot_views
         self.minimap_region.sigRegionChanged.connect(self.minimap_region_changed)
 
-        # Set a fixed height for the minimap
         self.minimap.setFixedHeight(100)
         self.minimap.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-        # Add minimap to the layout
         self.layout.addWidget(self.minimap)
 
-        # Create a widget to hold the plot widgets
         self.plots_container = QWidget()
         self.plots_layout = QVBoxLayout(self.plots_container)
         self.plots_layout.setContentsMargins(0, 0, 0, 0)
@@ -79,7 +74,7 @@ class GraphWidget(QWidget):
         self.region_plots = {}
         self.x_data = [None] * 4
         self.y_data = [None] * 4
-        self.active_plot_index = 0  # Track the currently active plot
+        self.active_plot_index = 0
         self.do_show_mini_map = True
         self.last_active_plot_index = -1
 
@@ -127,10 +122,6 @@ class GraphWidget(QWidget):
         self.sync_timer.timeout.connect(self.apply_synced_range)
 
         self.synced_range = None
-        self.plots = [
-            plot_widget.plot(pen=pg.mkPen(color=(0, 0, 255), width=STROKE_WIDTH))
-            for plot_widget in self.plot_widgets
-        ]
 
     def sync_ranges(self, source_index, x_range, update_minimap=False):
         if self.updating_from_minimap:
@@ -138,7 +129,7 @@ class GraphWidget(QWidget):
 
         self.synced_range = x_range
         if not self.sync_timer.isActive():
-            self.sync_timer.start(50)
+            self.sync_timer.start(0)
 
         if update_minimap:
             self.update_minimap()
@@ -217,33 +208,8 @@ class GraphWidget(QWidget):
         if self.main_window.show_discharge_peaks:
             self.plot_peaks()
 
-        self.render_plots()
 
         self.synced_range = None
-
-    def render_plots(self):
-        total_points = self.count_points_in_view()
-
-        thin_threshold = 250_000
-        medium_threshold = 150_000
-        thick_threshold = TOTAL_POINTS
-
-        for i in range(4):
-            current_stroke = self.plots[i].opts["pen"].width()
-
-            if total_points > thin_threshold and current_stroke != 1:
-                self.current_stroke = 1
-                self.downsample_plot(i, TOTAL_POINTS // 2)
-            elif (
-                total_points < medium_threshold
-                and total_points > thick_threshold
-                and current_stroke != 2
-            ):
-                self.current_stroke = 2
-                self.downsample_plot(i, TOTAL_POINTS)
-            elif total_points < thick_threshold and current_stroke != 3:
-                self.current_stroke = 3
-                self.upsample_plot(i)
 
     def update_minimap(self):
         if self.updating_from_minimap or not self.do_show_mini_map:
@@ -266,10 +232,6 @@ class GraphWidget(QWidget):
                 downsampled_x, downsampled_y, pen=pg.mkPen(color=(0, 0, 0), width=1)
             )
             curve.setDownsampling(auto=True, method="peak")
-
-            # self.plot_widgets[plot_index].clear()
-            # self.plot_widgets[plot_index].addItem(curve)
-            # self.plots[plot_index] = curve
 
             self.minimap.clear()
             self.minimap.addItem(curve)
@@ -349,134 +311,6 @@ class GraphWidget(QWidget):
         for red_line in self.red_lines:
             red_line.setPos(value / sampling_rate)
 
-    def redraw_regions(self, start, stop, plotted_channels):
-        plotted_indices = [i for i, channel in enumerate(plotted_channels) if channel]
-        print(f"Plotted indices: {plotted_indices}")
-        for i in plotted_indices:
-            region_start_index = np.searchsorted(self.x_data[i], start)
-            region_stop_index = np.searchsorted(self.x_data[i], stop)
-            region_x = self.x_data[i][region_start_index:region_stop_index]
-            region_y = self.y_data[i][region_start_index:region_stop_index]
-
-            if i in self.region_plots:
-                self.plot_widgets[i].removeItem(self.region_plots[i])
-
-            region_plot = self.plot_widgets[i].plot(
-                pen=pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH)
-            )
-            region_plot.setData(region_x, region_y)
-
-            self.region_plots[i] = region_plot
-
-            # Hide the original plot line within the region
-            beginning_trace_x = self.x_data[i][:region_start_index]
-            beginning_trace_y = self.y_data[i][:region_start_index]
-            end_trace_x = self.x_data[i][region_stop_index:]
-            end_trace_y = self.y_data[i][region_stop_index:]
-
-            # Remove existing beginning and end plots
-            for item in self.plot_widgets[i].items():
-                if (
-                    isinstance(item, pg.PlotDataItem)
-                    and item != self.plots[i]
-                    and item != region_plot
-                ):
-                    self.plot_widgets[i].removeItem(item)
-
-            # Create two separate plot items for the beginning and end traces
-            beginning_plot = self.plot_widgets[i].plot(
-                pen=pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH)
-            )
-            end_plot = self.plot_widgets[i].plot(
-                pen=pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH)
-            )
-
-            beginning_downsampled_x, beginning_downsampled_y = self.downsample_data(
-                beginning_trace_x, beginning_trace_y, GRAPH_DOWNSAMPLE
-            )
-            end_downsampled_x, end_downsampled_y = self.downsample_data(
-                end_trace_x, end_trace_y, GRAPH_DOWNSAMPLE
-            )
-
-            beginning_plot.setData(beginning_downsampled_x, beginning_downsampled_y)
-            end_plot.setData(end_downsampled_x, end_downsampled_y)
-            self.plots[i].setData([], [])
-
-        self.update_minimap()
-
-    def redraw_region(self, start, stop, plot_index):
-        for i in range(4):
-            if self.x_data[i] is None or len(self.x_data[i]) == 0:
-                continue
-
-            region_start_index = np.searchsorted(self.x_data[i], start)
-            region_stop_index = np.searchsorted(self.x_data[i], stop)
-
-            # Prepare data for region plot
-            region_x = self.x_data[i][region_start_index:region_stop_index]
-            region_y = self.y_data[i][region_start_index:region_stop_index]
-
-            # Update or create region plot
-            if i in self.region_plots:
-                self.region_plots[i].setData(region_x, region_y)
-            else:
-                self.region_plots[i] = self.plot_widgets[i].plot(
-                    region_x,
-                    region_y,
-                    pen=pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH),
-                )
-
-            # Prepare data for beginning and end traces
-            beginning_trace_x = self.x_data[i][:region_start_index]
-            beginning_trace_y = self.y_data[i][:region_start_index]
-            end_trace_x = self.x_data[i][region_stop_index:]
-            end_trace_y = self.y_data[i][region_stop_index:]
-
-            # Calculate downsample sizes
-            total_points = len(self.x_data[i])
-            num_points_beginning = max(
-                int(GRAPH_DOWNSAMPLE * (region_start_index / total_points)), 2
-            )
-            num_points_end = max(
-                int(
-                    GRAPH_DOWNSAMPLE
-                    * ((total_points - region_stop_index) / total_points)
-                ),
-                2,
-            )
-
-            # Downsample data
-            beginning_downsampled_x, beginning_downsampled_y = self.downsample_data(
-                beginning_trace_x, beginning_trace_y, num_points_beginning
-            )
-            end_downsampled_x, end_downsampled_y = self.downsample_data(
-                end_trace_x, end_trace_y, num_points_end
-            )
-
-            # Ensure beginning_plots and end_plots attributes exist
-            if not hasattr(self, "beginning_plots"):
-                self.beginning_plots = [None] * 4
-                self.end_plots = [None] * 4
-
-            # Create or update beginning plot
-            if self.beginning_plots[i] is None:
-                self.beginning_plots[i] = self.plot_widgets[i].plot(
-                    pen=pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH)
-                )
-            self.beginning_plots[i].setData(
-                beginning_downsampled_x, beginning_downsampled_y
-            )
-
-            # Create or update end plot
-            if self.end_plots[i] is None:
-                self.end_plots[i] = self.plot_widgets[i].plot(
-                    pen=pg.mkPen(color=(0, 0, 0), width=STROKE_WIDTH)
-                )
-            self.end_plots[i].setData(end_downsampled_x, end_downsampled_y)
-
-            # Hide the original plot
-            self.plots[i].setData([], [])
-
     def get_regions(self, seizures, se):
         seizure_regions = []
         se_regions = []
@@ -506,20 +340,18 @@ class GraphWidget(QWidget):
                     item.hide()
 
     def plot(self, x, y, title, xlabel, ylabel, plot_index, shape, seizures, se):
+        self.plot_widgets[plot_index].clear()
         self.x_data[plot_index] = x
         self.y_data[plot_index] = y
         print(f"We have {len(x)} points to plot")
         seizure_regions, se_regions = self.get_regions(seizures, se)
 
-        curve = pg.PlotDataItem(x, y, pen=pg.mkPen(color=(0, 0, 0), width=4))
-        curve.setDownsampling(auto=True, method="peak")
-
-        self.plot_widgets[plot_index].clear()
-        self.plot_widgets[plot_index].addItem(curve)
-        self.plots[plot_index] = curve
+        curve = self.plot_widgets[plot_index].plot(pen=pg.mkPen('k', width=3))
+        curve.setData(x, y)
+        curve.setDownsampling(auto=True, method="peak", ds=100)
+        curve.setClipToView(True)
 
         self.plot_widgets[plot_index].addItem(self.red_lines[plot_index])
-        self.render_plots()
 
         if len(x) > 0:
             self.plot_widgets[plot_index].getPlotItem().getViewBox().setLimits(
@@ -594,82 +426,9 @@ class GraphWidget(QWidget):
         if plot_index == 0:
             self.update_minimap()
 
-    def restore_points(self, plot_index):
-        x = self.x_data[plot_index]
-        y = self.y_data[plot_index]
-        self.plots[plot_index].setData(x, y)
 
     def get_num_points(self, plot_index):
         return len(self.x_data[plot_index])
-
-    def count_points_in_view(self):
-        active_plots = [
-            i for i, channel in enumerate(self.main_window.plotted_channels) if channel
-        ]
-
-        if not active_plots:
-            return 0
-
-        # Use the first active plot for calculation
-        first_active = active_plots[0]
-        plot_widget = self.plot_widgets[first_active]
-        view_box = plot_widget.getPlotItem().getViewBox()
-        x_range, _ = view_box.viewRange()
-
-        x_data = self.x_data[first_active]
-
-        if x_data is None or len(x_data) == 0:
-            return 0
-
-        # Convert to numpy array if it's a list
-        if isinstance(x_data, list):
-            x_data = np.array(x_data)
-
-        # Find the indices of points within the x-range
-        in_range = (x_data >= x_range[0]) & (x_data <= x_range[1])
-
-        # Count the points
-        point_count = int(np.sum(in_range))
-
-        # Multiply by the number of active plots
-        total_points = point_count * len(active_plots)
-
-        return total_points
-
-    def upsample_plot(self, plot_index):
-        x = self.x_data[plot_index]
-        y = self.y_data[plot_index]
-        if x is None or y is None:
-            return
-
-        curve = pg.PlotDataItem(
-            x, y, pen=pg.mkPen(color=(0, 0, 0), width=self.current_stroke)
-        )
-        curve.setDownsampling(auto=True, method="peak")
-
-        for item in self.plot_widgets[plot_index].items():
-            if isinstance(item, pg.PlotDataItem):
-                self.plot_widgets[plot_index].removeItem(item)
-        self.plot_widgets[plot_index].addItem(curve)
-        self.plots[plot_index] = curve
-
-    def downsample_plot(self, plot_index, num_points=GRAPH_DOWNSAMPLE):
-        x = self.x_data[plot_index]
-        y = self.y_data[plot_index]
-        downsample_x, downsample_y = self.downsample_data(x, y, num_points)
-
-        curve = pg.PlotDataItem(
-            downsample_x,
-            downsample_y,
-            pen=pg.mkPen(color=(0, 0, 0), width=self.current_stroke),
-        )
-        curve.setDownsampling(auto=True, method="peak")
-
-        for item in self.plot_widgets[plot_index].items():
-            if isinstance(item, pg.PlotDataItem):
-                self.plot_widgets[plot_index].removeItem(item)
-        self.plot_widgets[plot_index].addItem(curve)
-        self.plots[plot_index] = curve
 
     def downsample_data(self, x, y, num_points):
         if x is None or y is None:
