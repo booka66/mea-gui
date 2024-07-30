@@ -119,19 +119,7 @@ def increment_tag():
 
 
 async def main(tag=None, no_package=False):
-    # Try to compile the c++ extensions
-    # try:
-    #     setup_file = (
-    #         "../extensions/setup.py"
-    #         if sys.platform == "darwin"
-    #         else "../extensions/win_setup.py"
-    #     )
-    #     subprocess.run(["python", setup_file, "build_ext", "--inplace"])
-    # except Exception as e:
-    #     print(f"Failed to compile c++ extensions: {e}")
-    #     return
     if tag:
-        # Validate tag format (e.g., v1.0.0)
         if tag == "next":
             tag = increment_tag()
         if not re.match(r"^v\d+\.\d+\.\d+$", tag):

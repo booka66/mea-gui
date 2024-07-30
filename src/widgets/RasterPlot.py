@@ -51,13 +51,10 @@ class RasterPlot:
     def mouse_clicked(self, event):
         try:
             if event.button() == Qt.LeftButton:
-                # Get the mouse click position in scene coordinates
                 scene_pos = event.scenePos()
 
-                # Convert scene coordinates to view coordinates
                 view_pos = self.plot_widget.getViewBox().mapSceneToView(scene_pos)
 
-                # Draw a new green dot at the selected point
                 if self.selected_channel_dot:
                     self.plot_widget.removeItem(self.selected_channel_dot)
 
@@ -68,7 +65,7 @@ class RasterPlot:
                     self.selected_channel = (
                         row - 1,
                         col - 1,
-                    )  # Adjust for 0-based indexing
+                    )
 
                     if self.main_window:
                         self.main_window.selected_channel = self.selected_channel
@@ -78,7 +75,6 @@ class RasterPlot:
                     )
                     self.plot_widget.addItem(self.selected_channel_dot)
 
-                    # Bring the playhead to the selected point
                     self.raster_red_line.setPos(x)
                     self.main_window.progress_bar.setValue(
                         int(time * self.sampling_rate)
@@ -115,9 +111,8 @@ class RasterPlot:
     def set_groups(self, groups):
         self.groups = groups
         self.sort_channels_by_group()
-        self.generate_raster()  # Regenerate spike data
+        self.generate_raster()
         self.update_raster_plot_data()
-        # Update highlighted regions
         self.set_plotted_channels(self.plotted_channels)
 
     def toggle_color_mode(self):

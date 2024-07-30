@@ -8,7 +8,6 @@ import h5py
 from scipy.signal import butter, filtfilt, spectrogram
 from scipy.interpolate import interp1d
 from sklearn.cluster import DBSCAN
-import multiprocessing
 from helpers.update.Updater import check_for_update, download_and_install_update
 from widgets.VideoEditor import VideoEditor
 from widgets.GridWidget import GridWidget
@@ -568,8 +567,10 @@ class MainWindow(QMainWindow):
         self.matlab_thread.error_occurred.connect(self.on_engine_error)
         self.matlab_thread.start()
         self.eng = None
-        self.use_cpp = False
+        self.use_cpp = True
+        self.cpp_mode_checkbox.setChecked(True)
         self.engine_started = False
+
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -624,7 +625,6 @@ class MainWindow(QMainWindow):
 
     def on_engine_error(self, error):
         print(f"Error starting MATLAB engine: {error}")
-        # Show a temporary notifaication saying that c++ will be used instead
         self.use_cpp = True
         self.eng = None
         self.set_widgets_enabled()
@@ -2859,7 +2859,6 @@ else:
     sys.exit(1)
 
 if __name__ == "__main__":
-    multiprocessing.freeze_support()
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()
     if not any(font_name in font for font in QFontDatabase().families()):
