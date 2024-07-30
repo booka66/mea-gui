@@ -23,9 +23,18 @@ def check_for_update():
         if response.status_code == 200:
             latest_release = response.json()
             latest_version = latest_release["tag_name"]
-            return version.parse(latest_version) > version.parse(
-                VERSION
-            ), latest_release
+            found_new_tag = version.parse(latest_version) > version.parse(VERSION)
+            if found_new_tag:
+                # Check to see if the update has the required assets for the current platform
+                assets = latest_release["assets"]
+                for asset in assets:
+                    if sys.platform == "darwin" and asset["name"].endswith(".pkg"):
+                        return True, latest_release
+                    elif sys.platform == "win32" and asset["name"].endswith(".exe"):
+                        return True, latest_release
+            # return version.parse(latest_version) > version.parse(
+            #     VERSION
+            # ), latest_release
         return False, None
     except Exception as e:
         print(f"Failed to check for updates: {e}")
