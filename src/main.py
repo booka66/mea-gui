@@ -273,20 +273,6 @@ class MainWindow(QMainWindow):
         self.toggleLegendAction.triggered.connect(self.toggle_legend)
         self.viewMenu.addAction(self.toggleLegendAction)
 
-        self.toggleMiniMapAction = QAction("Mini-map", self, checkable=True)
-        self.toggleMiniMapAction.setChecked(True)
-        self.toggleMiniMapAction.triggered.connect(self.toggle_mini_map)
-        self.viewMenu.addAction(self.toggleMiniMapAction)
-
-        self.togglePlayheadsActions = QAction("Playheads", self, checkable=True)
-        self.togglePlayheadsActions.setChecked(True)
-        self.togglePlayheadsActions.triggered.connect(self.toggle_playheads)
-        self.viewMenu.addAction(self.togglePlayheadsActions)
-
-        self.antiAliasAction = QAction("Anti-aliasing", self, checkable=True)
-        self.antiAliasAction.setChecked(False)
-        self.antiAliasAction.triggered.connect(self.toggle_antialiasing)
-        self.viewMenu.addAction(self.antiAliasAction)
 
         self.toggleLinesAction = QAction("Spread lines", self, checkable=True)
         self.toggleLinesAction.setChecked(False)
@@ -309,6 +295,21 @@ class MainWindow(QMainWindow):
         self.viewMenu.addAction(self.toggleColorMappingAction)
 
         self.viewMenu.addSeparator()
+
+        self.toggleMiniMapAction = QAction("Mini-map", self, checkable=True)
+        self.toggleMiniMapAction.setChecked(True)
+        self.toggleMiniMapAction.triggered.connect(self.toggle_mini_map)
+        self.viewMenu.addAction(self.toggleMiniMapAction)
+
+        self.togglePlayheadsActions = QAction("Playheads", self, checkable=True)
+        self.togglePlayheadsActions.setChecked(True)
+        self.togglePlayheadsActions.triggered.connect(self.toggle_playheads)
+        self.viewMenu.addAction(self.togglePlayheadsActions)
+
+        self.antiAliasAction = QAction("Anti-aliasing", self, checkable=True)
+        self.antiAliasAction.setChecked(False)
+        self.antiAliasAction.triggered.connect(self.toggle_antialiasing)
+        self.viewMenu.addAction(self.antiAliasAction)
 
         self.toggleRegionsAction = QAction("Seizure regions", self, checkable=True)
         self.toggleRegionsAction.setChecked(True)
