@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow
 import pyqtgraph as pg
 from datetime import datetime, timedelta
 import sys
+from time import perf_counter
 
 
 class TimeAxisItem(pg.AxisItem):
@@ -72,6 +73,7 @@ def main():
 
         data = []
         # for i in range(605, 607):
+        start = perf_counter()
         for i in range(len(toc) - 1):
             frame_start, frame_end = toc[i][:2]
             coefs_start = wavelet_toc[i]
@@ -81,6 +83,8 @@ def main():
             chunk_data = reconstruct_chunk(
                 chunk_coefs, compressionLevel, chIdx, nChannels, coefsChunkLength)
             data.extend(chunk_data)
+        end = perf_counter()
+        print(f"Time taken: {end - start}")
 
     x = np.arange(0, len(data), 1) / samplingRate
     y = np.array(data, dtype=float)
@@ -98,16 +102,14 @@ def reconstruct_chunk(chunk_coefs, compressionLevel, chIdx, nChannels, coefsChun
         coefs = chunk_coefs[coefsPosition: coefsPosition + coefsChunkLength]
         length = int(len(coefs) / 2)
         approx, details = coefs[:length], coefs[length:]
-        approx = np.roll(approx, -5)
-        details = np.roll(details, -5)
+        offset = -5
+        approx = np.roll(approx, offset)
+        details = np.roll(details, offset)
         wavelet = "sym7"
         mode = "periodization"
         frames = pywt.idwt(approx, details, wavelet, mode)
-        
-        length *= 2
         for i in range(1, compressionLevel):
-            frames = pywt.idwt(frames[:length], None, wavelet, mode)
-            length *= 2
+            frames = pywt.idwt(frames, None, wavelet, mode)
         chunk_data.extend(frames[2:-2])
         coefsPosition += coefsChunkLength * nChannels
     return chunk_data

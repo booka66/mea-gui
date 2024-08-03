@@ -1,0 +1,14 @@
+﻿@article{RN1,
+   author = {Mahadevan, Arjun and Codadu, Neela K. and Parrish, R. Ryley},
+   title = {Xenon LFP Analysis Platform Is a Novel Graphical User Interface for Analysis of Local Field Potential From Large-Scale MEA Recordings},
+   journal = {Frontiers in Neuroscience},
+   volume = {16},
+   abstract = {<p>High-density multi-electrode array (HD-MEA) has enabled neuronal measurements at high spatial resolution to record local field potentials (LFP), extracellular action potentials, and network-wide extracellular recording on an extended spatial scale. While we have advanced recording systems with over 4,000 electrodes capable of recording data at over 20 kHz, it still presents computational challenges to handle, process, extract, and view information from these large recordings. We have created a computational method, and an open-source toolkit built in Python, rendered on a web browser using Plotly’s Dash for extracting and viewing the data and creating interactive visualization. In addition to extracting and viewing entire or small chunks of data sampled at lower or higher frequencies, respectively, it provides a framework to collect user inputs, analyze channel groups, generate raster plots, view quick summary measures for LFP activity, detect and isolate noise channels, and generate plots and visualization in both time and frequency domain. Incorporated into our Graphical User Interface (GUI), we also created a novel seizure detection method, which can be used to detect the onset of seizures in all or a selected group of channels and provide the following measures of seizures: distance, duration, and propagation across the region of interest. We demonstrate the utility of this toolkit, using datasets collected from an HD-MEA device comprising of 4,096 recording electrodes. For the current analysis, we demonstrate the toolkit and methods with a low sampling frequency dataset (300 Hz) and a group of approximately 400 channels. Using this toolkit, we present novel data demonstrating increased seizure propagation speed from brain slices of Scn1aHet mice compared to littermate controls. While there have been advances in HD-MEA recording systems with high spatial and temporal resolution, limited tools are available for researchers to view and process these big datasets. We now provide a user-friendly toolkit to analyze LFP activity obtained from large-scale MEA recordings with translatable applications to EEG recordings and demonstrate the utility of this new graphic user interface with novel biological findings.</p>},
+   keywords = {SCN1A,Seizures,LFP analysis,Plotly Dash,HD-MEA},
+   ISSN = {1662-453X},
+   DOI = {10.3389/fnins.2022.904931},
+   url = {https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2022.904931},
+   year = {2022},
+   type = {Journal Article}
+}
+
