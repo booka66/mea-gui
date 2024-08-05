@@ -16,3 +16,5 @@ opencv-python
 matplotlib
 lttbc
 pyqtdarktheme
+matlab
+matlab.engine
