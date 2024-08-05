@@ -16,3 +16,4 @@ Contents
 .. toctree::
    quickstart
    userguide.rst
+   contribute
