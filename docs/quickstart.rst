@@ -55,7 +55,7 @@ There are two ways to install the application:
 
           python src/main.py
 
-.. note::
+.. important::
   The instructions for building from the source code assume that you have Python 3.11 installed on your system. 
   If you don't have it, you can download it from the `official website <https://www.python.org/downloads/release/python-3118/>`__.
 
@@ -72,7 +72,7 @@ If you have MATLAB installed in a non-standard location, you will need to manual
 .. note::
   Luckily, the application will automatically detect the MATLAB installation on your system if it is installed in the default location.
 
-.. note::
+.. tip::
   If you cannot install MATLAB on your system, when using the application, make sure the ``Use c++`` option is checked before running an analysis.
 
 Font
