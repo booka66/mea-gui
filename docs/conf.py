@@ -29,6 +29,7 @@ author = 'Jacob Cahoon'
 # ones.
 extensions = [
     'sphinx_copybutton',
+    'sphinx.ext.todo',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -47,7 +48,8 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 #
 html_theme = "pydata_sphinx_theme"
 html_theme_options = {
-  "secondary_sidebar_items": ["page-toc", "edit-this-page"],
+    "secondary_sidebar_items": ["page-toc", "edit-this-page"],
+    "show_nav_level": 4,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

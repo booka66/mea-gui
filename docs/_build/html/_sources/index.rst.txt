@@ -6,7 +6,7 @@ At its core, meaGUI features a graphical user interface (GUI) that enables users
 The GUI is built using the `PyQt5 <https://www.riverbankcomputing.com/static/Docs/PyQt5/>`_ and `pyqtgraph <http://www.pyqtgraph.org/>`_ libraries.
 
 
-.. note::
+.. warning::
 
    This project is under active development.
 
@@ -14,4 +14,5 @@ Contents
 --------
 
 .. toctree::
-   usage
+   quickstart
+   userguide.rst

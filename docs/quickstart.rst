@@ -1,5 +1,12 @@
-Usage
-=====
+Quick Start
+===========
+
+.. toctree::
+   :maxdepth: 4
+   :hidden:
+
+   self
+
 
 Installation
 ------------
