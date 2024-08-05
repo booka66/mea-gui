@@ -46,8 +46,8 @@ html_theme_options = {
     "show_nav_level": 4,
     "logo": {
         "text": "meaGUI",
-        "image_light": "../resources/icon.ico",
-        "image_dark": "../resources/icon.ico",
+        "image_light": "_static/icon.ico",
+        "image_dark": "_static/icon.ico",
     },
     "navbar_align": "left",
 }
