@@ -15,13 +15,7 @@ failed_import = False
 try:
     import lttbc
 except ImportError:
-    app = QApplication([])
     failed_import = True
-    msg = "Failed to import lttbc. Downsampling will be done using numpy instead.\nPlease run 'pip install lttbc' to enable better downsampling."
-    msg_box = QMessageBox()
-    msg_box.setText(msg)
-    msg_box.exec_()
-    app.quit()
 
 
 class GraphWidget(QWidget):

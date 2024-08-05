@@ -12,3 +12,7 @@ urllib3==2.2.2
 packaging
 PyQt5
 pyqtgraph
+opencv-python
+matplotlib
+lttbc
+pyqtdarktheme
