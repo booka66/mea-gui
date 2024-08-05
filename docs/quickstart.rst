@@ -64,21 +64,10 @@ Configuration
 MATLAB
 ^^^^^^
 Certain features of the application require MATLAB to be installed on your system. 
-If you have MATLAB installed in a non-standard location, you can specify the path to the MATLAB executable in the configuration file. 
-To do this, open the configuration file located at ``src/helpers/config.json`` and change the value of the ``matlab_path`` key to the path to the MATLAB executable on your system.
-For example:
+If you have MATLAB installed in a non-standard location, you will need to manually adjust the location of your MATLAB installation to the default location:
 
-.. code-block:: json
-
-    {
-        "matlab_path": "C:/Program Files/MATLAB/R2021b/bin/matlab.exe"
-    }
-
-.. code-block:: json
-
-    {
-        "matlab_path": "/Applications/MATLAB_R2021b.app/bin/matlab"
-    }
+    - Windows: ``C:\Program Files\MATLAB\R2024a``
+    - MacOS: ``/Applications/MATLAB_R2024a.app``
 
 .. note::
   Luckily, the application will automatically detect the MATLAB installation on your system if it is installed in the default location.
