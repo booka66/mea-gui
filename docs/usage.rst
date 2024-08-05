@@ -14,15 +14,39 @@ There are two ways to install the application:
 
 2. Manually from the source code:
 
+    - Clone the repository and navigate to the project directory:
+        .. code-block:: bash
 
-    - Clone the repository: ``git clone https://github.com/booka66/mea-gui.git``
-    - Navigate to the project directory: ``cd mea-gui``
-    - Create a virtual environment: ``python -m venv mea_env``
+          git clone https://github.com/booka66/mea-gui.git
+          cd mea-gui
+
+    - Create a virtual environment:
+        .. code-block:: bash
+
+          python -m venv mea_env
+
     - Activate the virtual environment:
-        - Windows: ``mea_env\Scripts\activate``
-        - MacOS: ``source mea_env/bin/activate``
-    - Install the dependencies: ``pip install -r src/helpers/update/requirements.txt``
-    - Run the application: ``python src/main.py``
+        - Windows:
+
+        .. code-block:: bash
+
+          mea_env/Scripts/activate
+
+        - MacOS:
+
+        .. code-block:: bash
+
+          source mea_env/bin/activate
+
+    - Install the dependencies:
+        .. code-block:: bash
+
+          pip install -r src/helpers/update/requirements.txt
+
+    - Run the application:
+        .. code-block:: bash
+
+          python src/main.py
 
 .. note::
   The instructions for building from the source code assume that you have Python 3.11 installed on your system. 

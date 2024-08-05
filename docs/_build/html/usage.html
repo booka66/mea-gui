@@ -29,6 +29,7 @@
 <link rel="preload" as="font" type="font/woff2" crossorigin href="_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
 
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
@@ -38,6 +39,8 @@
     <script src="_static/documentation_options.js?v=5929fcd5"></script>
     <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=f281be69"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'usage';</script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -327,20 +330,52 @@ document.write(`
 </li>
 <li><p>Manually from the source code:</p>
 <blockquote>
-<div><ul class="simple">
-<li><p>Clone the repository: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span> <span class="pre">https://github.com/booka66/mea-gui.git</span></code></p></li>
-<li><p>Navigate to the project directory: <code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">mea-gui</span></code></p></li>
-<li><p>Create a virtual environment: <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">venv</span> <span class="pre">mea_env</span></code></p></li>
-<li><dl class="simple">
-<dt>Activate the virtual environment:</dt><dd><ul>
-<li><p>Windows: <code class="docutils literal notranslate"><span class="pre">mea_env\Scripts\activate</span></code></p></li>
-<li><p>MacOS: <code class="docutils literal notranslate"><span class="pre">source</span> <span class="pre">mea_env/bin/activate</span></code></p></li>
-</ul>
+<div><ul>
+<li><dl>
+<dt>Clone the repository and navigate to the project directory:</dt><dd><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/booka66/mea-gui.git
+<span class="nb">cd</span><span class="w"> </span>mea-gui
+</pre></div>
+</div>
 </dd>
 </dl>
 </li>
-<li><p>Install the dependencies: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-r</span> <span class="pre">src/helpers/update/requirements.txt</span></code></p></li>
-<li><p>Run the application: <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">src/main.py</span></code></p></li>
+<li><dl>
+<dt>Create a virtual environment:</dt><dd><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>venv<span class="w"> </span>mea_env
+</pre></div>
+</div>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>Activate the virtual environment:</dt><dd><ul class="simple">
+<li><p>Windows:</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mea_env/Scripts/activate
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>MacOS:</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">source</span><span class="w"> </span>mea_env/bin/activate
+</pre></div>
+</div>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>Install the dependencies:</dt><dd><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>src/helpers/update/requirements.txt
+</pre></div>
+</div>
+</dd>
+</dl>
+</li>
+<li><dl>
+<dt>Run the application:</dt><dd><div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>src/main.py
+</pre></div>
+</div>
+</dd>
+</dl>
+</li>
 </ul>
 </div></blockquote>
 </li>
