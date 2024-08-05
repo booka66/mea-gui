@@ -17,4 +17,4 @@ matplotlib
 lttbc
 pyqtdarktheme
 matlab
-matlab.engine
+matlabengine
