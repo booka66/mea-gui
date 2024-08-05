@@ -29,7 +29,7 @@ class ProgressUpdaterThread(QThread):
                 f"Elapsed time: {hours}h {minutes}m {seconds:.2f}s",
                 num_files,
             )
-            self.msleep(250)  # Update progress every second
+            self.msleep(50)  # Update progress every second
 
         # Emit final progress update
         self.progress_updated.emit("Analysis completed.", num_files)

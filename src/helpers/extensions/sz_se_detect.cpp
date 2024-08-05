@@ -13,6 +13,8 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <fstream>
+#include <filesystem>
 
 namespace py = pybind11;
 
@@ -523,96 +525,94 @@ std::string expandTilde(const std::string &path) {
   return std::string(home) + path.substr(1);
 }
 
-std::vector<ChannelDetectionResult>
-processAllChannels(const std::string &filename, bool do_analysis) {
-  std::cout << "processAllChannels: Starting processing for file: " << filename
-            << std::endl;
-  std::string expandedFilename = expandTilde(filename);
-  std::cout << "processAllChannels: Expanded filename: " << expandedFilename
-            << std::endl;
-
-  std::cout << "processAllChannels: Getting channel data..." << std::endl;
-  std::vector<ChannelData> channelDataList = get_cat_envelop(expandedFilename);
-  std::cout << "processAllChannels: Retrieved data for "
-            << channelDataList.size() << " channels" << std::endl;
-
-  std::cout << "processAllChannels: Getting sampling rate..." << std::endl;
-  H5::H5File file(expandedFilename, H5F_ACC_RDONLY);
-  H5::DataSet sampRateDataset =
-      file.openDataSet("/3BRecInfo/3BRecVars/SamplingRate");
-  double sampRate;
-  sampRateDataset.read(&sampRate, H5::PredType::NATIVE_DOUBLE);
-  std::cout << "processAllChannels: Sampling rate: " << sampRate << std::endl;
-
-  std::vector<ChannelDetectionResult> allResults(channelDataList.size());
-  std::mutex resultsMutex;
-  std::atomic<size_t> processedCount(0);
-
-  auto processChannel = [&](size_t start, size_t end) {
-    for (size_t i = start; i < end; ++i) {
-      const auto &channelData = channelDataList[i];
-      ChannelDetectionResult channelResult;
-      channelResult.Row = channelData.name[0];
-      channelResult.Col = channelData.name[1];
-      channelResult.signal = channelData.signal;
-
-      std::vector<double> t(channelData.signal.size());
-      for (size_t j = 0; j < t.size(); ++j) {
-        t[j] = static_cast<double>(j) / sampRate;
-      }
-
-      channelResult.result =
-          SzSEDetectLEGIT(channelData.signal, sampRate, t, do_analysis);
-
-      {
-        std::lock_guard<std::mutex> lock(resultsMutex);
-        allResults[i] = std::move(channelResult);
-      }
-
-      size_t currentProcessed = ++processedCount;
-      if (currentProcessed % 10 == 0 ||
-          currentProcessed == channelDataList.size()) {
-        std::cout << "processAllChannels: Processed " << currentProcessed
-                  << " of " << channelDataList.size() << " channels"
-                  << std::endl;
-      }
+std::vector<ChannelDetectionResult> processAllChannels(const std::string &filename, bool do_analysis, const std::string &temp_data_path) {
+    py::gil_scoped_release release;  // Release the GIL
+    std::cout << "processAllChannels: Starting processing for file: " << filename << std::endl;
+    std::string expandedFilename = expandTilde(filename);
+    std::cout << "processAllChannels: Expanded filename: " << expandedFilename << std::endl;
+    std::vector<ChannelDetectionResult> allResults;
+    try {
+        std::cout << "processAllChannels: Getting channel data..." << std::endl;
+        std::vector<ChannelData> channelDataList = get_cat_envelop(expandedFilename);
+        std::cout << "processAllChannels: Retrieved data for " << channelDataList.size() << " channels" << std::endl;
+        std::cout << "processAllChannels: Getting sampling rate..." << std::endl;
+        H5::H5File file(expandedFilename, H5F_ACC_RDONLY);
+        H5::DataSet sampRateDataset = file.openDataSet("/3BRecInfo/3BRecVars/SamplingRate");
+        double sampRate;
+        sampRateDataset.read(&sampRate, H5::PredType::NATIVE_DOUBLE);
+        std::cout << "processAllChannels: Sampling rate: " << sampRate << std::endl;
+        allResults.resize(channelDataList.size());
+        std::mutex resultsMutex;
+        std::atomic<size_t> processedCount(0);
+        auto processChannel = [&](size_t start, size_t end) {
+            for (size_t i = start; i < end; ++i) {
+                const auto &channelData = channelDataList[i];
+                ChannelDetectionResult channelResult;
+                channelResult.Row = channelData.name[0];
+                channelResult.Col = channelData.name[1];
+                channelResult.signal = channelData.signal;
+                std::vector<double> t(channelData.signal.size());
+                for (size_t j = 0; j < t.size(); ++j) {
+                    t[j] = static_cast<double>(j) / sampRate;
+                }
+                channelResult.result = SzSEDetectLEGIT(channelData.signal, sampRate, t, do_analysis);
+                {
+                    std::lock_guard<std::mutex> lock(resultsMutex);
+                    allResults[i] = std::move(channelResult);
+                }
+                size_t currentProcessed = ++processedCount;
+                if (currentProcessed % 10 == 0 || currentProcessed == channelDataList.size()) {
+                    py::gil_scoped_acquire acquire;  // Reacquire the GIL for Python operations
+                    std::cout << "processAllChannels: Processed " << currentProcessed
+                              << " of " << channelDataList.size() << " channels" << std::endl;
+                }
+                
+                // Create a blank .txt file in temp_data_path
+                std::filesystem::path filePath = std::filesystem::path(temp_data_path) / 
+                    ("channel_" + std::to_string(channelResult.Row) + "_" + 
+                     std::to_string(channelResult.Col) + ".mat");
+                std::ofstream outFile(filePath);
+                outFile.close();
+            }
+        };
+        unsigned int numThreads = std::thread::hardware_concurrency();
+        std::vector<std::thread> threads;
+        size_t chunkSize = channelDataList.size() / numThreads;
+        size_t remainder = channelDataList.size() % numThreads;
+        size_t start = 0;
+        for (unsigned int i = 0; i < numThreads; ++i) {
+            size_t end = start + chunkSize + (i < remainder ? 1 : 0);
+            threads.emplace_back(processChannel, start, end);
+            start = end;
+        }
+        for (auto &thread : threads) {
+            thread.join();
+        }
+        std::cout << "processAllChannels: Finished processing all channels" << std::endl;
     }
-  };
-
-  unsigned int numThreads = std::thread::hardware_concurrency();
-  std::vector<std::thread> threads;
-  size_t chunkSize = channelDataList.size() / numThreads;
-  size_t remainder = channelDataList.size() % numThreads;
-
-  size_t start = 0;
-  for (unsigned int i = 0; i < numThreads; ++i) {
-    size_t end = start + chunkSize + (i < remainder ? 1 : 0);
-    threads.emplace_back(processChannel, start, end);
-    start = end;
-  }
-
-  for (auto &thread : threads) {
-    thread.join();
-  }
-
-  std::cout << "processAllChannels: Finished processing all channels"
-            << std::endl;
-  return allResults;
+    catch (const std::exception &e) {
+        py::gil_scoped_acquire acquire;  // Reacquire the GIL for Python operations
+        std::cerr << "Error in processAllChannels: " << e.what() << std::endl;
+        throw;
+    }
+    return allResults;
 }
 
 PYBIND11_MODULE(sz_se_detect, m) {
-  py::class_<DetectionResult>(m, "DetectionResult")
-      .def_readwrite("SzTimes", &DetectionResult::SzTimes)
-      .def_readwrite("DischargeTimes", &DetectionResult::DischargeTimes)
-      .def_readwrite("SETimes", &DetectionResult::SETimes);
+    py::class_<DetectionResult>(m, "DetectionResult")
+        .def_readwrite("SzTimes", &DetectionResult::SzTimes)
+        .def_readwrite("DischargeTimes", &DetectionResult::DischargeTimes)
+        .def_readwrite("SETimes", &DetectionResult::SETimes);
 
-  py::class_<ChannelDetectionResult>(m, "ChannelDetectionResult")
-      .def_readwrite("Row", &ChannelDetectionResult::Row)
-      .def_readwrite("Col", &ChannelDetectionResult::Col)
-      .def_readwrite("signal", &ChannelDetectionResult::signal)
-      .def_readwrite("result", &ChannelDetectionResult::result);
+    py::class_<ChannelDetectionResult>(m, "ChannelDetectionResult")
+        .def_readwrite("Row", &ChannelDetectionResult::Row)
+        .def_readwrite("Col", &ChannelDetectionResult::Col)
+        .def_readwrite("signal", &ChannelDetectionResult::signal)
+        .def_readwrite("result", &ChannelDetectionResult::result);
 
-  m.def("processAllChannels", &processAllChannels,
-        "Process all channels in the given file", py::arg("filename"),
-        py::arg("do_analysis") = true);
+    m.def("processAllChannels", &processAllChannels,
+          "Process all channels in the given file",
+          py::arg("filename"),
+          py::arg("do_analysis") = true,
+          py::arg("temp_data_path"));
 }

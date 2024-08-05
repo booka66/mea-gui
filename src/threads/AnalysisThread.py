@@ -20,13 +20,14 @@ except ImportError:
 class CppAnalysisThread(QThread):
     analysis_completed = pyqtSignal(object)
 
-    def __init__(self, file_path, do_analysis):
+    def __init__(self, file_path, do_analysis, temp_data_path):
         super().__init__()
         self.file_path = file_path
         self.do_analysis = do_analysis
+        self.temp_data_path = temp_data_path
 
     def run(self):
-        results = sz_se_detect.processAllChannels(self.file_path, self.do_analysis)
+        results = sz_se_detect.processAllChannels(self.file_path, self.do_analysis, self.temp_data_path)
         self.analysis_completed.emit(results)
 
 
@@ -83,22 +84,22 @@ class AnalysisThread(QThread):
         # Create temporary directory if it doesn't exist
         os.makedirs(self.temp_data_path, exist_ok=True)
         try:
+            self.progress_updater_thread = ProgressUpdaterThread(
+                self.temp_data_path
+            )
+            self.progress_updater_thread.progress_updated.connect(
+                self.progress_updated
+            )
+            self.progress_updater_thread.start()
             if self.eng is None or (self.use_cpp and not cpp_import_failed):
                 print("Using c++ version")
-                cpp_thread = CppAnalysisThread(self.file_path, self.do_analysis)
+                cpp_thread = CppAnalysisThread(self.file_path, self.do_analysis, self.temp_data_path)
                 cpp_thread.analysis_completed.connect(self.process_cpp_results)
                 cpp_thread.start()
-                cpp_thread.wait()  # Wait for C++ analysis to complete
+                cpp_thread.wait()
             else:
                 print("Using matlab version")
 
-                self.progress_updater_thread = ProgressUpdaterThread(
-                    self.temp_data_path
-                )
-                self.progress_updater_thread.progress_updated.connect(
-                    self.progress_updated
-                )
-                self.progress_updater_thread.start()
                 if self.use_low_ram:
                     total_channels, self.sampling_rate, num_rec_frames = (
                         self.eng.low_ram_cat(
@@ -149,9 +150,6 @@ class AnalysisThread(QThread):
                             "SETimes": SETimes,
                             "DischargeTimes": DischargeTimes,
                         }
-                if self.progress_updater_thread is not None:
-                    self.progress_updater_thread.requestInterruption()
-                    self.progress_updater_thread.wait()
 
             with h5py.File(self.file_path, "r") as f:
                 num_rec_frames = int(f["/3BRecInfo/3BRecVars/NRecFrames"][()])
@@ -169,10 +167,13 @@ class AnalysisThread(QThread):
             print(f"Error: {e}")
             alert(f"Error during analysis:\n{str(e)}")
         finally:
+            if self.progress_updater_thread is not None:
+                self.progress_updater_thread.requestInterruption()
+                self.progress_updater_thread.wait()
             # Clean up .mat or .txt files in temporary directory if they exist
             if os.path.exists(self.temp_data_path):
                 for file in os.listdir(self.temp_data_path):
-                    if file.endswith(".mat") or file.endswith(".tmp"):
+                    if file.endswith(".mat"):
                         os.remove(os.path.join(self.temp_data_path, file))
                 # Clean up temporary directory
                 os.rmdir(self.temp_data_path)
