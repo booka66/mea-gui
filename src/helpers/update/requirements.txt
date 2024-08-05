@@ -10,3 +10,5 @@ scipy==1.14.0
 threadpoolctl==3.5.0
 urllib3==2.2.2
 packaging
+PyQt5
+pyqtgraph
