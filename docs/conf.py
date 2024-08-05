@@ -5,7 +5,6 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 # -- Path setup --------------------------------------------------------------
-
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -14,16 +13,12 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
-
 # -- Project information -----------------------------------------------------
-
 project = 'meaGUI'
 copyright = '2024, Jacob Cahoon'
 author = 'Jacob Cahoon'
 
-
 # -- General configuration ---------------------------------------------------
-
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
@@ -40,16 +35,21 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
-
 # -- Options for HTML output -------------------------------------------------
-
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
 html_theme = "pydata_sphinx_theme"
+
 html_theme_options = {
     "secondary_sidebar_items": ["page-toc", "edit-this-page"],
     "show_nav_level": 4,
+    "logo": {
+        "text": "meaGUI",
+        "image_light": "../resources/icon.ico",
+        "image_dark": "../resources/icon.ico",
+    },
+    "navbar_align": "left",
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
