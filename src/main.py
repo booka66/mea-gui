@@ -1,9 +1,11 @@
 import gc
 import math
+from pathlib import Path
 from time import perf_counter
 import os
 import sys
 import glob
+from urllib.request import pathname2url
 import h5py
 from scipy.signal import butter, filtfilt, spectrogram
 from scipy.interpolate import interp1d
@@ -606,13 +608,20 @@ class MainWindow(QMainWindow):
         self.redraw_arrows()
 
     def open_docs(self):
-        cwd = os.path.dirname(os.path.realpath(__file__))
+        cwd = Path(__file__).resolve().parent
         print(f"Current working directory: {cwd}")
-        file_path = os.path.join(cwd, "html", "index.html")
-
+        file_path = cwd / "html" / "index.html"
         print(f"Opening documentation: {file_path}")
-        url = f"file://{file_path}"
 
+        if not file_path.exists():
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText(f"Documentation not found at {file_path}.")
+            msg.setWindowTitle("Documentation")
+            msg.exec_()
+            return
+
+        url = f"file://{pathname2url(str(file_path.absolute()))}"
         self.doc_viewer = DocumentationViewer(url)
         self.doc_viewer.show()
 
