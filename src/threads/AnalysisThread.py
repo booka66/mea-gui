@@ -1,5 +1,6 @@
 import os
 from time import perf_counter
+import sys
 
 
 import h5py
@@ -27,7 +28,12 @@ class CppAnalysisThread(QThread):
         self.temp_data_path = temp_data_path
 
     def run(self):
-        results = sz_se_detect.processAllChannels(self.file_path, self.do_analysis, self.temp_data_path)
+        if sys.platform == "win32":
+            results = sz_se_detect.processAllChannels(self.file_path, self.do_analysis)
+        else:
+            results = sz_se_detect.processAllChannels(
+                self.file_path, self.do_analysis, self.temp_data_path
+            )
         self.analysis_completed.emit(results)
 
 
@@ -84,16 +90,14 @@ class AnalysisThread(QThread):
         # Create temporary directory if it doesn't exist
         os.makedirs(self.temp_data_path, exist_ok=True)
         try:
-            self.progress_updater_thread = ProgressUpdaterThread(
-                self.temp_data_path
-            )
-            self.progress_updater_thread.progress_updated.connect(
-                self.progress_updated
-            )
+            self.progress_updater_thread = ProgressUpdaterThread(self.temp_data_path)
+            self.progress_updater_thread.progress_updated.connect(self.progress_updated)
             self.progress_updater_thread.start()
             if self.eng is None or (self.use_cpp and not cpp_import_failed):
                 print("Using c++ version")
-                cpp_thread = CppAnalysisThread(self.file_path, self.do_analysis, self.temp_data_path)
+                cpp_thread = CppAnalysisThread(
+                    self.file_path, self.do_analysis, self.temp_data_path
+                )
                 cpp_thread.analysis_completed.connect(self.process_cpp_results)
                 cpp_thread.start()
                 cpp_thread.wait()
