@@ -636,4 +636,3 @@ PYBIND11_MODULE(sz_se_detect, m) {
         "Process all channels in the given file", py::arg("filename"),
         py::arg("do_analysis") = true, py::arg("temp_data_path"));
 }
-}
