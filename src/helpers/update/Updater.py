@@ -6,7 +6,7 @@ import urllib.request
 
 from helpers.Constants import VERSION
 
-GITHUB_REPO = "booka66/mea-gui"
+GITHUB_REPO = "booka66/mea-gui-public"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 

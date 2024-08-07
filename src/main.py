@@ -606,10 +606,12 @@ class MainWindow(QMainWindow):
         self.redraw_arrows()
 
     def open_docs(self):
-        git_folder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-        git_folder = os.path.abspath(git_folder)
-        index_path = os.path.join(git_folder, "docs", "_build", "html", "index.html")
-        url = f"file://{index_path}"
+        cwd = os.path.dirname(os.path.realpath(__file__))
+        print(f"Current working directory: {cwd}")
+        file_path = os.path.join(cwd, "html", "index.html")
+
+        print(f"Opening documentation: {file_path}")
+        url = f"file://{file_path}"
 
         self.doc_viewer = DocumentationViewer(url)
         self.doc_viewer.show()

@@ -8,7 +8,7 @@ import os
 # GitHub API configuration
 GITHUB_API_URL = "https://api.github.com"
 REPO_OWNER = "booka66"
-REPO_NAME = "mea-gui"
+REPO_NAME = "mea-gui-public"
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 
 
@@ -131,13 +131,13 @@ async def main(tag=None, no_package=False):
     print(f"Creating {'package' if not no_package else 'application'}...")
 
     if sys.platform == "darwin":
-        pyinstaller_command = """sudo pyinstaller --noconfirm --onedir --argv-emulation --windowed ../../main.py --icon=../../../resources/icon.ico --add-data "../../helpers/mat/SzDetectCat.m:." --add-data "../../helpers/mat/save_channel_to_mat.m:." --add-data "../../helpers/mat/getChs.m:." --add-data "../../helpers/mat/get_cat_envelop.m:." --additional-hooks-dir "../../../hooks/" --add-data "../../helpers/mat/*.m:."
+        pyinstaller_command = """sudo pyinstaller --noconfirm --onedir --argv-emulation --windowed ../../main.py --icon=../../../resources/icon.ico --add-data "../../../docs/_build/:." --add-data "../../helpers/mat/SzDetectCat.m:." --add-data "../../helpers/mat/save_channel_to_mat.m:." --add-data "../../helpers/mat/getChs.m:." --add-data "../../helpers/mat/get_cat_envelop.m:." --additional-hooks-dir "../../../hooks/" --add-data "../../helpers/mat/*.m:."
         """
         package_commands = [
             "rm -rf package_root/Applications/MEA\\ GUI.app",
-            "cp -R dist/main.app package_root/Applications/MEA\\ GUI.app ",
+            "cp -R dist/main.app package_root/Applications/MEA\\ GUI.app",
             "cp ../../../resources/fonts/HackNerdFontMono-Regular.ttf package_root/Library/Fonts ",
-            "pkgbuild --root package_root --identifier com.booka66.meagui --install-location / --overwrite-files MEA_GUI_MacOS.pkg",
+            "pkgbuild --root package_root --identifier com.booka66.meagui --install-location / MEA_GUI_MacOS.pkg",
         ]
         package_file = "MEA_GUI_MacOS.pkg"
     else:
