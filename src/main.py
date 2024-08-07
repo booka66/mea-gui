@@ -12,6 +12,7 @@ from helpers.update.Updater import check_for_update, download_and_install_update
 from widgets.VideoEditor import VideoEditor
 from widgets.GridWidget import GridWidget
 from widgets.GraphWidget import GraphWidget
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 from widgets.LoadingDialog import LoadingDialog
 from widgets.LegendWidget import LegendWidget
 from widgets.SquareWidget import SquareWidget
@@ -27,6 +28,7 @@ from widgets.Settings import (
     PeakSettingsWidget,
 )
 from widgets.ClusterTracker import ClusterLegend, ClusterTracker
+import webbrowser
 
 from widgets.Media import SaveChannelPlotsDialog, save_grid_as_png, save_mea_with_plots
 from widgets.ProgressBar import EEGScrubberWidget
@@ -52,6 +54,7 @@ from PyQt5.QtCore import (
     Qt,
     QTimer,
     pyqtSignal,
+    QUrl,
 )
 from PyQt5.QtGui import (
     QColor,
@@ -89,6 +92,7 @@ from PyQt5.QtWidgets import (
     QTabWidget,
     QVBoxLayout,
     QWidget,
+    QToolBar,
 )
 import qdarktheme
 
@@ -96,6 +100,25 @@ try:
     from helpers.extensions.signal_analyzer import SignalAnalyzer
 except ImportError:
     print("Failed to import signal_analyzer module.")
+
+
+class DocumentationViewer(QMainWindow):
+    def __init__(self, url):
+        super().__init__()
+        self.setWindowTitle("Documentation")
+        self.setGeometry(100, 100, 1000, 800)
+
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
+
+        self.browser = QWebEngineView()
+        self.browser.setUrl(QUrl(url))
+        layout.addWidget(self.browser)
+
+        close_button = QPushButton("Close")
+        close_button.clicked.connect(self.close)
+        layout.addWidget(close_button)
 
 
 class UpdateThread(QThread):
@@ -273,7 +296,6 @@ class MainWindow(QMainWindow):
         self.toggleLegendAction.triggered.connect(self.toggle_legend)
         self.viewMenu.addAction(self.toggleLegendAction)
 
-
         self.toggleLinesAction = QAction("Spread lines", self, checkable=True)
         self.toggleLinesAction.setChecked(False)
         self.toggleLinesAction.triggered.connect(self.toggle_lines)
@@ -334,6 +356,13 @@ class MainWindow(QMainWindow):
         for action in self.viewMenu.actions():
             if action.isCheckable():
                 action.triggered.connect(self.handle_checkable_action)
+
+        self.helpMenu = QMenu("Help", self)
+        self.menuBar.addMenu(self.helpMenu)
+
+        self.docsAction = QAction("Documentation", self)
+        self.helpMenu.addAction(self.docsAction)
+        self.docsAction.triggered.connect(self.open_docs)
 
         self.main_tab_widget = QTabWidget()
         self.tab_widget = QTabWidget()
@@ -572,10 +601,18 @@ class MainWindow(QMainWindow):
         self.cpp_mode_checkbox.setChecked(True)
         self.engine_started = False
 
-
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.redraw_arrows()
+
+    def open_docs(self):
+        git_folder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        git_folder = os.path.abspath(git_folder)
+        index_path = os.path.join(git_folder, "docs", "_build", "html", "index.html")
+        url = f"file://{index_path}"
+
+        self.doc_viewer = DocumentationViewer(url)
+        self.doc_viewer.show()
 
     def handle_update_button(self, button):
         if button.text() == "&Yes":
@@ -952,12 +989,16 @@ class MainWindow(QMainWindow):
             if self.plotted_channels[i] is not None:
                 self.graph_widget.plot_widgets[i].clear()
 
-                curve = self.graph_widget.plot_widgets[i].plot(pen=pg.mkPen('k', width=3))
+                curve = self.graph_widget.plot_widgets[i].plot(
+                    pen=pg.mkPen("k", width=3)
+                )
                 curve.setData(self.graph_widget.x_data[i], self.graph_widget.y_data[i])
                 curve.setDownsampling(auto=True, method="peak", ds=100)
                 curve.setClipToView(True)
 
-                self.graph_widget.plot_widgets[i].addItem(self.graph_widget.red_lines[i])
+                self.graph_widget.plot_widgets[i].addItem(
+                    self.graph_widget.red_lines[i]
+                )
 
         self.update_grid()
 
