@@ -36,6 +36,8 @@ class ColorCell(QGraphicsRectItem):
         self.tooltip_timer.setInterval(250)
         self.tooltip_timer.timeout.connect(self.show_hover_tooltip)
         self.text = ""
+        self.lasso_selected = False
+        self.highlighted = False
 
     def setText(self, text):
         self.text = text

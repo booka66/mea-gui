@@ -88,7 +88,8 @@ class AnalysisThread(QThread):
         start = perf_counter()
         self.data = np.empty((64, 64), dtype=object)
         # Create temporary directory if it doesn't exist
-        os.makedirs(self.temp_data_path, exist_ok=True)
+        if self.temp_data_path is not None:
+            os.makedirs(self.temp_data_path, exist_ok=True)
         try:
             self.progress_updater_thread = ProgressUpdaterThread(self.temp_data_path)
             self.progress_updater_thread.progress_updated.connect(self.progress_updated)
@@ -105,22 +106,18 @@ class AnalysisThread(QThread):
                 print("Using matlab version")
 
                 if self.use_low_ram:
-                    total_channels, self.sampling_rate, num_rec_frames = (
-                        self.eng.low_ram_cat(
-                            self.file_path,
-                            self.temp_data_path,
-                            self.do_analysis,
-                            nargout=3,
-                        )
+                    _, self.sampling_rate, num_rec_frames = self.eng.low_ram_cat(
+                        self.file_path,
+                        self.temp_data_path,
+                        self.do_analysis,
+                        nargout=3,
                     )
                 else:
-                    total_channels, self.sampling_rate, num_rec_frames = (
-                        self.eng.get_cat_envelop(
-                            self.file_path,
-                            self.temp_data_path,
-                            self.do_analysis,
-                            nargout=3,
-                        )
+                    _, self.sampling_rate, num_rec_frames = self.eng.get_cat_envelop(
+                        self.file_path,
+                        self.temp_data_path,
+                        self.do_analysis,
+                        nargout=3,
                     )
 
                 # Load data from .mat files

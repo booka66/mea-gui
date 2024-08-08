@@ -30,7 +30,6 @@ from widgets.Settings import (
     PeakSettingsWidget,
 )
 from widgets.ClusterTracker import ClusterLegend, ClusterTracker
-import webbrowser
 
 from widgets.Media import SaveChannelPlotsDialog, save_grid_as_png, save_mea_with_plots
 from widgets.ProgressBar import EEGScrubberWidget
@@ -40,7 +39,6 @@ from helpers.Constants import (
     SEIZURE,
     SE,
     ACTIVE,
-    GRAPH_DOWNSAMPLE,
     MAC,
     WIN,
     VERSION,
@@ -94,7 +92,6 @@ from PyQt5.QtWidgets import (
     QTabWidget,
     QVBoxLayout,
     QWidget,
-    QToolBar,
 )
 import qdarktheme
 
@@ -225,6 +222,7 @@ class MainWindow(QMainWindow):
         self.is_auto_analyzing = False
         self.low_pass_cutoff = 35  # Default value
         self.markers = []
+        self.spaital_sections = []
 
         self.loading_dialog = LoadingDialog(self)
         self.loading_dialog.analysis_cancelled.connect(self.cancel_analysis)
@@ -261,6 +259,10 @@ class MainWindow(QMainWindow):
 
         self.editMenu = QMenu("Edit", self)
         self.menuBar.addMenu(self.editMenu)
+
+        self.createPropagationGroups = QAction("Create Propagation Groups", self)
+        self.createPropagationGroups.triggered.connect(self.consolidate_spatial_groups)
+        self.editMenu.addAction(self.createPropagationGroups)
 
         self.setLowPassFilterAction = QAction("Set Low Pass Filter", self)
         self.setLowPassFilterAction.triggered.connect(self.set_low_pass_filter)
@@ -389,7 +391,7 @@ class MainWindow(QMainWindow):
 
         self.left_layout.addWidget(self.tab_widget)
 
-        self.grid_widget = GridWidget(64, 64)
+        self.grid_widget: QGraphicsView = GridWidget(64, 64, self)
         self.grid_widget.setMinimumHeight(self.grid_widget.height() + 100)
         self.grid_widget.cell_clicked.connect(self.on_cell_clicked)
         self.grid_widget.save_as_video_requested.connect(self.show_video_editor)
@@ -793,6 +795,19 @@ class MainWindow(QMainWindow):
                     "Invalid input values. Please enter valid numbers.",
                 )
 
+    def consolidate_spatial_groups(self):
+        dialog = GroupSelectionDialog(
+            self, self.grid_widget.image_path, self.active_channels
+        )
+        if dialog.exec() == QDialog.Accepted:
+            groups: list[Group] = dialog.get_groups()
+            self.spatial_sections = groups
+            for group in groups:
+                for row, col in group.channels:
+                    cell = self.grid_widget.cells[row - 1][col - 1]
+                    color = [int(255 * x) for x in group.color]
+                    cell.setColor(QColor(*color), 1, self.opacity)
+
     def create_groups(self):
         dialog = GroupSelectionDialog(
             self, self.grid_widget.image_path, self.active_channels
@@ -949,7 +964,7 @@ class MainWindow(QMainWindow):
 
                 print(f"Creating spectrogram for channel {i + 1}")
 
-                f, t, Sxx = spectrogram(
+                f, _, Sxx = spectrogram(
                     eeg_data,
                     fs=self.sampling_rate,
                     window="hann",
@@ -1880,9 +1895,20 @@ class MainWindow(QMainWindow):
         self.set_custom_region()
         start, stop = self.custom_region
 
-        self.discharge_finder = DischargeFinder(
-            self.data, self.active_channels, self.signal_analyzer, start, stop
-        )
+        lasso_selected_cells = [
+            (cell.row + 1, cell.col + 1)
+            for cell in self.grid_widget.get_lasso_selected_cells()
+        ]
+        if len(lasso_selected_cells) > 0:
+            print("Finding discharges in highlighted cells")
+            self.discharge_finder = DischargeFinder(
+                self.data, lasso_selected_cells, self.signal_analyzer, start, stop
+            )
+        else:
+            print("Finding discharges in all active cells")
+            self.discharge_finder = DischargeFinder(
+                self.data, self.active_channels, self.signal_analyzer, start, stop
+            )
         self.discharge_finder.finished.connect(self.on_discharge_finder_finished)
         self.discharge_finder.start()
 
@@ -2271,7 +2297,9 @@ class MainWindow(QMainWindow):
                 )
 
                 arrow_head = QPolygonF()
-                arrow_head << QPointF(0, 0) << QPointF(-6, -5) << QPointF(-6, 5)
+                arrow_head.append(QPointF(0, 0))
+                arrow_head.append(QPointF(-6, -5))
+                arrow_head.append(QPointF(-6, 5))
                 arrow_head_item = QGraphicsPolygonItem(arrow_head)
                 arrow_head_item.setBrush(PROPAGATION)
                 arrow_head_item.setPen(QPen(PROPAGATION))
@@ -2363,7 +2391,9 @@ class MainWindow(QMainWindow):
                 )
 
                 arrow_head = QPolygonF()
-                arrow_head << QPointF(0, 0) << QPointF(-6, -5) << QPointF(-6, 5)
+                arrow_head.append(QPointF(0, 0))
+                arrow_head.append(QPointF(-6, -5))
+                arrow_head.append(QPointF(-6, 5))
                 arrow_head_item = QGraphicsPolygonItem(arrow_head)
                 arrow_head_item.setBrush(arrow_color)
                 arrow_head_item.setPen(QPen(arrow_color))
