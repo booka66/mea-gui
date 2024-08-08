@@ -38,6 +38,10 @@ class ColorCell(QGraphicsRectItem):
         self.text = ""
         self.lasso_selected = False
         self.highlighted = False
+        self.prev_color = None
+
+    def get_current_color(self):
+        return self.brush().color()
 
     def setText(self, text):
         self.text = text

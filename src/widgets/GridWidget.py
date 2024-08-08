@@ -173,6 +173,12 @@ class GridWidget(QGraphicsView):
         self.lasso_item.setPen(QPen(QColor(255, 0, 0), 2))
         self.scene.addItem(self.lasso_item)
 
+        # Save the original colors of the cells
+        for row in self.cells:
+            for cell in row:
+                if not cell.lasso_selected:
+                    cell.prev_color = cell.get_current_color()
+
     def continue_lasso(self, pos):
         scene_pos = self.mapToScene(pos)
         self.lasso_points.append(scene_pos)
@@ -208,7 +214,7 @@ class GridWidget(QGraphicsView):
             else:
                 if not cell.lasso_selected:
                     cell.lasso_highlighted = False
-                    cell.setColor(ACTIVE)
+                    cell.setColor(cell.prev_color)
 
     def end_lasso(self):
         if len(self.lasso_points) > 2:
