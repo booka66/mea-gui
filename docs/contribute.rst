@@ -10,17 +10,9 @@ Contributing
 .. important::
    Still need to write the contributing guide.
 
+Honestly, all it boils down to is:
 
-Testing
--------
-For testing, you can use the following command:
-
-.. code-block:: bash
-
-    python -m unittest discover -s tests
-
-Or, if you have `tox` installed, you can run the following command:
-
-.. code-block:: bash
-
-    tox
+1. Fork the repository.
+2. Make your changes.
+3. Submit a pull request.
+4. Bada bing, bada boom.
