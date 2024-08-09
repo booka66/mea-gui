@@ -57,6 +57,15 @@ Or, if you have `tox` installed, you can run the following command:
 | body row 2             | ...        | ...      |          |
 +------------------------+------------+----------+----------+
 
+This is a paragraph that contains `a link`_.
+
+.. _a link: https://domain.invalid/
+
+.. seealso::
+
+   This is an example of a ``see also`` admonition.
+
+
 This is a header
 ================
 

@@ -1,5 +1,5 @@
 Welcome to meaGUI's documentation!
-===================================
+==================================
 
 **meaGUI** is a Python application designed for the efficient analysis of multi-electrode array (MEA) data. 
 At its core, meaGUI features a graphical user interface (GUI) that enables users to visualize and analyze MEA data in a user-friendly manner. 

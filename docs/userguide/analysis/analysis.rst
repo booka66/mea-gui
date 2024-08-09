@@ -1,0 +1,11 @@
+Analysis
+========
+   
+.. toctree::
+  :maxdepth: 1
+
+  openingfiles
+  viewingfiles
+  runninganalysis
+
+

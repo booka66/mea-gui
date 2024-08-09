@@ -14,9 +14,8 @@ User Guide
    :hidden:
    :caption: User Interface
 
-   terminology
-   navigation
-   analysis
-
+   terminology.rst
+   navigation.rst
+   analysis/analysis.rst
 
 
