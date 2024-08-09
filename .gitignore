@@ -22,3 +22,5 @@ package_root/
 compile_commands.json
 .login_success
 ./docs/sphinx_env/*
+sphinx_env
+_build
