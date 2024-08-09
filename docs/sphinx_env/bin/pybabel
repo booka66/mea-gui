@@ -1,4 +1,4 @@
-#!/Users/booka66/mea-gui/docs/sphinx_env/bin/python3.11
+#!/Users/lstephens/mea-gui/docs/sphinx_env/bin/python3.11
 # -*- coding: utf-8 -*-
 import re
 import sys
