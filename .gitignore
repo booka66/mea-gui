@@ -21,4 +21,4 @@ fonts.zip
 package_root/
 compile_commands.json
 .login_success
-docs/sphinx_env/
+./docs/sphinx_env/*
