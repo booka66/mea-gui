@@ -14,6 +14,6 @@ Contents
 --------
 
 .. toctree::
-   userguide/userguide.rst
+   userguide/userguide
    contribute
    cheatsheet
