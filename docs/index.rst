@@ -8,7 +8,7 @@ The GUI is built using the `PyQt5 <https://www.riverbankcomputing.com/static/Doc
 
 .. danger::
 
-   This project is under active development.
+   This project is under active development. You have been warned.
 
 Contents
 --------
