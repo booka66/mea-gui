@@ -53,7 +53,7 @@ Edit
 
 Set Peak Settings
 ~~~~~~~~~~~~~~~~~
-Hovering over this action displays a window containing parameters used for a peak finding algorithm.
+Hovering over this action displays a window containing parameters used for a peak finding algorithm. Blah blah blah.
 
 Set Spectrogram Settings
 ~~~~~~~~~~~~~~~~~~~~~~~~
