@@ -53,12 +53,17 @@ Edit
 
 Set Peak Settings
 ~~~~~~~~~~~~~~~~~
+Hovering over this action displays a window containing parameters used for a peak finding algorithm.
 
 Set Spectrogram Settings
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 Set DBSCAN Settings
 ~~~~~~~~~~~~~~~~~~~
+
+.. seealso::
+
+   TODO: Link to page explaining discharge propagation tracking.
 
 View
 ----
