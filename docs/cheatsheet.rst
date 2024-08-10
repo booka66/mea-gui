@@ -86,7 +86,7 @@ This is a header
       """
 
 
-.. image:: _static/me.png
+.. image:: _static/test_screenshot.png
 
 Lorem ipsum [#f1]_ dolor sit amet ... [#f2]_
 
