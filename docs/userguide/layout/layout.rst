@@ -147,12 +147,42 @@ The user may drag the visible region on the mini-map to change the visible regio
 
 Playheads
 ~~~~~~~~~
+On each trace plot and the raster plot, there are red play heads that indicate the current time. When exporting figures, it may be desirable to hide these play heads.
+
+.. tip::
+
+   When hovering over the trace plots, holding "s" will "seek" the play heads to the current mouse position. For the raster plot, clicking on a point will seek the play heads to that point.
 
 Anti-aliasing
 ~~~~~~~~~~~~~
+Anti-aliasing smooths the edges of the trace plots. For performance reasons, it is disabled by default. Enabling it considerably slows down the interaction with the trace plots.
+
+No anti-aliasing:
+
+.. image:: ../../_static/no-anti-aliasing.png
+   :alt: No Anti-aliasing
+   :align: center
+   :width: 600px
+
+With anti-aliasing:
+
+.. image:: ../../_static/yes-anti-aliasing.png
+   :alt: Anti-aliasing
+   :align: center
+   :width: 600px
 
 Seizure Regions
 ~~~~~~~~~~~~~~~
+Similar to the MEA grid's detected events, the seizure regions are displayed on the trace plots with an identical color scheme. Blue regions represent seizure events, while orange regions represent SE events.
+
+.. image:: ../../_static/seizure-regions.gif
+   :alt: Seizure Regions
+   :align: center
+   :width: 600px
+
+.. tip::
+
+    While visible, the user can click on a region to scale the trace plots to that region and seek the play heads to the beginning of the region.
 
 Spectrograms
 ~~~~~~~~~~~~
