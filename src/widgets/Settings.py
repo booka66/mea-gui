@@ -286,6 +286,7 @@ class DBSCANSettingsWidget(QWidget):
 class SpectrogramSettingsWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.main_window = parent
         self.setWindowFlags(Qt.Popup)
         self.setLayout(QVBoxLayout())
 
@@ -322,24 +323,18 @@ class SpectrogramSettingsWidget(QWidget):
         self.layout().addWidget(apply_button)
 
     def apply_settings(self):
-        # Get the parent MainWindow instance
-        main_window = self.parent()
-
         # Update the spectrogram settings in the main window
-        main_window.chunk_size = int(
+        self.main_window.chunk_size = int(
             self.layout().itemAt(0).layout().itemAt(1).widget().text()
         )
-        main_window.overlap = int(
+        self.main_window.overlap = int(
             self.layout().itemAt(1).layout().itemAt(1).widget().text()
         )
-        main_window.fs_range = (
+        self.main_window.fs_range = (
             float(self.layout().itemAt(2).layout().itemAt(2).widget().text()),
             float(self.layout().itemAt(2).layout().itemAt(4).widget().text()),
         )
 
-        # Hide the spectrogram settings widget
-        self.hide()
-
         # Update the spectrograms
-        main_window.hide_spectrograms()
-        main_window.show_spectrograms()
+        self.main_window.hide_spectrograms()
+        self.main_window.show_spectrograms()
