@@ -344,6 +344,7 @@ class GraphWidget(QWidget):
         curve.setData(x, y)
         curve.setDownsampling(auto=True, method="peak", ds=100)
         curve.setClipToView(True)
+        print(f"plot_index: {plot_index}")
         self.trace_curves[plot_index] = curve
 
         self.plot_widgets[plot_index].addItem(self.red_lines[plot_index])
