@@ -5,6 +5,13 @@ Application Layout
 Menu Bar
 ========
 
+The menu bar is located at the top of the application window and contains the following actions:
+
+  - File
+  - Edit
+  - View
+  - Help
+
 File
 ----
 Contains actions regarding opening and saving files.
@@ -38,9 +45,9 @@ Opens up a file dialog where the user can save the MEA grid as a PNG.
 
 Save Channel Plots 
 ~~~~~~~~~~~~~~~~~~
-Opens up a file dialog where the user can save all or certain channels plots as a PNG or SVG. It is requisite to have at least one channel plotted to enable this action.
+Opens up a file dialog where the user can save all or certain channels' plots as a PNG or SVG. It is requisite to have at least one channel plotted to enable this action.
 
-If desired, the user can hide the red playheads by checking or unchecking the box in the dialog.
+If desired, the user can hide the red play heads by checking or unchecking the box in the dialog.
 
 Scale refers to the size of the saved image. The default is 4. The larger the scale, the larger the file size and longer the save time.
 
@@ -50,16 +57,37 @@ Opens up a file dialog where the user can save the MEA grid with channel plots a
 
 Edit
 ----
+Contains actions for setting parameters used in the analysis.
 
 Set Peak Settings
 ~~~~~~~~~~~~~~~~~
-Hovering over this action displays a window containing parameters used for a peak finding algorithm. Blah blah blah.
+Hovering over this action displays a window containing parameters used for a peak finding algorithm.
+
+  - Peak Threshold: The number of standard deviations above the mean to be considered a peak.
+  - Min Distance: The minimum distance between peaks measured in samples.
+  - SNR Threshold: The signal-to-noise ratio threshold for an entire channel to be considered in the peak finding algorithm. This acts as a filter to remove noisy or inactive channels.
 
 Set Spectrogram Settings
 ~~~~~~~~~~~~~~~~~~~~~~~~
+Hovering over this action displays a window containing parameters used for generating spectrograms.
+
+  - Chunk Size: The size of the window used to calculate the spectrogram.
+  - Overlap: The amount of overlap between windows.
+  - Freq Range: The range of frequencies to display in the spectrogram.
 
 Set DBSCAN Settings
 ~~~~~~~~~~~~~~~~~~~
+Hovering over this action displays a window containing parameters used for the DBSCAN clustering algorithm.
+
+  - Epsilon: The maximum distance between two samples for one to be considered as in the neighborhood of the other.
+  - Min Samples: The number of samples in a neighborhood for a point to be considered as a core point.
+  - Max Distance: The maximum distance a discharge centroid can travel between consecutive frames.
+  - Bin Size: Same as the bin size for calculating the false color map on the MEA grid.
+
+.. note::
+
+   The DBSCAN algorithm is used to cluster channels actively recording a discharge event. The centroids of these clusters are used to track the propagation of the discharges.
+   Max distance and bin size are not used in the clustering algorithm, but are useful for tracking the propagation of the discharges.
 
 .. seealso::
 
@@ -67,7 +95,7 @@ Set DBSCAN Settings
 
 View
 ----
-Each of the following actions toggles the visibility of the corresponding element.
+Contains actions for toggling the visibility of elements on the MEA grid and trace plots.
 
 Legend
 ~~~~~~
@@ -80,11 +108,28 @@ Pink lines are dedicated to the spread of seizures, while darker orange lines di
 
 Detected Events
 ~~~~~~~~~~~~~~~
-Show/hide the detected events on the MEA grid.
+Detected events are displayed as colored cells on the MEA grid. Blue cells represent seizure events, while orange cells represent SE events. These events are detected using Norby's algorithm.
+
+.. image:: ../../_static/detected-events.gif
+   :alt: Detected Events
+   :align: center
+   :width: 600px
+
+.. note::
+
+   TODO: Link to page explaining Norby's algorithm. ALso probably change the wording to be more clear.
 
 False Color Map
 ~~~~~~~~~~~~~~~
-Show/hide the false color map on the MEA grid.
+The false color map displays the activity of each channel in a color gradient. The color of each channel is determined by calculating the range of values within the bin size and normalizing them to a color gradient.
+Blue represents low activity, while red represents high activity.
+
+.. image:: ../../_static/false-color-map.gif
+   :alt: False Color Map
+   :align: center
+   :width: 600px
+
+In the image above, the false color map displays a region of high activity in the center of the neocortex (bottom region).
 
 .. note::
 
@@ -92,6 +137,13 @@ Show/hide the false color map on the MEA grid.
 
 Mini-map
 ~~~~~~~~
+The mini-map appears above the four trace plots. When the user hovers over one of the trace plots, the corresponding channel is highlighted on the mini-map along with the current visible region if zoomed in.
+The user may drag the visible region on the mini-map to change the visible region on the trace plots.
+
+.. image:: ../../_static/mini-map.gif
+   :alt: Mini-map
+   :align: center
+   :width: 600px
 
 Playheads
 ~~~~~~~~~
