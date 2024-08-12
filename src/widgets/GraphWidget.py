@@ -202,7 +202,6 @@ class GraphWidget(QWidget):
         if self.main_window.show_discharge_peaks:
             self.plot_peaks()
 
-
         self.synced_range = None
 
     def update_minimap(self):
@@ -271,8 +270,10 @@ class GraphWidget(QWidget):
             self.hide_regions()
 
     def toggle_red_lines(self):
-        for red_line in self.red_lines:
-            red_line.setVisible(not red_line.isVisible())
+        self.main_window.toggle_playheads(not self.red_lines[0].isVisible())
+        self.main_window.togglePlayheadsActions.setChecked(
+            self.red_lines[0].isVisible()
+        )
 
     def toggle_mini_map_from_context_menu(self):
         self.toggle_mini_map(not self.do_show_mini_map)
@@ -340,7 +341,7 @@ class GraphWidget(QWidget):
         print(f"We have {len(x)} points to plot")
         seizure_regions, se_regions = self.get_regions(seizures, se)
 
-        curve = self.plot_widgets[plot_index].plot(pen=pg.mkPen('k', width=3))
+        curve = self.plot_widgets[plot_index].plot(pen=pg.mkPen("k", width=3))
         curve.setData(x, y)
         curve.setDownsampling(auto=True, method="peak", ds=100)
         curve.setClipToView(True)
@@ -419,7 +420,6 @@ class GraphWidget(QWidget):
 
         if plot_index == 0:
             self.update_minimap()
-
 
     def get_num_points(self, plot_index):
         return len(self.x_data[plot_index])

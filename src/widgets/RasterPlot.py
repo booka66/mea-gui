@@ -48,6 +48,12 @@ class RasterPlot:
     def set_main_window(self, main_window):
         self.main_window = main_window
 
+    def toggle_red_line(self):
+        self.main_window.toggle_playheads(not self.raster_red_line.isVisible())
+        self.main_window.togglePlayheadsActions.setChecked(
+            self.raster_red_line.isVisible()
+        )
+
     def mouse_clicked(self, event):
         try:
             if event.button() == Qt.LeftButton:

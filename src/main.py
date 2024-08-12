@@ -187,7 +187,6 @@ class MainWindow(QMainWindow):
         self.prop_arrow_items = []
         self.do_show_spread_lines = False
         self.do_show_prop_lines = False
-        self.do_show_playheads = True
         self.current_region = None
         self.custom_region = None
         self.peak_thresholds = {}
@@ -1042,8 +1041,11 @@ class MainWindow(QMainWindow):
             self.hide_prop_lines()
 
     def toggle_playheads(self, checked):
-        self.do_show_playheads = checked
-        self.update_grid()
+        # Toggle the trace plots playheads
+        for red_line in self.graph_widget.red_lines:
+            red_line.setVisible(checked)
+        # Toggle the raster plot playhead
+        self.raster_plot.raster_red_line.setVisible(checked)
 
     def toggle_cpp_mode(self, state):
         self.use_cpp = state == Qt.Checked
