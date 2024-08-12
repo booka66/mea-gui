@@ -63,9 +63,9 @@ class GraphWidget(QWidget):
             for _ in range(4)
         ]
         self.do_show_regions = True
-        self.region_plots = {}
         self.x_data = [None] * 4
         self.y_data = [None] * 4
+        self.trace_curves = [None] * 4
         self.active_plot_index = 0
         self.do_show_mini_map = True
         self.last_active_plot_index = -1
@@ -344,6 +344,7 @@ class GraphWidget(QWidget):
         curve.setData(x, y)
         curve.setDownsampling(auto=True, method="peak", ds=100)
         curve.setClipToView(True)
+        self.trace_curves[plot_index] = curve
 
         self.plot_widgets[plot_index].addItem(self.red_lines[plot_index])
 
@@ -376,10 +377,6 @@ class GraphWidget(QWidget):
         self.plot_widgets[plot_index].getAxis("left").setTextPen(
             pg.mkPen(color=(0, 0, 0), width=2)
         )
-
-        if plot_index in self.region_plots:
-            self.plot_widgets[plot_index].removeItem(self.region_plots[plot_index])
-            del self.region_plots[plot_index]
 
         for start, stop in se_regions:
             region = pg.LinearRegionItem(

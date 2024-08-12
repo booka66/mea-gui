@@ -939,58 +939,64 @@ class MainWindow(QMainWindow):
 
     def show_spectrograms(self):
         for i in range(4):
-            if self.plotted_channels[i] is not None:
-                eeg_data = self.data[
-                    self.plotted_channels[i].row,
-                    self.plotted_channels[i].col,
-                ]["signal"]
+            if self.plotted_channels[i] is None:
+                continue
+            self.graph_widget.trace_curves[i].setVisible(False)
 
-                print(f"Creating spectrogram for channel {i + 1}")
+            eeg_data = self.data[
+                self.plotted_channels[i].row,
+                self.plotted_channels[i].col,
+            ]["signal"]
 
-                f, _, Sxx = spectrogram(
-                    eeg_data,
-                    fs=self.sampling_rate,
-                    window="hann",
-                    nperseg=self.chunk_size,
-                    noverlap=self.overlap,
-                    nfft=self.chunk_size,
-                    scaling="density",
-                    mode="psd",
+            print(f"Creating spectrogram for channel {i + 1}")
+
+            f, _, Sxx = spectrogram(
+                eeg_data,
+                fs=self.sampling_rate,
+                window="hann",
+                nperseg=self.chunk_size,
+                noverlap=self.overlap,
+                nfft=self.chunk_size,
+                scaling="density",
+                mode="psd",
+            )
+
+            Sxx_db = 10 * np.log10(Sxx)
+
+            freq_mask = (f >= self.fs_range[0]) & (f <= self.fs_range[1])
+            Sxx_db = Sxx_db[freq_mask, :]
+
+            cmap = pg.colormap.get("inferno")
+            lut = cmap.getLookupTable()
+
+            img = pg.ImageItem()
+            img.setLookupTable(lut)
+            img.setLevels([np.min(Sxx_db), np.max(Sxx_db)])
+            img.setImage(Sxx_db.T, autoLevels=False)
+
+            x_range = (self.time_vector[0], self.time_vector[-1])
+            y_range = (min(eeg_data), max(eeg_data))
+            img.setRect(
+                QRectF(
+                    x_range[0],
+                    y_range[0],
+                    x_range[1] - x_range[0],
+                    y_range[1] - y_range[0],
                 )
+            )
 
-                Sxx_db = 10 * np.log10(Sxx)
+            self.graph_widget.plot_widgets[i].addItem(img)
 
-                freq_mask = (f >= self.fs_range[0]) & (f <= self.fs_range[1])
-                Sxx_db = Sxx_db[freq_mask, :]
-
-                cmap = pg.colormap.get("inferno")
-                lut = cmap.getLookupTable()
-
-                img = pg.ImageItem()
-                img.setLookupTable(lut)
-                img.setLevels([np.min(Sxx_db), np.max(Sxx_db)])
-                img.setImage(Sxx_db.T, autoLevels=False)
-
-                x_range = (self.time_vector[0], self.time_vector[-1])
-                y_range = (min(eeg_data) + max(eeg_data), 2 * max(eeg_data))
-                img.setRect(
-                    QRectF(
-                        x_range[0],
-                        y_range[0],
-                        x_range[1] - x_range[0],
-                        y_range[1] - y_range[0],
-                    )
-                )
-
-                self.graph_widget.plot_widgets[i].addItem(img)
-
-                img.setZValue(-1)
+            img.setZValue(-1)
 
     def hide_spectrograms(self):
         for i in range(4):
             for item in self.graph_widget.plot_widgets[i].items():
                 if isinstance(item, pg.ImageItem):
                     self.graph_widget.plot_widgets[i].removeItem(item)
+
+            # Replot the trace plot
+            self.graph_widget.trace_curves[i].setVisible(True)
 
     def toggle_antialiasing(self, checked):
         pg.setConfigOptions(antialias=checked)
@@ -1211,10 +1217,6 @@ class MainWindow(QMainWindow):
                 self.plotted_channels[i].plotted_state = False
                 self.plotted_channels[i].plotted_shape = None
                 self.plotted_channels[i].update()
-            if i in self.graph_widget.region_plots:
-                self.graph_widget.plot_widgets[i].removeItem(
-                    self.graph_widget.region_plots[i]
-                )
             self.graph_widget.plot_widgets[i].clear()
             self.graph_widget.x_data[i] = None
             self.graph_widget.y_data[i] = None
@@ -1228,7 +1230,7 @@ class MainWindow(QMainWindow):
                     self.graph_widget.plot_widgets[i].removeItem(item)
 
         self.plotted_channels = [None] * 4
-        self.graph_widget.region_plots.clear()
+        self.graph_widget.trace_curves.clear()
         self.grid_widget.update()
         self.current_region = None
         self.update_raster_plotted_channels()
@@ -1408,10 +1410,6 @@ class MainWindow(QMainWindow):
                                 raster_plotted_channels.append((r_row, r_col))
                         self.raster_plot.set_plotted_channels(raster_plotted_channels)
 
-                if self.toggleSpectrogramAction.text() == "Hide spectrogram":
-                    self.hide_spectrograms()
-                    self.show_spectrograms()
-
                 ignore = int(10 * self.sampling_rate)
 
                 self.graph_widget.plot(
@@ -1431,6 +1429,10 @@ class MainWindow(QMainWindow):
                 self.grid_widget.cells[row][col].selected_tooltip.hide()
                 self.grid_widget.cells[row][col].update()
                 self.grid_widget.selected_channel = None
+
+                if self.toggleSpectrogramAction.isChecked():
+                    self.hide_spectrograms()
+                    self.show_spectrograms()
         else:
             if event.key() == Qt.Key_Shift:
                 self.graph_widget.change_view_mode("pan")
