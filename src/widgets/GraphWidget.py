@@ -1,14 +1,12 @@
 from PyQt5.QtCore import QTimer, pyqtSignal, Qt
 from PyQt5.QtWidgets import (
-    QApplication,
-    QMessageBox,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 import pyqtgraph as pg
 import numpy as np
-from helpers.Constants import STROKE_WIDTH, GRAPH_DOWNSAMPLE, TOTAL_POINTS
+from helpers.Constants import STROKE_WIDTH, GRAPH_DOWNSAMPLE
 from widgets.CustomViewBox import TraceViewBoxMenu
 
 failed_import = False
