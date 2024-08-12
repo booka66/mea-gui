@@ -262,6 +262,7 @@ class GraphWidget(QWidget):
 
     def toggle_regions(self):
         self.do_show_regions = not self.do_show_regions
+        self.main_window.toggleRegionsAction.setChecked(self.do_show_regions)
         if self.do_show_regions:
             self.show_regions()
         else:
