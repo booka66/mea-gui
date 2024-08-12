@@ -29,7 +29,7 @@ from widgets.Settings import (
     DBSCANSettingsWidget,
     PeakSettingsWidget,
 )
-from widgets.ClusterTracker import ClusterLegend, ClusterTracker
+from widgets.ClusterTracker import ClusterTracker
 
 from widgets.Media import SaveChannelPlotsDialog, save_grid_as_png, save_mea_with_plots
 from widgets.ProgressBar import EEGScrubberWidget
@@ -75,7 +75,6 @@ from PyQt5.QtWidgets import (
     QGraphicsEllipseItem,
     QGraphicsLineItem,
     QGraphicsPolygonItem,
-    QGraphicsScene,
     QGraphicsView,
     QHBoxLayout,
     QInputDialog,
@@ -403,20 +402,6 @@ class MainWindow(QMainWindow):
 
         self.cluster_tracker = ClusterTracker()
 
-        self.legend_view = QGraphicsView()
-        self.legend_scene = QGraphicsScene()
-        self.legend_view.setScene(self.legend_scene)
-        self.legend_view.setFixedHeight(100)
-
-        legend_width = self.grid_widget.width()
-        self.cluster_legend = ClusterLegend(
-            self.legend_scene,
-            0,
-            0,
-            legend_width,
-            100,
-        )
-
         self.legend_widget = LegendWidget()
         self.legend_widget.setVisible(False)
 
@@ -427,7 +412,6 @@ class MainWindow(QMainWindow):
         top_layout.addWidget(square_widget)
 
         mea_grid_layout.addLayout(top_layout)
-        mea_grid_layout.addWidget(self.legend_view)
 
         mea_grid_widget = QWidget()
         mea_grid_widget.setLayout(mea_grid_layout)
@@ -664,11 +648,11 @@ class MainWindow(QMainWindow):
         else:
             print("No update available.")
 
-    def update_cluster_legend(self, cluster_stats):
-        self.cluster_legend.update(cluster_stats)
-
-        self.legend_view.setSceneRect(self.legend_scene.sceneRect())
-        self.legend_view.fitInView(self.legend_scene.sceneRect(), Qt.KeepAspectRatio)
+    # def update_cluster_legend(self, cluster_stats):
+    #     self.cluster_legend.update(cluster_stats)
+    #
+    #     self.legend_view.setSceneRect(self.legend_scene.sceneRect())
+    #     self.legend_view.fitInView(self.legend_scene.sceneRect(), Qt.KeepAspectRatio)
 
     def handle_checkable_action(self):
         QTimer.singleShot(0, self.viewMenu.show)
@@ -1989,11 +1973,11 @@ class MainWindow(QMainWindow):
                 self.grid_widget.scene, cell_width, cell_height
             )
 
-            cluster_stats = self.cluster_tracker.get_cluster_stats()
-            self.cluster_legend.update(cluster_stats)
+            # cluster_stats = self.cluster_tracker.get_cluster_stats()
+            # self.cluster_legend.update(cluster_stats)
         else:
             self.cluster_tracker.update([], current_time)
-            self.cluster_legend.update([])
+            # self.cluster_legend.update([])
             cell_width = self.grid_widget.cells[0][0].rect().width()
             cell_height = self.grid_widget.cells[0][0].rect().height()
             self.cluster_tracker.draw_cluster_lines(

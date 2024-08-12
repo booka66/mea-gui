@@ -1,14 +1,13 @@
 import h5py
 import numpy as np
 from scipy.spatial.distance import cdist
-from PyQt5.QtGui import QFont, QPen, QColor, QImage, QPixmap
+from PyQt5.QtGui import QPen, QColor, QImage, QPixmap
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
     QGraphicsEllipseItem,
     QGraphicsPathItem,
     QGraphicsRectItem,
     QGraphicsScene,
-    QGraphicsTextItem,
     QGraphicsPixmapItem,
 )
 from PyQt5.QtGui import QPainterPath
@@ -468,50 +467,50 @@ class ClusterTracker:
         self.seizure_graphics_items.clear()
 
 
-class ClusterLegend:
-    def __init__(self, scene, x, y, width, height):
-        self.scene = scene
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.legend_items = []
-
-    def update(self, cluster_stats):
-        for item in self.legend_items:
-            self.scene.removeItem(item)
-        self.legend_items.clear()
-
-        background = QGraphicsRectItem(self.x, self.y, self.width, self.height)
-        background.setBrush(QColor(255, 255, 255, 200))
-        background.setPen(QPen(Qt.black))
-        self.scene.addItem(background)
-        self.legend_items.append(background)
-
-        font = QFont()
-        font.setPointSize(10)
-
-        y_offset = self.y + 10
-        for i, stats in enumerate(cluster_stats):
-            color_rect = QGraphicsRectItem(self.x + 10, y_offset, 20, 20)
-            color_rect.setBrush(stats["color"])
-            color_rect.setPen(QPen(Qt.black))
-            self.scene.addItem(color_rect)
-            self.legend_items.append(color_rect)
-
-            text = (
-                f"Cluster {i+1}: Duration: {stats['duration']:.2f} ms, "
-                f"Length: {stats['length']:.2f} mm, "
-                f"Avg Speed: {stats['avg_speed']:.2f} mm/s, "
-            )
-            text_item = QGraphicsTextItem(text)
-            text_item.setFont(font)
-            text_item.setDefaultTextColor(Qt.black)
-            text_item.setPos(self.x + 40, y_offset)
-            self.scene.addItem(text_item)
-            self.legend_items.append(text_item)
-
-            y_offset += 30
-
-        self.height = y_offset - self.y + 10
-        background.setRect(self.x, self.y, self.width, self.height)
+# class ClusterLegend:
+#     def __init__(self, scene, x, y, width, height):
+#         self.scene = scene
+#         self.x = x
+#         self.y = y
+#         self.width = width
+#         self.height = height
+#         self.legend_items = []
+#
+#     def update(self, cluster_stats):
+#         for item in self.legend_items:
+#             self.scene.removeItem(item)
+#         self.legend_items.clear()
+#
+#         background = QGraphicsRectItem(self.x, self.y, self.width, self.height)
+#         background.setBrush(QColor(255, 255, 255, 200))
+#         background.setPen(QPen(Qt.black))
+#         self.scene.addItem(background)
+#         self.legend_items.append(background)
+#
+#         font = QFont()
+#         font.setPointSize(10)
+#
+#         y_offset = self.y + 10
+#         for i, stats in enumerate(cluster_stats):
+#             color_rect = QGraphicsRectItem(self.x + 10, y_offset, 20, 20)
+#             color_rect.setBrush(stats["color"])
+#             color_rect.setPen(QPen(Qt.black))
+#             self.scene.addItem(color_rect)
+#             self.legend_items.append(color_rect)
+#
+#             text = (
+#                 f"Cluster {i+1}: Duration: {stats['duration']:.2f} ms, "
+#                 f"Length: {stats['length']:.2f} mm, "
+#                 f"Avg Speed: {stats['avg_speed']:.2f} mm/s, "
+#             )
+#             text_item = QGraphicsTextItem(text)
+#             text_item.setFont(font)
+#             text_item.setDefaultTextColor(Qt.black)
+#             text_item.setPos(self.x + 40, y_offset)
+#             self.scene.addItem(text_item)
+#             self.legend_items.append(text_item)
+#
+#             y_offset += 30
+#
+#         self.height = y_offset - self.y + 10
+#         background.setRect(self.x, self.y, self.width, self.height)
