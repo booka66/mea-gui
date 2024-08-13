@@ -14,8 +14,10 @@ class TraceViewBoxMenu(QMenu):
 
         find_discharges_action = QAction("Find discharges", self)
         track_discharges_action = QAction("Track discharges", self)
+        stop_tracking_discharges_action = QAction("Stop tracking discharges", self)
         load_discharges_action = QAction("Load discharges", self)
         clear_discharges_action = QAction("Clear discharges", self)
+        clear_tracked_discharges_action = QAction("Clear tracked discharges", self)
         save_single_plot_action = QAction("Save this plot", self)
         save_all_plots_action = QAction("Save all plots", self)
         toggle_regions_action = QAction("Toggle regions", self)
@@ -26,12 +28,14 @@ class TraceViewBoxMenu(QMenu):
             self.parent.main_window.find_discharges
         )
         track_discharges_action.triggered.connect(self.parent.main_window.auto_analyze)
+        stop_tracking_discharges_action.triggered.connect(self.stop_tracking_discharges)
         load_discharges_action.triggered.connect(
             self.parent.main_window.load_discharges
         )
         clear_discharges_action.triggered.connect(
             self.parent.main_window.clear_found_discharges
         )
+        clear_tracked_discharges_action.triggered.connect(self.clear_tracked_discharges)
 
         save_single_plot_action.triggered.connect(self.save_single_plot.emit)
         save_all_plots_action.triggered.connect(self.save_all_plots.emit)
@@ -42,8 +46,10 @@ class TraceViewBoxMenu(QMenu):
 
         self.addAction(find_discharges_action)
         self.addAction(track_discharges_action)
+        self.addAction(stop_tracking_discharges_action)
         self.addAction(load_discharges_action)
         self.addAction(clear_discharges_action)
+        self.addAction(clear_tracked_discharges_action)
         self.addSeparator()
         self.addAction(save_single_plot_action)
         self.addAction(save_all_plots_action)
@@ -60,6 +66,14 @@ class TraceViewBoxMenu(QMenu):
 
     def toggle_mini_map(self):
         self.parent.toggle_mini_map_from_context_menu()
+
+    def stop_tracking_discharges(self):
+        if self.parent.main_window.is_auto_analyzing:
+            self.parent.main_window.is_auto_analyzing = False
+
+    def clear_tracked_discharges(self):
+        self.parent.main_window.cluster_tracker.seizure_graphics_items.clear()
+        self.parent.main_window.cluster_tracker.seizures.clear()
 
 
 class RasterViewBoxMenu(QMenu):

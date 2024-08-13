@@ -1526,8 +1526,6 @@ class MainWindow(QMainWindow):
             elif event.key() == Qt.Key_T:
                 if self.is_auto_analyzing:
                     self.is_auto_analyzing = False
-                    self.cluster_tracker.seizure_graphics_items.clear()
-                    self.cluster_tracker.seizures.clear()
             elif event.key() == Qt.Key_M:
                 current_time = self.progress_bar.value() / self.sampling_rate
                 self.markers.append(current_time)
