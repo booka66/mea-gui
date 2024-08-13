@@ -10,7 +10,6 @@ import h5py
 from scipy.signal import butter, filtfilt, spectrogram
 from scipy.interpolate import interp1d
 from sklearn.cluster import DBSCAN
-from qtreload import QtReloadWidget
 from helpers.update.Updater import check_for_update, download_and_install_update
 from widgets.VideoEditor import VideoEditor
 from widgets.GridWidget import GridWidget
