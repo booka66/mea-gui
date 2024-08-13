@@ -35,7 +35,6 @@ from widgets.Media import SaveChannelPlotsDialog, save_grid_as_png, save_mea_wit
 from widgets.ProgressBar import EEGScrubberWidget
 from helpers.Constants import (
     BACKGROUND,
-    PROPAGATION,
     SEIZURE,
     SE,
     ACTIVE,
@@ -181,7 +180,6 @@ class MainWindow(QMainWindow):
         self.raster_downsample_factor = 1
         self.opacity = 1.0
         self.seized_cells = []
-        self.prop_cells = []
         self.arrow_items = []
         self.prop_arrow_items = []
         self.do_show_spread_lines = False
@@ -1921,24 +1919,17 @@ class MainWindow(QMainWindow):
 
     def handle_prop_lines(self, current_time):
         start, stop = self.custom_region
-        newly_discharged_cells = []
-        cells_to_remove = []
         discharged_cells = []
         for row, col in self.active_channels:
             if (row - 1, col - 1) in self.discharges:
                 discharge_times, _ = self.discharges[(row - 1, col - 1)]
-                discharge_found = False
                 for discharge_time in discharge_times:
                     if (
                         start <= discharge_time <= stop
                         and abs(discharge_time - current_time) < self.bin_size
                     ):
-                        newly_discharged_cells.append((row, col))
                         discharged_cells.append((row, col))
-                        discharge_found = True
                         break
-                if not discharge_found and (row, col) in self.prop_cells:
-                    cells_to_remove.append((row, col))
 
         if discharged_cells:
             X = np.array(discharged_cells)
@@ -1974,32 +1965,15 @@ class MainWindow(QMainWindow):
             self.cluster_tracker.draw_cluster_lines(
                 self.grid_widget.scene, cell_width, cell_height
             )
-
-            # cluster_stats = self.cluster_tracker.get_cluster_stats()
-            # self.cluster_legend.update(cluster_stats)
         else:
             self.cluster_tracker.update([], current_time)
-            # self.cluster_legend.update([])
             cell_width = self.grid_widget.cells[0][0].rect().width()
             cell_height = self.grid_widget.cells[0][0].rect().height()
             self.cluster_tracker.draw_cluster_lines(
                 self.grid_widget.scene, cell_width, cell_height
             )
 
-        for row, col in newly_discharged_cells:
-            if (row, col) not in self.prop_cells:
-                self.draw_prop_arrows(row, col)
-                self.prop_cells.append((row, col))
-
-        for row, col in cells_to_remove:
-            self.remove_prop_arrows(row, col)
-            self.prop_cells.remove((row, col))
-
     def clear_discharges(self, current_time):
-        for row, col in list(self.prop_cells):
-            self.remove_prop_arrows(row, col)
-        self.prop_cells.clear()
-
         for item in self.centroids:
             self.grid_widget.scene.removeItem(item)
         self.centroids.clear()
@@ -2226,111 +2200,6 @@ class MainWindow(QMainWindow):
                 )
             )
 
-    def remove_prop_arrows(self, row, col):
-        arrows_to_remove = []
-        for arrow_item in self.prop_arrow_items:
-            if arrow_item["end_cell"] == (row, col) or arrow_item["start_cell"] == (
-                row,
-                col,
-            ):
-                self.grid_widget.scene.removeItem(arrow_item["arrow"])
-                self.grid_widget.scene.removeItem(arrow_item["arrow_head"])
-                arrows_to_remove.append(arrow_item)
-
-        for arrow_item in arrows_to_remove:
-            self.prop_arrow_items.remove(arrow_item)
-
-    def print_propagation_state(self):
-        print("\nCurrent Propagation State:")
-        print(f"do_show_prop_lines: {self.do_show_prop_lines}")
-        print(f"custom_region: {self.custom_region}")
-        print(f"prop_cells: {self.prop_cells}")
-        print(f"prop_arrow_items: {len(self.prop_arrow_items)}")
-        print(f"Number of discharges: {len(self.discharges)}")
-
-    def draw_prop_arrows(self, row, col):
-        if len(self.prop_cells) > 1:
-            min_distance = float("inf")
-            closest_cell = None
-            for prop_row, prop_col in self.prop_cells:
-                distance = math.sqrt((row - prop_row) ** 2 + (col - prop_col) ** 2)
-
-                if distance < min_distance and distance > 0:
-                    min_distance = distance
-                    closest_cell = (prop_row, prop_col)
-
-            if closest_cell and min_distance <= 10:
-                start_cell = self.grid_widget.cells[closest_cell[0]][closest_cell[1]]
-                end_cell = self.grid_widget.cells[row][col]
-
-                cell_width = start_cell.rect().width()
-                cell_height = start_cell.rect().height()
-
-                offset = QPointF(cell_width * 1, cell_height * 1)
-
-                start_center = (
-                    start_cell.scenePos()
-                    + QPointF(cell_width / 2, cell_height / 2)
-                    - offset
-                )
-                end_center = (
-                    end_cell.scenePos()
-                    + QPointF(cell_width / 2, cell_height / 2)
-                    - offset
-                )
-
-                arrow = QGraphicsLineItem(QLineF(start_center, end_center))
-                arrow.setPen(
-                    QPen(PROPAGATION, 2, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
-                )
-
-                arrow_head = QPolygonF()
-                arrow_head.append(QPointF(0, 0))
-                arrow_head.append(QPointF(-6, -5))
-                arrow_head.append(QPointF(-6, 5))
-                arrow_head_item = QGraphicsPolygonItem(arrow_head)
-                arrow_head_item.setBrush(PROPAGATION)
-                arrow_head_item.setPen(QPen(PROPAGATION))
-
-                angle = math.degrees(
-                    math.atan2(
-                        end_center.y() - start_center.y(),
-                        end_center.x() - start_center.x(),
-                    )
-                )
-                arrow_head_item.setRotation(angle)
-
-                arrow_offset = 0.5
-
-                arrow_head_item.setPos(
-                    end_center
-                    - QPointF(
-                        arrow_offset * math.cos(math.radians(angle)),
-                        arrow_offset * math.sin(math.radians(angle)),
-                    )
-                )
-
-                self.grid_widget.scene.addItem(arrow)
-                self.grid_widget.scene.addItem(arrow_head_item)
-
-                self.prop_arrow_items.append(
-                    {
-                        "arrow": arrow,
-                        "arrow_head": arrow_head_item,
-                        "start_cell": closest_cell,
-                        "end_cell": (row, col),
-                    }
-                )
-
-                self.prop_cells.append((row, col))
-
-                if self.do_show_prop_lines:
-                    arrow.show()
-                    arrow_head_item.show()
-                else:
-                    arrow.hide()
-                    arrow_head_item.hide()
-
     def draw_spread_arrows(self, row, col, event_type):
         if len(self.seized_cells) > 1:
             min_distance = float("inf")
@@ -2493,7 +2362,6 @@ class MainWindow(QMainWindow):
                     self.max_voltage = None
                     self.overall_min_voltage = None
                     self.overall_max_voltage = None
-                    self.prop_cells = []
                     self.centroids = []
                     self.cluster_tracker.clear_plot(self.grid_widget.scene)
                     self.cluster_tracker.clear()
