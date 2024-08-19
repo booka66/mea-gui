@@ -335,6 +335,6 @@ class SpectrogramSettingsWidget(QWidget):
             float(self.layout().itemAt(2).layout().itemAt(4).widget().text()),
         )
 
-        # Update the spectrograms
-        self.main_window.hide_spectrograms()
-        self.main_window.show_spectrograms()
+        if self.main_window.toggleSpectrogramAction.isChecked():
+            self.main_window.hide_spectrograms()
+            self.main_window.show_spectrograms()
