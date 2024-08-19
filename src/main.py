@@ -10,6 +10,7 @@ import h5py
 from scipy.signal import spectrogram
 from sklearn.cluster import DBSCAN
 from helpers.update.Updater import check_for_update, download_and_install_update
+from widgets.ChannelExtract import ChannelExtract
 from widgets.VideoEditor import VideoEditor
 from widgets.GridWidget import GridWidget
 from widgets.GraphWidget import GraphWidget
@@ -29,7 +30,6 @@ from widgets.Settings import (
     PeakSettingsWidget,
 )
 from widgets.ClusterTracker import ClusterTracker
-import tempfile
 
 from widgets.Media import SaveChannelPlotsDialog, save_grid_as_png, save_mea_with_plots
 from widgets.ProgressBar import EEGScrubberWidget
@@ -240,6 +240,12 @@ class MainWindow(QMainWindow):
         self.openAction = QAction("Open file", self)
         self.openAction.triggered.connect(self.openFile)
         self.fileMenu.addAction(self.openAction)
+        self.downsampleExportAction = QAction("Downsample and Export", self)
+        self.downsampleExportAction.triggered.connect(
+            self.open_downsample_export_dialog
+        )
+        self.fileMenu.addAction(self.downsampleExportAction)
+        self.fileMenu.addSeparator()
         self.createVideoAction = QAction("Save MEA as video", self)
         self.createVideoAction.triggered.connect(self.show_video_editor)
         self.fileMenu.addAction(self.createVideoAction)
@@ -572,6 +578,10 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.redraw_arrows()
+
+    def open_downsample_export_dialog(self):
+        channel_extract_dialog = ChannelExtract(self)
+        channel_extract_dialog.exec_()
 
     def open_docs(self):
         cwd = Path(__file__).resolve().parent
@@ -2336,14 +2346,12 @@ class MainWindow(QMainWindow):
             drive_path = f"{drive}:"
             if os.path.exists(drive_path):
                 try:
-                    # Try to create a temporary file to check write permissions
                     temp_file_path = os.path.join(drive_path, "temp_write_test.txt")
                     with open(temp_file_path, "w") as f:
                         f.write("test")
                     os.remove(temp_file_path)
                     drives.append(drive_path)
                 except (IOError, OSError):
-                    # If we can't write, skip this drive
                     pass
         if drives:
             return drives[0]
