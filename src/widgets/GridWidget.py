@@ -82,11 +82,9 @@ class GridWidget(QGraphicsView):
 
     def contextMenuEvent(self, event):
         context_menu = QMenu(self)
-        save_video_action = QAction("Save as video", self)
-        save_image_action = QAction("Save as image", self)
-        toggle_lasso_action = QAction("Toggle lasso mode", self)
-        toggle_lasso_action.setCheckable(True)
-        toggle_lasso_action.setChecked(self.is_lasso_mode)
+        save_video_action = QAction("Save as Video", self)
+        save_image_action = QAction("Save as Image", self)
+        toggle_lasso_action = QAction("Create Propagation Groups", self)
 
         context_menu.addAction(save_video_action)
         context_menu.addAction(save_image_action)
@@ -94,20 +92,26 @@ class GridWidget(QGraphicsView):
 
         save_video_action.triggered.connect(self.save_as_video_requested.emit)
         save_image_action.triggered.connect(self.save_as_image_requested.emit)
-        toggle_lasso_action.triggered.connect(self.toggle_lasso_mode)
+        toggle_lasso_action.triggered.connect(self.start_lasso_mode)
 
         context_menu.exec_(self.mapToGlobal(event.pos()))
 
-    def toggle_lasso_mode(self):
-        self.is_lasso_mode = not self.is_lasso_mode
-        if not self.is_lasso_mode:
-            self.clear_lasso()
+    def start_lasso_mode(self):
+        self.is_lasso_mode = True
+        self.clear_lasso_selection()
 
     def keyPressEvent(self, event: typing.Optional[QtGui.QKeyEvent]) -> None:
         if event.key() == Qt.Key_Z:
             self.undo_lasso_selection()
         elif event.key() == Qt.Key_C:
             self.clear_lasso_selection()
+        elif event.key() == Qt.Key_Escape:
+            self.is_lasso_mode = False
+            self.clear_lasso()
+            self.clear_lasso_selection()
+        elif event.key() == Qt.Key_Return:
+            self.is_lasso_mode = False
+            self.clear_lasso()
         else:
             super().keyPressEvent(event)
 

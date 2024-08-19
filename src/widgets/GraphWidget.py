@@ -134,6 +134,9 @@ class GraphWidget(QWidget):
                     self.main_window.plotted_channels[i].col,
                 )
                 if len(self.main_window.discharges) > 0:
+                    if (row, col) not in self.main_window.discharges:
+                        continue
+
                     discharge_start_x, discharge_start_y = self.main_window.discharges[
                         (row, col)
                     ]

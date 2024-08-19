@@ -215,7 +215,7 @@ class MainWindow(QMainWindow):
         self.snr_threshold = 35
         self.current_discharge_index = 0
         self.is_auto_analyzing = False
-        self.low_pass_cutoff = 35  # Default value
+        self.low_pass_cutoff = 35
         self.markers = []
         self.spaital_sections = []
 
@@ -1824,6 +1824,12 @@ class MainWindow(QMainWindow):
 
     def on_discharge_finder_finished(self, discharges):
         self.discharges = discharges
+        for i in range(4):
+            if self.plotted_channels[i] is not None:
+                for item in self.graph_widget.plot_widgets[i].items():
+                    if isinstance(item, pg.ScatterPlotItem):
+                        self.graph_widget.plot_widgets[i].removeItem(item)
+
         self.graph_widget.plot_peaks()
 
     def initialize_data(self):
