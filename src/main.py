@@ -2411,7 +2411,7 @@ class MainWindow(QMainWindow):
             self.min_voltage = min(self.min_voltage, min_range)
             self.max_voltage = max(self.max_voltage, max_range)
 
-            self.grid_widget.cells[row - 1][col - 1].setCursor(Qt.PointingHandCursor)
+            self.grid_widget.update_cursor()
 
         end = perf_counter()
         print(f"Min/max voltages calculated in {end - start:.2f} seconds")

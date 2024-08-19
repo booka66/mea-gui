@@ -96,6 +96,11 @@ class GridWidget(QGraphicsView):
 
         context_menu.exec_(self.mapToGlobal(event.pos()))
 
+    def update_cursor(self):
+        if not self.is_lasso_mode:
+            for row, col in self.main_window.active_channels:
+                self.cells[row - 1][col - 1].setCursor(Qt.PointingHandCursor)
+
     def start_lasso_mode(self):
         self.is_lasso_mode = True
         self.clear_lasso_selection()
@@ -109,9 +114,11 @@ class GridWidget(QGraphicsView):
             self.is_lasso_mode = False
             self.clear_lasso()
             self.clear_lasso_selection()
+            self.update_cursor()
         elif event.key() == Qt.Key_Return:
             self.is_lasso_mode = False
             self.clear_lasso()
+            self.update_cursor()
         else:
             super().keyPressEvent(event)
 
@@ -124,8 +131,8 @@ class GridWidget(QGraphicsView):
     def mouseMoveEvent(self, event):
         if self.is_lasso_mode and event.buttons() & Qt.LeftButton:
             self.continue_lasso(event.pos())
-            if random.random() < 0.1:
-                self.create_sparks(event.pos())
+            # if random.random() < 0.1:
+            #     self.create_sparks(event.pos())
         else:
             super().mouseMoveEvent(event)
 
