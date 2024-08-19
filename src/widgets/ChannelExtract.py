@@ -1,9 +1,8 @@
 import math
+from multiprocessing import Pool
 import sys
 import os
 import json
-import typing
-from PyQt5 import QtGui
 import numpy as np
 import h5py
 from PyQt5.QtWidgets import (
@@ -34,8 +33,10 @@ from matplotlib.figure import Figure
 from matplotlib.widgets import LassoSelector
 from matplotlib.path import Path
 import matplotlib.image as mpimg
-import subprocess
 import qdarktheme
+import pywt
+import time
+from tqdm import tqdm
 
 
 SIZE = 30
@@ -202,6 +203,408 @@ class ScatterPlot(QWidget):
         QMessageBox.information(self, "Plot Hotkeys", "\n".join(hotkeys))
 
 
+def reconstruct_WAV_signal(
+    recfileName,
+    channel_index,
+    samplingRate,
+    nChannels,
+    coefsTotalLength,
+    compressionLevel,
+    framesChunkLength,
+    coefsChunkLength,
+):
+    data = []
+    with h5py.File(recfileName) as file:
+        coefs_position = channel_index * coefsChunkLength
+        while coefs_position < coefsTotalLength:
+            coefs = file["Well_A1/WaveletBasedEncodedRaw"][
+                coefs_position : coefs_position + coefsChunkLength
+            ]
+            length = int(len(coefs) / 2)
+
+            approx, details = coefs[:length], coefs[length:]
+            approx = np.roll(approx, -5)
+            details = np.roll(details, -5)
+
+            length = int(len(coefs) / 2)
+            frames = pywt.idwt(approx, details, "sym7", "periodization")
+            length *= 2
+            for i in range(1, compressionLevel):
+                frames = pywt.idwt(frames[:length], None, "sym7", "periodization")
+                length *= 2
+            data.extend(frames[2:-2])
+            coefs_position += coefsChunkLength * nChannels
+    return data
+
+
+def extract_channel(args):
+    (
+        i,
+        recfileName,
+        samplingRate,
+        nChannels,
+        coefsTotalLength,
+        compressionLevel,
+        framesChunkLength,
+        coefsChunkLength,
+        chfileInfo,
+    ) = args
+    channel_data = reconstruct_WAV_signal(
+        recfileName,
+        i,
+        samplingRate,
+        nChannels,
+        coefsTotalLength,
+        compressionLevel,
+        framesChunkLength,
+        coefsChunkLength,
+    )
+    original_sampling_rate = samplingRate
+    desired_sampling_rate = chfileInfo["newSampling"]
+    downsample_factor = math.floor(original_sampling_rate / desired_sampling_rate)
+    downsampled_channel_data = channel_data[::downsample_factor]
+    return downsampled_channel_data
+
+
+def extBW5_WAV(chfileName, recfileName, chfileInfo, parameters):
+    # open the BRW file
+    samplingRate = None
+    nChannels = None
+    coefsTotalLength = None
+    compressionLevel = None
+    framesChunkLength = None
+    coefsChunkLength = None
+    with h5py.File(chfileName) as file:
+        start_time = file["3BRecInfo/3BRecVars/startTime"][0]
+        end_time = file["3BRecInfo/3BRecVars/endTime"][0]
+        print(f"Start time: {start_time}")
+        print(f"End time: {end_time}")
+        file.close()
+
+    with h5py.File(recfileName) as file:
+        # collect experiment information
+        samplingRate = file.attrs["SamplingRate"]
+        nChannels = len(file["Well_A1/StoredChIdxs"])
+        coefsTotalLength = len(file["Well_A1/WaveletBasedEncodedRaw"])
+        compressionLevel = file["Well_A1/WaveletBasedEncodedRaw"].attrs[
+            "CompressionLevel"
+        ]
+        framesChunkLength = file["Well_A1/WaveletBasedEncodedRaw"].attrs[
+            "DataChunkLength"
+        ]
+        coefsChunkLength = math.ceil(framesChunkLength / pow(2, compressionLevel)) * 2
+        file.close()
+
+    chs, ind_rec, ind_ch = np.intersect1d(
+        parameters["recElectrodeList"],
+        chfileInfo["recElectrodeList"],
+        return_indices=True,
+    )
+    newSampling = int(chfileInfo["newSampling"])
+    output_file_name = recfileName.split(".")[0] + "_resample_" + str(newSampling)
+    output_path = output_file_name + ".brw"
+    parameters["freq_ratio"] = parameters["samplingRate"] / chfileInfo["newSampling"]
+    fs = chfileInfo["newSampling"]  # desired sampling frequency
+
+    print("Downsampling File # ", output_path)
+    dset = writeBrw(recfileName, output_path, parameters)
+    dset.createNewBrw()
+
+    newChs = np.zeros(len(chs), dtype=[("Row", "<i2"), ("Col", "<i2")])
+    idx = 0
+    for ch in chs:
+        newChs[idx] = (np.int16(ch[0]), np.int16(ch[1]))
+        idx += 1
+
+    ind = np.lexsort((newChs["Col"], newChs["Row"]))
+    newChs = newChs[ind]
+    idx_a = ind_rec.copy()
+    print(idx_a)
+    # data = BrwFile.Open(recfileName)
+
+    s = time.time()
+
+    args = [
+        (
+            i,
+            recfileName,
+            samplingRate,
+            nChannels,
+            coefsTotalLength,
+            compressionLevel,
+            framesChunkLength,
+            coefsChunkLength,
+            chfileInfo,
+        )
+        for i in idx_a
+    ]
+
+    with Pool() as pool:
+        results = list(
+            tqdm(
+                pool.map(extract_channel, args),
+                total=len(args),
+                desc="Extracting channels",
+            )
+        )
+
+    original_sampling_rate = parameters["samplingRate"]
+    desired_sampling_rate = chfileInfo["newSampling"]
+    downsample_factor = math.floor(original_sampling_rate / desired_sampling_rate)
+    new_sampling_rate = original_sampling_rate / downsample_factor
+    print(f"Mine: {new_sampling_rate}")
+    print(f"Original: {fs}")
+
+    chunk_size = 100000  # Adjust the chunk size as needed
+    nrecFrame = len(results[0])
+
+    for i in range(0, nrecFrame, chunk_size):
+        start = i
+        end = min(i + chunk_size, nrecFrame)
+
+        raw_chunk = [results[j][start:end] for j in range(len(results))]
+        raw_chunk = np.array(raw_chunk)
+
+        if i == 0:
+            dset.writeRaw(raw_chunk, typeFlatten="F")
+            dset.writeSamplingFreq(new_sampling_rate)
+            dset.witeFrames(nrecFrame)
+            dset.writeChs(newChs)
+        else:
+            dset.appendBrw(output_path, end, raw_chunk)
+
+    dset.close()
+    # data.Close()
+
+    return time.time() - s, output_path
+
+
+def get_chfile_properties(path):
+    fileInfo = {}
+    h5 = h5py.File(path, "r")
+    fileInfo["recFrames"] = h5["/3BRecInfo/3BRecVars/NRecFrames"][0]
+    fileInfo["recSampling"] = h5["/3BRecInfo/3BRecVars/SamplingRate"][0]
+    fileInfo["newSampling"] = h5["/3BRecInfo/3BRecVars/NewSampling"][0]
+    # fileInfo['newSampling'] = 1024
+    fileInfo["recLength"] = fileInfo["recFrames"] / fileInfo["recSampling"]
+    fileInfo["recElectrodeList"] = h5["/3BRecInfo/3BMeaStreams/Raw/Chs"][
+        :
+    ]  # list of the recorded channels
+    fileInfo["numRecElectrodes"] = len(fileInfo["recElectrodeList"])
+    fileInfo["Ver"] = h5["/3BRecInfo/3BRecVars/Ver"][0]
+    fileInfo["Typ"] = h5["/3BRecInfo/3BRecVars/Typ"][0]
+    fileInfo["start"] = h5["/3BRecInfo/3BRecVars/startTime"][0]
+    fileInfo["end"] = h5["/3BRecInfo/3BRecVars/endTime"][0]
+
+    h5.close()
+    return fileInfo
+
+
+def get_recFile_properties(path, typ):
+    h5 = h5py.File(path, "r")
+    print(typ.decode("utf8"))
+    if typ.decode("utf8").lower() == "bw4":
+        parameters = {}
+        parameters["Ver"] = "BW4"
+
+        parameters["nRecFrames"] = h5["/3BRecInfo/3BRecVars/NRecFrames"][0]
+        parameters["samplingRate"] = h5["/3BRecInfo/3BRecVars/SamplingRate"][0]
+        parameters["recordingLength"] = (
+            parameters["nRecFrames"] / parameters["samplingRate"]
+        )
+        parameters["signalInversion"] = h5["/3BRecInfo/3BRecVars/SignalInversion"][
+            0
+        ]  # depending on the acq version it can be 1 or -1
+        parameters["maxUVolt"] = h5["/3BRecInfo/3BRecVars/MaxVolt"][0]  # in uVolt
+        parameters["minUVolt"] = h5["/3BRecInfo/3BRecVars/MinVolt"][0]  # in uVolt
+        parameters["bitDepth"] = h5["/3BRecInfo/3BRecVars/BitDepth"][
+            0
+        ]  # number of used bit of the 2 byte coding
+        parameters["qLevel"] = (
+            2 ^ parameters["bitDepth"]
+        )  # quantized levels corresponds to 2^num of bit to encode the signal
+        parameters["fromQLevelToUVolt"] = (
+            parameters["maxUVolt"] - parameters["minUVolt"]
+        ) / parameters["qLevel"]
+        try:
+            parameters["recElectrodeList"] = h5["/3BRecInfo/3BMeaStreams/Raw/Chs"][
+                :
+            ]  # list of the recorded channels
+            parameters["Typ"] = "RAW"
+        except:
+            parameters["recElectrodeList"] = h5[
+                "/3BRecInfo/3BMeaStreams/WaveletCoefficients/Chs"
+            ][:]
+            parameters["Typ"] = "WAV"
+        parameters["numRecElectrodes"] = len(parameters["recElectrodeList"])
+
+    else:
+        if "Raw" in h5["Well_A1"].keys():
+            json_s = json.loads(h5["ExperimentSettings"][0].decode("utf8"))
+            parameters = {}
+            parameters["Ver"] = "BW5"
+            parameters["Typ"] = "RAW"
+            parameters["nRecFrames"] = h5["Well_A1/Raw"].shape[0] // 4096
+            parameters["samplingRate"] = json_s["TimeConverter"]["FrameRate"]
+            parameters["recordingLength"] = (
+                parameters["nRecFrames"] / parameters["samplingRate"]
+            )
+            parameters["signalInversion"] = int(
+                1
+            )  # depending on the acq version it can be 1 or -1
+            parameters["maxUVolt"] = int(4125)  # in uVolt
+            parameters["minUVolt"] = int(-4125)  # in uVolt
+            parameters["bitDepth"] = int(12)  # number of used bit of the 2 byte coding
+            parameters["qLevel"] = (
+                2 ^ parameters["bitDepth"]
+            )  # quantized levels corresponds to 2^num of bit to encode the signal
+            parameters["fromQLevelToUVolt"] = (
+                parameters["maxUVolt"] - parameters["minUVolt"]
+            ) / parameters["qLevel"]
+            parameters["recElectrodeList"] = getChMap()[
+                :
+            ]  # list of the recorded channels
+            parameters["numRecElectrodes"] = len(parameters["recElectrodeList"])
+        else:
+            json_s = json.loads(h5["ExperimentSettings"][0].decode("utf8"))
+            parameters = {}
+            parameters["Ver"] = "BW5"
+            parameters["Typ"] = "WAV"
+            samplingRate = h5.attrs["SamplingRate"]
+            nChannels = len(h5["Well_A1/StoredChIdxs"])
+            coefsTotalLength = len(h5["Well_A1/WaveletBasedEncodedRaw"])
+            compressionLevel = h5["Well_A1/WaveletBasedEncodedRaw"].attrs[
+                "CompressionLevel"
+            ]
+            framesChunkLength = h5["Well_A1/WaveletBasedEncodedRaw"].attrs[
+                "DataChunkLength"
+            ]
+            coefsChunkLength = (
+                math.ceil(framesChunkLength / pow(2, compressionLevel)) * 2
+            )
+            numFrames = 0
+            chIdx = 1
+            coefsPosition = chIdx * coefsChunkLength
+            while coefsPosition < coefsTotalLength:
+                length = int(coefsChunkLength / 2)
+                for i in range(compressionLevel):
+                    length *= 2
+                numFrames += length
+                coefsPosition += coefsChunkLength * nChannels
+
+            parameters["nRecFrames"] = numFrames
+            parameters["recordingLength"] = numFrames / samplingRate
+            parameters["samplingRate"] = json_s["TimeConverter"]["FrameRate"]
+            parameters["signalInversion"] = int(
+                1
+            )  # depending on the acq version it can be 1 or -1
+            parameters["maxUVolt"] = int(4125)  # in uVolt
+            parameters["minUVolt"] = int(-4125)  # in uVolt
+            parameters["bitDepth"] = int(12)  # number of used bit of the 2 byte coding
+            parameters["qLevel"] = (
+                2 ^ parameters["bitDepth"]
+            )  # quantized levels corresponds to 2^num of bit to encode the signal
+            parameters["fromQLevelToUVolt"] = (
+                parameters["maxUVolt"] - parameters["minUVolt"]
+            ) / parameters["qLevel"]
+            parameters["recElectrodeList"] = getChMap()[
+                :
+            ]  # list of the recorded channels
+            parameters["numRecElectrodes"] = len(parameters["recElectrodeList"])
+
+    return parameters
+
+
+def getChMap():
+    newChs = np.zeros(4096, dtype=[("Row", "<i2"), ("Col", "<i2")])
+    idx = 0
+    for idx in range(4096):
+        column = (idx // 64) + 1
+        row = idx % 64 + 1
+        if row == 0:
+            row = 64
+        if column == 0:
+            column = 1
+
+        newChs[idx] = (np.int16(row), np.int16(column))
+        ind = np.lexsort((newChs["Col"], newChs["Row"]))
+    return newChs[ind]
+
+
+def file_check(path, filename):
+    #    chfileName = path+"\\"+filename
+    chfilePath = os.path.join(path, filename)
+    chfileInfo = get_chfile_properties(chfilePath)
+
+    recfileName = "_".join(filename.split("_")[0:-1]) + ".brw"
+    recfilePath = os.path.join(path, recfileName)
+
+    parameters = get_recFile_properties(recfilePath, chfileInfo["Ver"].lower())
+
+    if (
+        parameters["nRecFrames"] == chfileInfo["recFrames"]
+        and parameters["samplingRate"] == chfileInfo["recSampling"]
+    ):
+        filematch = True
+    else:
+        filematch = False
+
+    return (chfilePath, recfilePath, chfileInfo, parameters, filematch)
+
+
+def run(drive_letter, folder):
+    fileCount = 1
+    os.chdir(drive_letter)
+    for filename in os.listdir(folder):
+        filematch = False
+        if filename.split("_")[-1] == "exportCh.brw":
+            chfileName, recfileName, chfileInfo, parameters, filematch = file_check(
+                folder, filename
+            )
+
+        if (
+            filematch
+            and chfileInfo["Ver"].decode("utf8") == "BW4"
+            and chfileInfo["Typ"].decode("utf8") == "WAV"
+        ):
+            print("BW4 not currently supported")
+
+        elif (
+            filematch
+            and chfileInfo["Ver"].decode("utf8") == "BW4"
+            and chfileInfo["Typ"].decode("utf8") == "RAW"
+        ):
+            print("BW4 not currently supported")
+
+        elif (
+            filematch
+            and chfileInfo["Ver"].decode("utf8") == "BW5"
+            and chfileInfo["Typ"].decode("utf8") == "RAW"
+        ):
+            print("BW5 RAW not currently supported")
+
+        elif (
+            filematch
+            and chfileInfo["Ver"].decode("utf8") == "BW5"
+            and chfileInfo["Typ"].decode("utf8") == "WAV"
+        ):
+            totTime, output_path = extBW5_WAV(
+                chfileName, recfileName, chfileInfo, parameters
+            )
+            print(
+                "\n #",
+                fileCount,
+                " Down Sampled Output File Location: ",
+                output_path,
+                "\n Time to Downsample: ",
+                totTime,
+            )
+
+        fileCount += 1
+
+    return None
+
+
 class ChannelExtract(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -238,6 +641,14 @@ class ChannelExtract(QDialog):
         else:
             qdarktheme.setup_theme("dark")
             self.theme = "dark"
+
+    def get_type(self, h5):
+        if "ExperimentSettings" in h5.keys():
+            self.typ = "bw5"
+        elif "/3BRecInfo/3BRecVars/NRecFrames" in h5.keys():
+            self.typ = "bw4"
+        else:
+            self.typ = "File Not Recognized"
 
     def createHeader(self):
         headerLayout = QHBoxLayout()
@@ -423,71 +834,74 @@ class ChannelExtract(QDialog):
                     h5 = h5py.File(fileName, "r")
                     self.get_type(h5)
                     parameters = self.parameter(h5)
+                    chsList = parameters["recElectrodeList"]
+                    filePath = self.folderName
+                    baseName = os.path.basename(fileName)
+                    dateSlice = "_".join(baseName.split("_")[:4])
+                    dateSliceNumber = (
+                        dateSlice.split("slice")[0]
+                        + "slice"
+                        + dateSlice.split("slice")[1][:1]
+                    )
+                    imageName = f"{dateSliceNumber}_pic_cropped.jpg".lower()
+                    imageFolder = self.folderName
+                    imagePath = os.path.join(imageFolder, imageName)
+
+                    if os.path.exists(imagePath):
+                        image = mpimg.imread(imagePath)
+                    else:
+                        imageFiles = [
+                            f for f in os.listdir(imageFolder) if f.lower() == imageName
+                        ]
+                        if imageFiles:
+                            imagePath = os.path.join(imageFolder, imageFiles[0])
+                            image = mpimg.imread(imagePath)
+                        else:
+                            msg = QMessageBox()
+                            msg.setIcon(QMessageBox.Information)
+                            msg.setText(
+                                f"No image found, manually select image for {baseName}"
+                            )
+                            msg.setWindowTitle("Image Not Found")
+                            msg.exec_()
+                            imageFileName, _ = QFileDialog.getOpenFileName(
+                                self,
+                                "Upload Slice Image",
+                                "",
+                                "Image Files (*.jpg *.png)",
+                                options=options,
+                            )
+                            if imageFileName:
+                                image = mpimg.imread(imageFileName)
+                            else:
+                                image = None
+
+                    self.imageDict[fileName] = image
+
+                    tableData.append(
+                        [
+                            filePath,
+                            baseName,
+                            parameters["Ver"],
+                            parameters["Typ"],
+                            len(chsList),
+                            parameters["nRecFrames"],
+                            round(
+                                parameters["nRecFrames"] / parameters["samplingRate"]
+                            ),
+                            parameters["samplingRate"],
+                            "Not Exported",
+                            QPushButton("Select"),
+                        ]
+                    )
+
+                    h5.close()
+
+                    self.populateTable(tableData)
+
                 except Exception as e:
                     print(f"Error reading file {brwFile}: {str(e)}")
                     continue
-                chsList = parameters["recElectrodeList"]
-                filePath = self.folderName
-                baseName = os.path.basename(fileName)
-                dateSlice = "_".join(baseName.split("_")[:4])
-                dateSliceNumber = (
-                    dateSlice.split("slice")[0]
-                    + "slice"
-                    + dateSlice.split("slice")[1][:1]
-                )
-                imageName = f"{dateSliceNumber}_pic_cropped.jpg".lower()
-                imageFolder = self.folderName
-                imagePath = os.path.join(imageFolder, imageName)
-
-                if os.path.exists(imagePath):
-                    image = mpimg.imread(imagePath)
-                else:
-                    imageFiles = [
-                        f for f in os.listdir(imageFolder) if f.lower() == imageName
-                    ]
-                    if imageFiles:
-                        imagePath = os.path.join(imageFolder, imageFiles[0])
-                        image = mpimg.imread(imagePath)
-                    else:
-                        msg = QMessageBox()
-                        msg.setIcon(QMessageBox.Information)
-                        msg.setText(
-                            f"No image found, manually select image for {baseName}"
-                        )
-                        msg.setWindowTitle("Image Not Found")
-                        msg.exec_()
-                        imageFileName, _ = QFileDialog.getOpenFileName(
-                            self,
-                            "Upload Slice Image",
-                            "",
-                            "Image Files (*.jpg *.png)",
-                            options=options,
-                        )
-                        if imageFileName:
-                            image = mpimg.imread(imageFileName)
-                        else:
-                            image = None
-
-                self.imageDict[fileName] = image
-
-                tableData.append(
-                    [
-                        filePath,
-                        baseName,
-                        parameters["Ver"],
-                        parameters["Typ"],
-                        len(chsList),
-                        parameters["nRecFrames"],
-                        round(parameters["nRecFrames"] / parameters["samplingRate"]),
-                        parameters["samplingRate"],
-                        "Not Exported",
-                        QPushButton("Select"),
-                    ]
-                )
-
-                h5.close()
-
-            self.populateTable(tableData)
 
     def populateTable(self, data):
         self.dataTable.setRowCount(len(data))
@@ -722,9 +1136,6 @@ class ChannelExtract(QDialog):
             print("Channels exported successfully")
 
     def runDownsampleExport(self):
-        home_dir = os.path.expanduser("~")
-        local_path = os.path.join(home_dir, "ChannelExtract")
-
         if not self.folderName:
             QMessageBox.information(
                 self, "No Folder Uploaded", "Please upload a folder first."
@@ -752,12 +1163,7 @@ class ChannelExtract(QDialog):
             if reply == QMessageBox.Yes:
                 folderName = os.path.normpath(self.folderName)
                 driveLetter = os.path.splitdrive(folderName)[0]
-
-                commands = [
-                    f"cd {local_path}",
-                    f"py export_to_brw.py {driveLetter} {folderName}",
-                ]
-                run_commands_in_terminal(commands)
+                run(driveLetter, folderName)
         else:
             brwFiles = [f for f in os.listdir(self.folderName) if f.endswith(".brw")]
             exportChFiles = [f for f in brwFiles if f.__contains__("exportCh")]
@@ -774,11 +1180,7 @@ class ChannelExtract(QDialog):
                     folderName = os.path.normpath(self.folderName)
                     driveLetter = os.path.splitdrive(folderName)[0]
 
-                    commands = [
-                        f"cd {local_path}",
-                        f"py export_to_brw.py {driveLetter} {folderName}",
-                    ]
-                    run_commands_in_terminal(commands)
+                    run(driveLetter, folderName)
             else:
                 QMessageBox.information(
                     self, "No Files Exported", "No files have been exported."
@@ -786,70 +1188,10 @@ class ChannelExtract(QDialog):
 
     def parameter(self, h5):
         if self.typ == "bw4":
-            parameters = {}
-            parameters["Ver"] = "BW4"
-
-            parameters["nRecFrames"] = h5["/3BRecInfo/3BRecVars/NRecFrames"][0]
-            parameters["samplingRate"] = h5["/3BRecInfo/3BRecVars/SamplingRate"][0]
-            parameters["recordingLength"] = (
-                parameters["nRecFrames"] / parameters["samplingRate"]
-            )
-            parameters["signalInversion"] = h5["/3BRecInfo/3BRecVars/SignalInversion"][
-                0
-            ]  # depending on the acq version it can be 1 or -1
-            # in uVolt
-            parameters["maxUVolt"] = h5["/3BRecInfo/3BRecVars/MaxVolt"][0]
-            # in uVolt
-            parameters["minUVolt"] = h5["/3BRecInfo/3BRecVars/MinVolt"][0]
-            parameters["bitDepth"] = h5["/3BRecInfo/3BRecVars/BitDepth"][
-                0
-            ]  # number of used bit of the 2 byte coding
-            parameters["qLevel"] = (
-                2 ^ parameters["bitDepth"]
-            )  # quantized levels corresponds to 2^num of bit to encode the signal
-            parameters["fromQLevelToUVolt"] = (
-                parameters["maxUVolt"] - parameters["minUVolt"]
-            ) / parameters["qLevel"]
-            try:
-                parameters["recElectrodeList"] = h5["/3BRecInfo/3BMeaStreams/Raw/Chs"][
-                    :
-                ]  # list of the recorded channels
-                parameters["Typ"] = "RAW"
-            except Exception:
-                parameters["recElectrodeList"] = h5[
-                    "/3BRecInfo/3BMeaStreams/WaveletCoefficients/Chs"
-                ][:]
-                parameters["Typ"] = "WAV"
-            parameters["numRecElectrodes"] = len(parameters["recElectrodeList"])
-
+            print("BW4 not currently not supported")
         else:
             if "Raw" in h5["Well_A1"].keys():
-                json_s = json.loads(h5["ExperimentSettings"][0].decode("utf8"))
-                parameters = {}
-                parameters["Ver"] = "BW5"
-                parameters["Typ"] = "RAW"
-                parameters["nRecFrames"] = h5["Well_A1/Raw"].shape[0] // 4096
-                parameters["samplingRate"] = json_s["TimeConverter"]["FrameRate"]
-                parameters["recordingLength"] = (
-                    parameters["nRecFrames"] / parameters["samplingRate"]
-                )
-                parameters["signalInversion"] = int(
-                    1
-                )  # depending on the acq version it can be 1 or -1
-                parameters["maxUVolt"] = int(4125)  # in uVolt
-                parameters["minUVolt"] = int(-4125)  # in uVolt
-                # number of used bit of the 2 byte coding
-                parameters["bitDepth"] = int(12)
-                parameters["qLevel"] = (
-                    2 ^ parameters["bitDepth"]
-                )  # quantized levels corresponds to 2^num of bit to encode the signal
-                parameters["fromQLevelToUVolt"] = (
-                    parameters["maxUVolt"] - parameters["minUVolt"]
-                ) / parameters["qLevel"]
-                parameters["recElectrodeList"] = self.getChMap()[
-                    :
-                ]  # list of the recorded channels
-                parameters["numRecElectrodes"] = len(parameters["recElectrodeList"])
+                print("Raw not currently not supported. Use WaveletBasedEncodedRaw")
             else:
                 json_s = json.loads(h5["ExperimentSettings"][0].decode("utf8"))
                 parameters = {}
@@ -931,6 +1273,128 @@ class ChannelExtract(QDialog):
         return dset
 
 
+class writeBrw:
+    def __init__(self, inputFilePath, outputFile, parameters):
+        self.path = inputFilePath
+        self.fileName = outputFile
+        # self.brw = h5py.File(self.path, 'r')
+        self.description = parameters["Ver"]
+        self.version = parameters["Typ"]
+        self.samplingrate = parameters["samplingRate"]
+        self.frames = parameters["nRecFrames"]
+        self.signalInversion = parameters["signalInversion"]
+        self.maxVolt = parameters["maxUVolt"]
+        self.minVolt = parameters["minUVolt"]
+        self.bitdepth = parameters["bitDepth"]
+        self.chs = parameters["recElectrodeList"]
+        self.QLevel = np.power(2, parameters["bitDepth"])
+        self.fromQLevelToUVolt = (self.maxVolt - self.minVolt) / self.QLevel
+
+        # self.signalInversion = self.brw['3BRecInfo/3BRecVars/SignalInversion']
+        # self.maxVolt = self.brw['3BRecInfo/3BRecVars/MaxVolt'][0]
+        # self.minVolt = self.brw['3BRecInfo/3BRecVars/MinVolt'][0]
+        # self.QLevel = np.power(2, self.brw['3BRecInfo/3BRecVars/BitDepth'][0])
+        # self.fromQLevelToUVolt = (self.maxVolt - self.minVolt) / self.QLevel
+
+    def createNewBrw(self):
+        newName = self.fileName
+        new = h5py.File(newName, "w")
+
+        new.attrs.__setitem__("Description", self.description)
+        # new.attrs.__setitem__('GUID', self.brw.attrs['GUID'])
+        new.attrs.__setitem__("Version", self.version)
+
+        # new.copy(self.brw['3BRecInfo'], dest=new)
+        # new.copy(self.brw['3BUserInfo'], dest=new)
+        new.create_dataset("/3BRecInfo/3BRecVars/SamplingRate", data=[np.float64(100)])
+        # new.create_dataset('/3BRecInfo/3BRecVars/NewSampling', data=[np.float64(self.samplingrate)])
+        new.create_dataset(
+            "/3BRecInfo/3BRecVars/NRecFrames", data=[np.float64(self.frames)]
+        )
+        new.create_dataset(
+            "/3BRecInfo/3BRecVars/SignalInversion",
+            data=[np.int32(self.signalInversion)],
+        )
+        new.create_dataset(
+            "/3BRecInfo/3BRecVars/MaxVolt", data=[np.int32(self.maxVolt)]
+        )
+        new.create_dataset(
+            "/3BRecInfo/3BRecVars/MinVolt", data=[np.int32(self.minVolt)]
+        )
+        new.create_dataset(
+            "/3BRecInfo/3BRecVars/BitDepth", data=[np.int32(self.bitdepth)]
+        )
+        new.create_dataset("/3BRecInfo/3BMeaStreams/Raw/Chs", data=[self.chs])
+
+        # new.attrs.__setitem__('Description', self.brw.attrs['Description'])
+        # new.attrs.__setitem__('GUID', self.brw.attrs['GUID'])
+        # new.attrs.__setitem__('Version', self.brw.attrs['Version'])
+
+        # new.copy(self.brw['3BRecInfo'], dest=new)
+        # new.copy(self.brw['3BUserInfo'], dest=new)
+
+        try:
+            del new["/3BRecInfo/3BMeaStreams/Raw/Chs"]
+        except:
+            del new["/3BRecInfo/3BMeaStreams/WaveletCoefficients/Chs"]
+
+        del new["/3BRecInfo/3BRecVars/NRecFrames"]
+        del new["/3BRecInfo/3BRecVars/SamplingRate"]
+
+        self.newDataset = new
+        # self.brw.close()
+
+    def writeRaw(self, rawToWrite, typeFlatten="F"):
+        # rawToWrite = rawToWrite / self.fromQLevelToUVolt
+        # rawToWrite = (rawToWrite + (self.QLevel / 2)) * self.signalInversion
+
+        if rawToWrite.ndim == 1:
+            newRaw = rawToWrite
+        else:
+            newRaw = np.int16(rawToWrite.flatten(typeFlatten))
+
+        if "/3BData/Raw" in self.newDataset:
+            dset = self.newDataset["3BData/Raw"]
+            dset.resize((dset.shape[0] + newRaw.shape[0],))
+            dset[-newRaw.shape[0] :] = newRaw
+
+        else:
+            self.newDataset.create_dataset("/3BData/Raw", data=newRaw, maxshape=(None,))
+
+    def writeChs(self, chs):
+        self.newDataset.create_dataset("/3BRecInfo/3BMeaStreams/Raw/Chs", data=chs)
+
+    def witeFrames(self, frames):
+        self.newDataset.create_dataset(
+            "/3BRecInfo/3BRecVars/NRecFrames", data=[np.int64(frames)]
+        )
+
+    def writeSamplingFreq(self, fs):
+        self.newDataset.create_dataset(
+            "/3BRecInfo/3BRecVars/SamplingRate", data=[np.float64(fs)]
+        )
+
+    def appendBrw(self, fName, frames, rawToAppend, typeFlatten="F"):
+        brwAppend = h5py.File(fName, "a")
+        newFrame = frames
+        del brwAppend["/3BRecInfo/3BRecVars/NRecFrames"]
+        brwAppend.create_dataset(
+            "/3BRecInfo/3BRecVars/NRecFrames", data=[np.int64(newFrame)]
+        )
+
+        if rawToAppend.ndim != 1:
+            rawToAppend = np.int16(rawToAppend.flatten(typeFlatten))
+
+        dset = brwAppend["3BData/Raw"]
+        dset.resize((dset.shape[0] + rawToAppend.shape[0],))
+        dset[-rawToAppend.shape[0] :] = rawToAppend
+
+        brwAppend.close()
+
+    def close(self):
+        self.newDataset.close()
+
+
 class writeCBrw:
     def __init__(self, path, name, template, parameters):
         self.path = path
@@ -1010,180 +1474,9 @@ class writeCBrw:
         self.brw.close()
 
 
-def create_batch_file():
-    home_dir = os.path.expanduser("~")
-
-    channel_extract_path = os.path.join(home_dir, "ChannelExtract")
-
-    script_path = os.path.join(channel_extract_path, "ChannelExtract.py")
-
-    batch_content = f"""@echo off
-    python "{script_path}"
-    """
-
-    batch_file_path = os.path.join(channel_extract_path, "ChannelExtract.bat")
-
-    with open(batch_file_path, "w") as batch_file:
-        batch_file.write(batch_content)
-
-    print(f"Batch file created successfully: {batch_file_path}")
-    return batch_file_path
-
-
-def run_commands_in_terminal(commands):
-    try:
-        if sys.platform == "darwin":  # macOS
-            script = "#!/bin/bash\n"
-            script += "\n".join(commands)
-            subprocess.Popen(
-                [
-                    "osascript",
-                    "-e",
-                    f'tell application "Terminal" to do script "{script}"',
-                ]
-            )
-        elif sys.platform == "win32":  # Windows
-            script = " & ".join(commands)
-            subprocess.Popen(["start", "cmd", "/k", script], shell=True)
-        else:  # Linux or other Unix-like systems
-            script = "\n".join(commands)
-            subprocess.Popen(["gnome-terminal", "--", "bash", "-c", script])
-    except subprocess.CalledProcessError as e:
-        print(f"Error occurred while running commands: {str(e)}")
-    except Exception as e:
-        print(f"Error occurred: {str(e)}")
-
-
-def make_silly_message():
-    silly_messages = [
-        "Update complete! Imma go ahead and restart the application for you. xoxo - Love, Jake",
-        "*insert Norby's waaaaaaaa happy sound* Update complete! Restarting the application for you :D",
-        "Enjoy your bug free app. Well. Mostly bug free. I mean, I tried. - Jake",
-    ]
-    message = np.random.choice(silly_messages)
-    separator = "*" * len(message)
-    output = [
-        "echo.",
-        f"echo {separator}",
-        f"echo {message}",
-        f"echo {separator}",
-        "echo.",
-    ]
-    return output
-
-
-def update_MEA_GUI():
-    print("Updating MEA GUI...")
-    repo_url = "https://github.com/jhnorby/Jake-Squared.git"
-
-    home_dir = os.path.expanduser("~")
-
-    local_path = os.path.join(home_dir, "Jake-Squared")
-
-    try:
-        # Don't check the hashes, just pull the latest changes
-        if os.path.exists(local_path):
-            subprocess.call(
-                ["git", "-C", local_path, "pull"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        else:
-            subprocess.call(
-                ["git", "clone", repo_url, local_path],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        print("MEA GUI update complete.")
-    except subprocess.CalledProcessError as e:
-        error_message = f"Error occurred during MEA GUI update: {str(e)}"
-        print(error_message)
-        QMessageBox.critical(None, "Update Error Womp Womp", error_message)
-
-
-def check_for_updates():
-    update_MEA_GUI()
-    repo_url = "https://github.com/booka66/ChannelExtract.git"
-
-    # Check if E: drive exists
-    home_dir = os.path.expanduser("~")
-
-    local_path = os.path.join(home_dir, "ChannelExtract")
-    converter_path = os.path.join(local_path, "batch_convert.bat")
-
-    try:
-        remote_commit = (
-            subprocess.check_output(
-                ["git", "ls-remote", repo_url, "HEAD"], stderr=subprocess.PIPE
-            )
-            .decode("utf-8")
-            .split()[0]
-        )
-
-        if os.path.exists(local_path):
-            local_commit = (
-                subprocess.check_output(
-                    ["git", "-C", local_path, "rev-parse", "HEAD"],
-                    stderr=subprocess.PIPE,
-                )
-                .decode("utf-8")
-                .strip()
-            )
-        else:
-            local_commit = ""
-
-        if remote_commit != local_commit:
-            reply = QMessageBox.question(
-                None,
-                "Update Available",
-                "A new version is available :D Do you want to update?",
-                QMessageBox.Yes | QMessageBox.No,
-            )
-
-            if reply == QMessageBox.Yes:
-                if os.path.exists(local_path):
-                    subprocess.call(
-                        ["git", "-C", local_path, "pull"],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-                else:
-                    subprocess.call(
-                        ["git", "clone", repo_url, local_path],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-
-                batch_file_path = create_batch_file()
-                initial_commands = [
-                    f"cd {local_path}",
-                    "pip install -r requirements.txt",
-                    "echo Converting batch to exe...",
-                    f"start {converter_path} {batch_file_path}",
-                ]
-                silly_message_commands = make_silly_message()
-                kill_commands = [
-                    "timeout /t 5 /nobreak",
-                    f"start {batch_file_path}",
-                    "taskkill /IM cmd.exe /F",
-                ]
-                commands = initial_commands + silly_message_commands + kill_commands
-                run_commands_in_terminal(commands)
-                sys.exit()
-    except subprocess.CalledProcessError as e:
-        error_message = f"Error occurred during update check: {str(e)}"
-        print(error_message)
-        QMessageBox.critical(None, "Update Error Womp Womp", error_message)
-    except Exception as e:
-        error_message = f"Error occurred during update check: {str(e)}"
-        print(error_message)
-        QMessageBox.critical(None, "Update Error Womp Womp", error_message)
-
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()
     window = ChannelExtract()
-    check_for_updates()
 
     sys.exit(app.exec_())
