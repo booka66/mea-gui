@@ -7,8 +7,7 @@ import sys
 import glob
 from urllib.request import pathname2url
 import h5py
-from scipy.signal import butter, filtfilt, spectrogram
-from scipy.interpolate import interp1d
+from scipy.signal import spectrogram
 from sklearn.cluster import DBSCAN
 from helpers.update.Updater import check_for_update, download_and_install_update
 from widgets.VideoEditor import VideoEditor
@@ -229,7 +228,7 @@ class MainWindow(QMainWindow):
         )
         self.analysis_thread.analysis_completed.connect(self.on_analysis_completed)
 
-        self.setWindowTitle(f"--- MEA GUI {VERSION} ---")
+        self.setWindowTitle(f"MEA GUI {VERSION}")
 
         self.menuBar = QMenuBar(self)
         self.menuBar.setNativeMenuBar(False)
@@ -256,24 +255,12 @@ class MainWindow(QMainWindow):
         self.editMenu = QMenu("Edit", self)
         self.menuBar.addMenu(self.editMenu)
 
-        self.createPropagationGroups = QAction("Create Propagation Groups", self)
-        self.createPropagationGroups.triggered.connect(self.consolidate_spatial_groups)
-        self.editMenu.addAction(self.createPropagationGroups)
-
-        self.setLowPassFilterAction = QAction("Set Low Pass Filter", self)
-        self.setLowPassFilterAction.triggered.connect(self.set_low_pass_filter)
-        self.editMenu.addAction(self.setLowPassFilterAction)
-
         self.settings_manager = SettingsWidgetManager(self.editMenu)
 
-        self.setRasterDownsampleAction = QAction("Set raster downsample factor", self)
-        self.setRasterDownsampleAction.triggered.connect(self.set_raster_downsample)
-        self.editMenu.addAction(self.setRasterDownsampleAction)
-
-        self.updateRasterPlotAction = QAction("Create raster", self)
-        self.updateRasterPlotAction.triggered.connect(self.update_raster)
-        self.editMenu.addAction(self.updateRasterPlotAction)
-        self.editMenu.addSeparator()
+        self.db_scan_settings_widget = DBSCANSettingsWidget(self)
+        self.settings_manager.add_widget(
+            "Set DBSCAN settings", self.db_scan_settings_widget
+        )
 
         self.peak_settings_widget = PeakSettingsWidget(self)
         self.settings_manager.add_widget("Set Peak Settings", self.peak_settings_widget)
@@ -281,11 +268,6 @@ class MainWindow(QMainWindow):
         self.spectrogram_settings_widget = SpectrogramSettingsWidget(self)
         self.settings_manager.add_widget(
             "Set spectrogram settings", self.spectrogram_settings_widget
-        )
-
-        self.db_scan_settings_widget = DBSCANSettingsWidget(self)
-        self.settings_manager.add_widget(
-            "Set DBSCAN settings", self.db_scan_settings_widget
         )
 
         self.viewMenu = QMenu("View", self)
@@ -595,6 +577,9 @@ class MainWindow(QMainWindow):
         print(f"Current working directory: {cwd}")
         file_path = cwd / "html" / "index.html"
         print(f"Opening documentation: {file_path}")
+        if not file_path.exists():
+            # Must not be running from the pre-built executable
+            file_path = cwd / ".." / "docs" / "_build" / "html" / "index.html"
 
         if not file_path.exists():
             msg = QMessageBox()
@@ -736,13 +721,6 @@ class MainWindow(QMainWindow):
 
         layout = QVBoxLayout(dialog)
 
-        downsample_layout = QHBoxLayout()
-        downsample_label = QLabel("Downsample Factor:")
-        downsample_input = QLineEdit(str(self.raster_downsample_factor))
-        downsample_layout.addWidget(downsample_label)
-        downsample_layout.addWidget(downsample_input)
-        layout.addLayout(downsample_layout)
-
         threshold_layout = QHBoxLayout()
         threshold_label = QLabel("Spike Threshold:")
         threshold_input = QLineEdit(str(self.raster_plot.spike_threshold))
@@ -761,11 +739,8 @@ class MainWindow(QMainWindow):
 
         if dialog.exec() == QDialog.Accepted:
             try:
-                downsample_factor = int(downsample_input.text())
                 spike_threshold = float(threshold_input.text())
 
-                self.raster_downsample_factor = downsample_factor
-                self.raster_plot.downsample_factor = downsample_factor
                 self.raster_plot.spike_threshold = spike_threshold
 
                 self.update_raster()
@@ -775,19 +750,6 @@ class MainWindow(QMainWindow):
                     "Invalid Input",
                     "Invalid input values. Please enter valid numbers.",
                 )
-
-    def consolidate_spatial_groups(self):
-        dialog = GroupSelectionDialog(
-            self, self.grid_widget.image_path, self.active_channels
-        )
-        if dialog.exec() == QDialog.Accepted:
-            groups: list[Group] = dialog.get_groups()
-            self.spatial_sections = groups
-            for group in groups:
-                for row, col in group.channels:
-                    cell = self.grid_widget.cells[row - 1][col - 1]
-                    color = [int(255 * x) for x in group.color]
-                    cell.setColor(QColor(*color), 1, self.opacity)
 
     def create_groups(self):
         dialog = GroupSelectionDialog(
@@ -920,20 +882,6 @@ class MainWindow(QMainWindow):
                     "Invalid Input",
                     "Invalid input values. Please enter valid numbers.",
                 )
-
-    def show_DBSCAN_settings(self):
-        menu_item_rect = self.editMenu.actionGeometry(self.setDBSCANSettingsAction)
-        global_pos = self.editMenu.mapToGlobal(menu_item_rect.topRight())
-        self.db_scan_settings_widget.move(global_pos)
-
-        self.db_scan_settings_widget.show()
-
-    def show_spectrogram_settings_widget(self):
-        menu_item_rect = self.editMenu.actionGeometry(self.setSpectrogramSettingsAction)
-        global_pos = self.editMenu.mapToGlobal(menu_item_rect.topRight())
-        self.spectrogram_settings_widget.move(global_pos)
-
-        self.spectrogram_settings_widget.show()
 
     def show_spectrograms(self):
         for i in range(4):
@@ -1251,14 +1199,16 @@ class MainWindow(QMainWindow):
         if index == 1:
             order = sorted(
                 self.active_channels,
-                key=lambda x: self.raster_plot.get_first_seizure_time(
-                    x[0] - 1, x[1] - 1
+                key=lambda x: self.raster_plot.get_first_event_time(
+                    x[0] - 1, x[1] - 1, "SzTimes"
                 ),
             )
         elif index == 2:
             order = sorted(
                 self.active_channels,
-                key=lambda x: self.raster_plot.get_first_se_time(x[0] - 1, x[1] - 1),
+                key=lambda x: self.raster_plot.get_first_event_time(
+                    x[0] - 1, x[1] - 1, "SETimes"
+                ),
             )
 
         if order:
@@ -1272,25 +1222,6 @@ class MainWindow(QMainWindow):
             for col in range(self.grid_widget.cols):
                 cell = self.grid_widget.cells[row][col]
                 cell.setText("")
-
-    def set_raster_downsample(self):
-        downsample_factor, ok = QInputDialog.getInt(
-            self,
-            "Set Raster Downsample Factor",
-            "Factor:",
-            self.raster_downsample_factor,
-        )
-
-        if ok:
-            if downsample_factor < 1:
-                downsample_factor = 1
-                msg = QMessageBox()
-                msg.setIcon(QMessageBox.Warning)
-                msg.setText("Downsample factor must be greater than 0.")
-                msg.setWindowTitle("Invalid Downsample Factor")
-                msg.exec_()
-
-            self.raster_downsample_factor = downsample_factor
 
     def update_raster_plotted_channels(self):
         if self.raster_plot is not None:
@@ -1334,9 +1265,6 @@ class MainWindow(QMainWindow):
         self.update_raster_plotted_channels()
 
     def update_raster(self):
-        if self.updateRasterPlotAction.text() == "Create raster":
-            self.updateRasterPlotAction.setText("Update raster")
-
         if self.raster_plot is None:
             self.raster_plot = RasterPlot(
                 self.data,
@@ -1700,7 +1628,6 @@ class MainWindow(QMainWindow):
             self.createVideoAction.setEnabled(True)
             self.saveChannelPlotsAction.setEnabled(True)
             self.saveMeaWithPlotsAction.setEnabled(True)
-            self.updateRasterPlotAction.setEnabled(True)
             self.toggleLinesAction.setEnabled(True)
             self.toggleRegionsAction.setEnabled(True)
         else:
@@ -1717,7 +1644,6 @@ class MainWindow(QMainWindow):
             self.createVideoAction.setEnabled(False)
             self.saveChannelPlotsAction.setEnabled(False)
             self.saveMeaWithPlotsAction.setEnabled(False)
-            self.updateRasterPlotAction.setEnabled(False)
             self.show_order_checkbox.setEnabled(False)
             self.toggleLinesAction.setEnabled(False)
             self.toggleRegionsAction.setEnabled(False)
@@ -1738,7 +1664,7 @@ class MainWindow(QMainWindow):
             try:
                 baseName = os.path.basename(file_path)
 
-                self.setWindowTitle(f"BRW Viewer - {baseName}")
+                self.setWindowTitle(f"MEA GUI {VERSION} - {baseName}")
                 brwFileName = os.path.basename(file_path)
                 dateSlice = "_".join(brwFileName.split("_")[:4])
                 dateSliceNumber = (
@@ -2430,82 +2356,6 @@ class MainWindow(QMainWindow):
             if os.path.exists(f"{drive}:"):
                 drives.append(f"{drive}:")
         return drives
-
-    def set_low_pass_filter(self):
-        cutoff, ok = QInputDialog.getDouble(
-            self,
-            "Set Low Pass Filter",
-            "Cutoff frequency (Hz):",
-            value=self.low_pass_cutoff,
-            min=0.00001,
-            max=1000000,
-            decimals=10,
-        )
-        if ok:
-            self.low_pass_cutoff = cutoff
-            self.interpolate_steep_slopes()
-            self.update_grid()
-
-    def interpolate_steep_slopes(self):
-        """
-        Interpolate points in the EEG signal where the slope exceeds a physiological threshold.
-
-        :param max_slope_threshold: The maximum allowable slope (in voltage units per sample)
-        """
-        for row in range(64):
-            for col in range(64):
-                if self.data[row, col] is not None:
-                    signal = self.data_cache[row, col]["signal"]
-                    time = np.arange(len(signal)) / self.sampling_rate
-
-                    slopes = np.diff(signal) / np.diff(time)
-
-                    extreme_slopes = np.abs(slopes) > self.low_pass_cutoff
-                    extreme_indices = np.where(extreme_slopes)[0]
-
-                    if len(extreme_indices) > 0:
-                        valid_mask = np.ones(len(signal), dtype=bool)
-                        valid_mask[extreme_indices] = False
-                        valid_mask[extreme_indices + 1] = False
-
-                        interp_func = interp1d(
-                            time[valid_mask],
-                            signal[valid_mask],
-                            kind="linear",
-                            fill_value="extrapolate",
-                        )
-
-                        signal[~valid_mask] = interp_func(time[~valid_mask])
-
-                        self.data[row, col]["signal"] = signal
-
-                        self.min_voltage = min(self.min_voltage, np.min(signal))
-                        self.max_voltage = max(self.max_voltage, np.max(signal))
-
-        print(
-            f"Steep slopes interpolated. Max slope threshold: {self.low_pass_cutoff} V/s"
-        )
-
-    def apply_low_pass_filter(self):
-        cutoff_frequency = self.low_pass_cutoff
-        order = 4
-
-        nyquist_frequency = 0.5 * self.sampling_rate
-        normalized_cutoff = cutoff_frequency / nyquist_frequency
-
-        b, a = butter(order, normalized_cutoff, btype="low", analog=False)
-
-        for row in range(64):
-            for col in range(64):
-                if self.data[row, col] is not None:
-                    signal = self.data_cache[row, col]["signal"]
-                    filtered_signal = filtfilt(b, a, signal)
-                    self.data[row, col]["signal"] = filtered_signal
-
-                    self.min_voltage = min(self.min_voltage, np.min(filtered_signal))
-                    self.max_voltage = max(self.max_voltage, np.max(filtered_signal))
-
-        print(f"Low-pass filter applied. Cutoff frequency: {cutoff_frequency} Hz")
 
     def on_analysis_completed(self):
         start = perf_counter()
