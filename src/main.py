@@ -29,6 +29,7 @@ from widgets.Settings import (
     PeakSettingsWidget,
 )
 from widgets.ClusterTracker import ClusterTracker
+import tempfile
 
 from widgets.Media import SaveChannelPlotsDialog, save_grid_as_png, save_mea_with_plots
 from widgets.ProgressBar import EEGScrubberWidget
@@ -2302,36 +2303,9 @@ class MainWindow(QMainWindow):
             self.run_button.setEnabled(False)
             self.update()
 
-            available_drives = self.get_available_drives()
-            if len(available_drives) > 1:
-                drive_dialog = QDialog(self)
-                drive_dialog.setWindowTitle("Select Drive")
-                drive_layout = QVBoxLayout()
-
-                drive_label = QLabel("Select the drive to store temp_data:")
-                drive_layout.addWidget(drive_label)
-
-                drive_combo = QComboBox()
-                drive_combo.addItems(available_drives)
-                drive_layout.addWidget(drive_combo)
-
-                button_layout = QHBoxLayout()
-                ok_button = QPushButton("OK")
-                ok_button.clicked.connect(drive_dialog.accept)
-                button_layout.addWidget(ok_button)
-                cancel_button = QPushButton("Cancel")
-                cancel_button.clicked.connect(drive_dialog.reject)
-                button_layout.addWidget(cancel_button)
-
-                drive_layout.addLayout(button_layout)
-                drive_dialog.setLayout(drive_layout)
-
-                if drive_dialog.exec() == QDialog.Accepted:
-                    print("Selected drive:", drive_combo.currentText())
-                    selected_drive = drive_combo.currentText()
-                    temp_data_path = os.path.join(selected_drive, "temp_data")
-                else:
-                    temp_data_path = os.path.expanduser("~/temp_data")
+            selected_drive = self.get_drive()
+            if selected_drive:
+                temp_data_path = os.path.join(selected_drive, "temp_data")
             else:
                 temp_data_path = os.path.expanduser("~/temp_data")
 
@@ -2356,12 +2330,25 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Error: {e}")
 
-    def get_available_drives(self):
+    def get_drive(self):
         drives = []
         for drive in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
-            if os.path.exists(f"{drive}:"):
-                drives.append(f"{drive}:")
-        return drives
+            drive_path = f"{drive}:"
+            if os.path.exists(drive_path):
+                try:
+                    # Try to create a temporary file to check write permissions
+                    temp_file_path = os.path.join(drive_path, "temp_write_test.txt")
+                    with open(temp_file_path, "w") as f:
+                        f.write("test")
+                    os.remove(temp_file_path)
+                    drives.append(drive_path)
+                except (IOError, OSError):
+                    # If we can't write, skip this drive
+                    pass
+        if drives:
+            return drives[0]
+        else:
+            return None
 
     def on_analysis_completed(self):
         start = perf_counter()

@@ -111,10 +111,11 @@ class GridWidget(QGraphicsView):
         elif event.key() == Qt.Key_C:
             self.clear_lasso_selection()
         elif event.key() == Qt.Key_Escape:
-            self.is_lasso_mode = False
-            self.clear_lasso()
-            self.clear_lasso_selection()
-            self.update_cursor()
+            if self.is_lasso_mode:
+                self.is_lasso_mode = False
+                self.clear_lasso()
+                self.clear_lasso_selection()
+                self.update_cursor()
         elif event.key() == Qt.Key_Return:
             self.is_lasso_mode = False
             self.clear_lasso()
