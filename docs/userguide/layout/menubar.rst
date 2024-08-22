@@ -103,6 +103,10 @@ Spread Lines
 Spread lines highlight the propagation of the detected events. 
 Pink lines are dedicated to the spread of seizures, while darker orange lines display the spread of SE events.
 
+Discharge Paths
+---------------
+Discharge paths are the paths of the centroids of the clusters detected by the DBSCAN algorithm.
+
 Detected Events
 ---------------
 Detected events are displayed as colored cells on the MEA grid. Blue cells represent seizure events, while orange cells represent SE events. These events are detected using Norby's algorithm.

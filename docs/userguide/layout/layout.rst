@@ -6,6 +6,7 @@ Application Layout
   :maxdepth: 1
 
   menubar
+  maintab/maintab
 
 Main Tab
 ========
