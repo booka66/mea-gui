@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import (
     QGraphicsRectItem,
     QGraphicsScene,
     QGraphicsPixmapItem,
+    QMessageBox,
 )
 from PyQt5.QtGui import QPainterPath
 from PyQt5.QtCore import QPointF
@@ -113,35 +114,54 @@ class ClusterTracker:
                 self.last_seizure = seizure
 
     def save_seizures_to_hdf(self, file_path, start, stop):
-        with h5py.File(file_path, "a") as f:
-            if "tracked_discharges" not in f:
-                f.create_group("tracked_discharges")
+        try:
+            with h5py.File(file_path, "a") as f:
+                if "tracked_discharges" not in f:
+                    f.create_group("tracked_discharges")
 
-            discharges_group = f["tracked_discharges"]
+                discharges_group = f["tracked_discharges"]
 
-            timeframe_group_name = f"{start:.2f}_{stop:.2f}"
-            if timeframe_group_name not in discharges_group:
-                timeframe_group = discharges_group.create_group(timeframe_group_name)
-            else:
-                timeframe_group = discharges_group[timeframe_group_name]
-            for i, seizure in enumerate(self.seizures):
-                if f"discharge_{i}" in timeframe_group:
-                    del timeframe_group[f"discharge_{i}"]
-                discharge_group = timeframe_group.create_group(f"discharge_{i}")
-                discharge_group.create_dataset("start_time", data=seizure["start_time"])
-                discharge_group.create_dataset("end_time", data=seizure["end_time"])
-                discharge_group.create_dataset("duration", data=seizure["duration"])
-                discharge_group.create_dataset("length", data=seizure["length"])
-                discharge_group.create_dataset("avg_speed", data=seizure["avg_speed"])
-                discharge_group.create_dataset("points", data=seizure["points"])
-                discharge_group.create_dataset(
-                    "start_point", data=seizure["start_point"]
-                )
-                discharge_group.create_dataset("end_point", data=seizure["end_point"])
-                discharge_group.create_dataset(
-                    "time_since_last_discharge",
-                    data=seizure["time_since_last_discharge"],
-                )
+                timeframe_group_name = f"{start:.2f}_{stop:.2f}"
+                if timeframe_group_name not in discharges_group:
+                    timeframe_group = discharges_group.create_group(
+                        timeframe_group_name
+                    )
+                else:
+                    timeframe_group = discharges_group[timeframe_group_name]
+                for i, seizure in enumerate(self.seizures):
+                    if f"discharge_{i}" in timeframe_group:
+                        del timeframe_group[f"discharge_{i}"]
+                    discharge_group = timeframe_group.create_group(f"discharge_{i}")
+                    discharge_group.create_dataset(
+                        "start_time", data=seizure["start_time"]
+                    )
+                    discharge_group.create_dataset("end_time", data=seizure["end_time"])
+                    discharge_group.create_dataset("duration", data=seizure["duration"])
+                    discharge_group.create_dataset("length", data=seizure["length"])
+                    discharge_group.create_dataset(
+                        "avg_speed", data=seizure["avg_speed"]
+                    )
+                    discharge_group.create_dataset("points", data=seizure["points"])
+                    discharge_group.create_dataset(
+                        "start_point", data=seizure["start_point"]
+                    )
+                    discharge_group.create_dataset(
+                        "end_point", data=seizure["end_point"]
+                    )
+                    discharge_group.create_dataset(
+                        "time_since_last_discharge",
+                        data=seizure["time_since_last_discharge"],
+                    )
+        except Exception as e:
+            print(f"Error saving seizures to HDF: {e}")
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText(
+                "Error saving seizures to HDF file. Double check that the file is not open in another program as that apparently is a big no-no."
+            )
+            msg.setInformativeText(f"Error: {e}")
+            msg.setWindowTitle("Error")
+            msg.exec_()
 
     def _deep_copy_clusters(self):
         return [cluster.copy() for cluster in self.clusters]

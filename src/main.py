@@ -1,59 +1,26 @@
 import gc
+import glob
 import math
-from pathlib import Path
-from time import perf_counter
 import os
 import sys
-import glob
+from pathlib import Path
+from time import perf_counter
 from urllib.request import pathname2url
+
 import h5py
-from scipy.signal import spectrogram
-from sklearn.cluster import DBSCAN
-from helpers.update.Updater import check_for_update, download_and_install_update
-from widgets.ChannelExtract import ChannelExtract
-from widgets.VideoEditor import VideoEditor
-from widgets.GridWidget import GridWidget
-from widgets.GraphWidget import GraphWidget
-from PyQt5.QtWebEngineWidgets import QWebEngineView
-from widgets.LoadingDialog import LoadingDialog
-from widgets.LegendWidget import LegendWidget
-from widgets.SquareWidget import SquareWidget
-from threads.AnalysisThread import AnalysisThread
-from widgets.ColorCell import ColorCell
-from threads.MatlabEngineThread import MatlabEngineThread
-from widgets.RasterPlot import RasterPlot
-from widgets.GroupSelectionDialog import GroupSelectionDialog, Group
-from widgets.Settings import (
-    SettingsWidgetManager,
-    SpectrogramSettingsWidget,
-    DBSCANSettingsWidget,
-    PeakSettingsWidget,
-)
-from widgets.ClusterTracker import ClusterTracker
-
-from widgets.Media import SaveChannelPlotsDialog, save_grid_as_png, save_mea_with_plots
-from widgets.ProgressBar import EEGScrubberWidget
-from helpers.Constants import (
-    BACKGROUND,
-    SEIZURE,
-    SE,
-    ACTIVE,
-    MAC,
-    WIN,
-    VERSION,
-)
-
 import numpy as np
 import pyqtgraph as pg
+from pyqtgraph.Qt.QtGui import QIcon
+import qdarktheme
 from PyQt5.QtCore import (
     QLineF,
     QPointF,
     QRectF,
-    QThread,
     Qt,
+    QThread,
     QTimer,
-    pyqtSignal,
     QUrl,
+    pyqtSignal,
 )
 from PyQt5.QtGui import (
     QColor,
@@ -64,6 +31,7 @@ from PyQt5.QtGui import (
     QPixmap,
     QPolygonF,
 )
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWidgets import (
     QAction,
     QApplication,
@@ -91,7 +59,40 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-import qdarktheme
+from scipy.signal import spectrogram
+from sklearn.cluster import DBSCAN
+
+from helpers.Constants import (
+    ACTIVE,
+    BACKGROUND,
+    MAC,
+    SE,
+    SEIZURE,
+    VERSION,
+    WIN,
+)
+from helpers.update.Updater import check_for_update, download_and_install_update
+from threads.AnalysisThread import AnalysisThread
+from threads.MatlabEngineThread import MatlabEngineThread
+from widgets.ChannelExtract import ChannelExtract
+from widgets.ClusterTracker import ClusterTracker
+from widgets.ColorCell import ColorCell
+from widgets.GraphWidget import GraphWidget
+from widgets.GridWidget import GridWidget
+from widgets.GroupSelectionDialog import Group, GroupSelectionDialog
+from widgets.LegendWidget import LegendWidget
+from widgets.LoadingDialog import LoadingDialog
+from widgets.Media import SaveChannelPlotsDialog, save_grid_as_png, save_mea_with_plots
+from widgets.ProgressBar import EEGScrubberWidget
+from widgets.RasterPlot import RasterPlot
+from widgets.Settings import (
+    DBSCANSettingsWidget,
+    PeakSettingsWidget,
+    SettingsWidgetManager,
+    SpectrogramSettingsWidget,
+)
+from widgets.SquareWidget import SquareWidget
+from widgets.VideoEditor import VideoEditor
 
 try:
     from helpers.extensions.signal_analyzer import SignalAnalyzer
@@ -290,7 +291,7 @@ class MainWindow(QMainWindow):
         self.toggleLinesAction.triggered.connect(self.toggle_lines)
         self.viewMenu.addAction(self.toggleLinesAction)
 
-        self.togglePropLinesAction = QAction("Propagation lines", self, checkable=True)
+        self.togglePropLinesAction = QAction("Discharge Paths", self, checkable=True)
         self.togglePropLinesAction.setChecked(False)
         self.togglePropLinesAction.triggered.connect(self.toggle_prop_lines)
         self.viewMenu.addAction(self.togglePropLinesAction)
@@ -932,7 +933,9 @@ class MainWindow(QMainWindow):
             img.setImage(Sxx_db.T, autoLevels=False)
 
             x_range = (self.time_vector[0], self.time_vector[-1])
-            y_range = (min(eeg_data), max(eeg_data))
+            y_range = (f[freq_mask][0], f[freq_mask][-1])
+            self.graph_widget.plot_widgets[i].setLabels(left="Hz")
+
             img.setRect(
                 QRectF(
                     x_range[0],
@@ -943,8 +946,8 @@ class MainWindow(QMainWindow):
             )
 
             self.graph_widget.plot_widgets[i].addItem(img)
-
             img.setZValue(-1)
+            self.graph_widget.plot_widgets[i].getViewBox().autoRange()
 
     def hide_spectrograms(self):
         for i in range(4):
@@ -953,7 +956,9 @@ class MainWindow(QMainWindow):
                     self.graph_widget.plot_widgets[i].removeItem(item)
 
             # Replot the trace plot
+            self.graph_widget.plot_widgets[i].setLabels(left="mV")
             self.graph_widget.trace_curves[i].setVisible(True)
+            self.graph_widget.plot_widgets[i].getViewBox().autoRange()
 
     def toggle_antialiasing(self, checked):
         pg.setConfigOptions(antialias=checked)
@@ -1538,6 +1543,16 @@ class MainWindow(QMainWindow):
                         "time_since_last_discharge": time_since_last_discharge,
                     }
 
+                    start_index = int(start_time * self.sampling_rate)
+                    # Add a green line to the channel plots
+                    for i in range(4):
+                        if self.plotted_channels[i] is not None:
+                            self.graph_widget.plot_widgets[i].addItem(
+                                pg.InfiniteLine(
+                                    pos=start_time, angle=90, pen=pg.mkPen("g", width=2)
+                                )
+                            )
+
                     self.cluster_tracker.seizures.append(seizure)
 
     def auto_analyze(self):
@@ -1872,14 +1887,14 @@ class MainWindow(QMainWindow):
                         discharged_cells.append((row, col))
                         break
 
+            for item in self.centroids:
+                self.grid_widget.scene.removeItem(item)
+            self.centroids.clear()
+
         if discharged_cells:
             X = np.array(discharged_cells)
             db = DBSCAN(eps=self.eps, min_samples=self.min_samples).fit(X)
             labels = db.labels_
-
-            for item in self.centroids:
-                self.grid_widget.scene.removeItem(item)
-            self.centroids.clear()
 
             unique_labels = set(labels)
             centroids = []
@@ -2306,6 +2321,8 @@ class MainWindow(QMainWindow):
                     self.centroids = []
                     self.cluster_tracker.clear_plot(self.grid_widget.scene)
                     self.cluster_tracker.clear()
+                    self.cluster_tracker.seizures.clear()
+                    self.cluster_tracker.seizure_graphics_items.clear()
                     self.create_grid()
                     self.set_widgets_enabled()
                     gc.collect()
