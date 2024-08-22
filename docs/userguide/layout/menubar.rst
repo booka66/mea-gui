@@ -191,7 +191,7 @@ Displays the spectrogram(s) of the selected channel(s) in the trace plots.
 Instead of representing millivolts over time, the spectrogram represents the frequency content of the signal over time.
 The y-axis will automatically adjust to the frequency range set in the spectrogram settings, which is limited by the Nyquist frequency.
 
-.. image:: ../../_static/spectrograms.gif
+.. image:: ../../_static/spectrogram.gif
    :alt: Spectrogram
    :align: center
    :width: 600px
