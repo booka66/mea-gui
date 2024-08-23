@@ -1310,7 +1310,7 @@ class MainWindow(QMainWindow):
                 cell.setColor(color, 1, self.opacity)
 
     def deselect_cell(self):
-        if self.selected_channel is not None:
+        if self.selected_channel is not None and len(self.selected_channel) > 0:
             row, col = self.selected_channel
             self.grid_widget.cells[row][col].clicked_state = False
             self.grid_widget.cells[row][col].update()

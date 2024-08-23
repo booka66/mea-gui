@@ -255,7 +255,8 @@ class RasterPlot:
         view_box = self.plot_widget.getPlotItem().getViewBox()
         custom_menu = RasterViewBoxMenu(view_box, self)
         custom_menu.save_raster.connect(self.save_raster_plot)
-        custom_menu.cluster.connect(self.cluster_channels_by_se_onset)
+        # custom_menu.cluster.connect(self.cluster_channels_by_se_onset)
+        custom_menu.order.connect(self.set_raster_order)
         view_box.menu = custom_menu
 
         self.plot_widget.getPlotItem().getViewBox().enableAutoRange(
@@ -444,6 +445,8 @@ class RasterPlot:
             self.active_channels.sort(
                 key=lambda x: self.get_first_event_time(x[0] - 1, x[1] - 1, "SETimes")
             )
+        elif order == "cluster":
+            self.cluster_channels_by_se_onset()
 
         self.update_raster_plot_data()
 
@@ -518,7 +521,7 @@ class RasterPlot:
                 return group
         return None
 
-    def cluster_channels_by_se_onset(self, time_window=60):
+    def cluster_channels_by_se_onset(self, time_window=30):
         # Dictionary to store first SE onset time for each channel
         se_onset_times = {}
         channels_without_se = []

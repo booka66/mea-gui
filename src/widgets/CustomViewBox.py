@@ -115,7 +115,7 @@ class TraceViewBoxMenu(QMenu):
 
 class RasterViewBoxMenu(QMenu):
     save_raster = pyqtSignal()
-    cluster = pyqtSignal()
+    order = pyqtSignal(str)
 
     def __init__(self, view, parent=None):
         super().__init__()
@@ -124,10 +124,23 @@ class RasterViewBoxMenu(QMenu):
         self.setTitle("ViewBox options")
 
         save_raster_action = QAction("Save raster", self)
-        cluster_action = QAction("Cluster", self)
+
+        row_order_menu = QMenu("Row Order", self)
+        default_order_action = QAction("Default", self)
+        cluster_order_action = QAction("SE Entrance Cluster", self)
+        se_entrance_order_action = QAction("SE Entrance", self)
+        sz_entrance_order_action = QAction("Seizure Entrance", self)
 
         save_raster_action.triggered.connect(self.save_raster.emit)
-        cluster_action.triggered.connect(self.cluster.emit)
+
+        default_order_action.triggered.connect(lambda: self.order.emit("default"))
+        cluster_order_action.triggered.connect(lambda: self.order.emit("cluster"))
+        se_entrance_order_action.triggered.connect(lambda: self.order.emit("SE"))
+        sz_entrance_order_action.triggered.connect(lambda: self.order.emit("seizure"))
 
         self.addAction(save_raster_action)
-        self.addAction(cluster_action)
+        row_order_menu.addAction(default_order_action)
+        row_order_menu.addAction(cluster_order_action)
+        row_order_menu.addAction(se_entrance_order_action)
+        row_order_menu.addAction(sz_entrance_order_action)
+        self.addMenu(row_order_menu)
