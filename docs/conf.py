@@ -40,7 +40,7 @@ html_theme = "pydata_sphinx_theme"
 
 html_theme_options = {
     "secondary_sidebar_items": ["page-toc", "edit-this-page"],
-    "show_nav_level": 4,
+    "show_nav_level": 1,
     "logo": {
         "text": "meaGUI",
         "image_light": "_static/icon.ico",
