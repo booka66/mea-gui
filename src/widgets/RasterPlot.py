@@ -522,11 +522,9 @@ class RasterPlot:
         return None
 
     def cluster_channels_by_se_onset(self, time_window=30):
-        # Dictionary to store first SE onset time for each channel
         se_onset_times = {}
         channels_without_se = []
 
-        # Find the first SE onset time for each channel
         for row, col in self.active_channels:
             channel_data = self.data[row - 1, col - 1]
             se_times = channel_data["SETimes"]
@@ -535,10 +533,8 @@ class RasterPlot:
             else:
                 channels_without_se.append((row, col))
 
-        # Sort channels by their SE onset times
         sorted_channels = sorted(se_onset_times.items(), key=lambda x: x[1])
 
-        # Cluster channels with SE
         clusters = []
         current_cluster = []
         current_cluster_start_time = None
@@ -556,24 +552,19 @@ class RasterPlot:
                 current_cluster = [channel]
                 current_cluster_start_time = onset_time
 
-        # Add the last cluster if it's not empty
         if current_cluster:
             clusters.append(current_cluster)
 
-        # Add a NEW group for all channels without SE
         if channels_without_se:
             clusters.append(channels_without_se)
 
-        # Update the active_channels list to reflect the new clustering
         self.active_channels = [channel for cluster in clusters for channel in cluster]
 
-        # Update the groups based on the new clusters
         self.groups = []
         for i, cluster in enumerate(clusters):
             color = self.get_next_color()
-            self.groups.append(Group(cluster, None, color, i + 1))  # Set image to None
+            self.groups.append(Group(cluster, None, color, i + 1))
 
-        # Regenerate and update the raster plot
         self.generate_raster()
         self.update_raster_plot_data()
 
