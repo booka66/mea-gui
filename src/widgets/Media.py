@@ -1,10 +1,11 @@
-from PyQt5.QtGui import QImage, QIntValidator, QPainter
+from PyQt5.QtGui import QBrush, QImage, QIntValidator, QPainter, QPixmap
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
+    QGraphicsScene,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -14,6 +15,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import QRect, QSize, Qt
 import os
+
+from helpers.Constants import BACKGROUND
 
 
 class SaveChannelPlotsDialog(QDialog):
@@ -345,19 +348,170 @@ def save_plots_to_image(
         self.graph_widget.show_red_lines()
 
 
-def save_grid_as_png(self):
-    if self.file_path:
-        default_filename = os.path.splitext(self.file_path)[0] + "_grid.png"
-    else:
-        default_filename = "grid.png"
+def open_save_grid_dialog(self):
+    dialog = QDialog(self)
+    dialog.setWindowTitle("Save Grid")
+    dialog.setMinimumWidth(300)
+    layout = QVBoxLayout(dialog)
 
+    # Transparent background checkbox
+    transparent_checkbox = QCheckBox("Transparent Background")
+    transparent_checkbox.setChecked(True)
+    layout.addWidget(transparent_checkbox)
+
+    # Propagation checkboxes
+    propagation_layout = QVBoxLayout()
+    propagation_layout.addWidget(QLabel("Propagation:"))
+
+    paths_checkbox = QCheckBox("Start/End Paths")
+    paths_checkbox.setChecked(False)
+    paths_checkbox.setEnabled(len(self.cluster_tracker.seizures) > 0)
+    propagation_layout.addWidget(paths_checkbox)
+
+    beginning_points_checkbox = QCheckBox("Beginning Points")
+    beginning_points_checkbox.setChecked(False)
+    beginning_points_checkbox.setEnabled(len(self.cluster_tracker.seizures) > 0)
+    propagation_layout.addWidget(beginning_points_checkbox)
+
+    heat_map_checkbox = QCheckBox("Heat Map")
+    heat_map_checkbox.setChecked(False)
+    heat_map_checkbox.setEnabled(len(self.cluster_tracker.seizures) > 0)
+    propagation_layout.addWidget(heat_map_checkbox)
+
+    layout.addLayout(propagation_layout)
+
+    # Buttons
+    button_layout = QHBoxLayout()
+    save_button = QPushButton("Save")
+    save_button.clicked.connect(
+        lambda: save_grid(
+            self,
+            dialog,
+            transparent_checkbox,
+            paths_checkbox,
+            beginning_points_checkbox,
+            heat_map_checkbox,
+        )
+    )
+    cancel_button = QPushButton("Cancel")
+    cancel_button.clicked.connect(dialog.reject)
+    button_layout.addWidget(save_button)
+    button_layout.addWidget(cancel_button)
+    layout.addLayout(button_layout)
+
+    dialog.setLayout(layout)
+    dialog.exec()
+
+
+def save_grid(
+    self,
+    dialog,
+    transparent_checkbox,
+    paths_checkbox,
+    beginning_points_checkbox,
+    heat_map_checkbox,
+):
+    params = [
+        transparent_checkbox.isChecked(),
+        paths_checkbox.isChecked(),
+        beginning_points_checkbox.isChecked(),
+        heat_map_checkbox.isChecked(),
+    ]
+
+    if self.file_path:
+        default_filename = os.path.splitext(self.file_path)[0] + "_grid_transparent"
+    else:
+        default_filename = "grid_transparent"
+
+    save_grid_image(self, default_filename, params)
+
+    dialog.accept()
+
+
+def save_grid_image(self, file_name, params):
     file_path, _ = QFileDialog.getSaveFileName(
         self,
-        "Save Grid as PNG",
-        os.path.join(os.path.expanduser("~"), "Downloads", default_filename),
-        "PNG Files (*.png)",
+        "Save Transparent Grid",
+        os.path.join(os.path.expanduser("~"), "Downloads", file_name),
+        "PNG Files (*.png);;SVG Files (*.svg)",
     )
+    if not file_path or file_path == "" or not file_path.endswith((".png", ".svg")):
+        return
 
-    if file_path:
-        pixmap = self.grid_widget.grab()
+    if file_path.endswith(".png"):
+        pixmap = QPixmap(self.grid_widget.size())
+        pixmap.fill(Qt.transparent)
+
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
+    else:
+        svg_generator = QSvgGenerator()
+        svg_generator.setFileName(file_path)
+        svg_generator.setSize(self.grid_widget.size())
+        svg_generator.setViewBox(self.grid_widget.rect())
+        svg_generator.setTitle("Grid with Seizure Visualization")
+        svg_generator.setDescription("Generated from MEA Grid View")
+
+        painter = QPainter(svg_generator)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+    transparent = params[0]
+    for row in self.grid_widget.cells:
+        for cell in row:
+            if cell.color == BACKGROUND and transparent:
+                continue
+            # Calculate the cell's position
+            cell_rect = cell.sceneBoundingRect()
+            cell_pos = self.grid_widget.mapFromScene(cell_rect.topLeft())
+            # Draw the cell with a slight overlap
+            painter.setBrush(QBrush(cell.get_current_color()))
+            painter.setPen(Qt.NoPen)
+            painter.drawRect(
+                int(cell_pos.x()) - 1,
+                int(cell_pos.y()) - 1,
+                int(cell_rect.width()) + 2,
+                int(cell_rect.height()) + 2,
+            )
+
+    # Draw seizures using cluster_tracker's draw_seizures function
+    if not hasattr(self, "cluster_tracker") and any(params):
+        painter.end()
+        QMessageBox.warning(
+            self,
+            "No Seizures Tracked",
+            "No seizures have been tracked. Please track seizures before saving.",
+        )
+        return
+
+    _, paths, beginning_points, heat_map = params
+    cell_width = self.grid_widget.cells[0][0].rect().width()
+    cell_height = self.grid_widget.cells[0][0].rect().height()
+    temp_scene = QGraphicsScene()
+
+    if heat_map:
+        print("Drawing heat map")
+        rows, cols = 64, 64
+        self.cluster_tracker.draw_heatmap(
+            temp_scene, cell_width, cell_height, rows, cols, painter, False
+        )
+
+    if paths:
+        print("Drawing paths")
+        self.cluster_tracker.draw_seizures(
+            temp_scene, cell_width, cell_height, painter, False
+        )
+    if beginning_points:
+        print("Drawing beginning points")
+        self.cluster_tracker.draw_beginning_points(
+            temp_scene, cell_width, cell_height, painter, False
+        )
+
+    if file_path.endswith(".png"):
         pixmap.save(file_path, "PNG")
+    painter.end()
+
+    QMessageBox.information(
+        self,
+        "Save Completed",
+        f"Grid with seizure visualization saved as {'PNG' if file_path.endswith('.png') else 'SVG'} to {file_path}",
+    )

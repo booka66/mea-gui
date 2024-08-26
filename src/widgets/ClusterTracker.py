@@ -360,10 +360,31 @@ class ClusterTracker:
         b = int(255 * (1 - intensity))
         return QColor(r, g, b, 200)
 
-    def create_heatmap(self, scene, cell_width, cell_height, rows, cols):
+    def reset_graphics_items(self, scene):
+        if scene is None:
+            return
+
+        # Create a new list for valid items
+        valid_items = []
+
         for item in self.seizure_graphics_items:
-            scene.removeItem(item)
-        self.seizure_graphics_items.clear()
+            try:
+                if item.scene() == scene:
+                    scene.removeItem(item)
+                else:
+                    valid_items.append(item)
+            except RuntimeError:
+                # Item has been deleted, so we ignore it
+                pass
+
+        # Update the list with only valid items
+        self.seizure_graphics_items = valid_items
+
+    def draw_heatmap(
+        self, scene, cell_width, cell_height, rows, cols, painter=None, reset_scene=True
+    ):
+        if reset_scene:
+            self.reset_graphics_items(scene)
 
         heatmap = np.zeros((rows, cols))
 
@@ -388,6 +409,10 @@ class ClusterTracker:
                     rect.setBrush(color)
                     scene.addItem(rect)
                     self.seizure_graphics_items.append(rect)
+                    if painter:
+                        painter.setBrush(rect.brush())
+                        painter.setPen(Qt.NoPen)
+                        painter.drawRect(rect.rect().translated(rect.pos()))
 
     def get_heatmap_color(self, intensity):
         r = int(255 * intensity)
@@ -401,10 +426,11 @@ class ClusterTracker:
         b = 0
         return QColor(r, g, b)
 
-    def draw_seizures_time(self, scene, cell_width, cell_height):
-        for item in self.seizure_graphics_items:
-            scene.removeItem(item)
-        self.seizure_graphics_items.clear()
+    def draw_beginning_points(
+        self, scene, cell_width, cell_height, painter=None, reset_scene=True
+    ):
+        if reset_scene:
+            self.reset_graphics_items(scene)
 
         if not self.seizures:
             return
@@ -432,11 +458,16 @@ class ClusterTracker:
             )
             scene.addItem(start_marker)
             self.seizure_graphics_items.append(start_marker)
+            if painter:
+                painter.setBrush(start_marker.brush())
+                painter.setPen(Qt.NoPen)
+                painter.drawEllipse(start_marker.rect().translated(start_marker.pos()))
 
-    def draw_seizures(self, scene, cell_width, cell_height):
-        for item in self.seizure_graphics_items:
-            scene.removeItem(item)
-        self.seizure_graphics_items.clear()
+    def draw_seizures(
+        self, scene, cell_width, cell_height, painter=None, reset_scene=True
+    ):
+        if reset_scene:
+            self.reset_graphics_items(scene)
 
         for seizure in self.seizures:
             points = seizure["points"]
@@ -453,6 +484,10 @@ class ClusterTracker:
             path_item.setPen(QPen(QColor(0, 0, 0, 128), 2, Qt.SolidLine))
             scene.addItem(path_item)
             self.seizure_graphics_items.append(path_item)
+            if painter:
+                painter.setPen(path_item.pen())
+                painter.setBrush(Qt.NoBrush)  # Ensure no fill
+                painter.drawPath(path_item.path())
 
             start_point = QGraphicsEllipseItem(0, 0, 10, 10)
             start_point.setBrush(QColor(0, 255, 0))
@@ -461,6 +496,10 @@ class ClusterTracker:
             )
             scene.addItem(start_point)
             self.seizure_graphics_items.append(start_point)
+            if painter:
+                painter.setBrush(start_point.brush())
+                painter.setPen(Qt.NoPen)
+                painter.drawEllipse(start_point.rect().translated(start_point.pos()))
 
             end_point = QGraphicsEllipseItem(0, 0, 10, 10)
             end_point.setBrush(QColor(255, 0, 0))  # Red
@@ -469,6 +508,10 @@ class ClusterTracker:
             )
             scene.addItem(end_point)
             self.seizure_graphics_items.append(end_point)
+            if painter:
+                painter.setBrush(end_point.brush())
+                painter.setPen(Qt.NoPen)
+                painter.drawEllipse(end_point.rect().translated(end_point.pos()))
 
     def clear(self):
         self.clusters.clear()

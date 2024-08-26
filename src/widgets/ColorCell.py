@@ -11,6 +11,7 @@ class ColorCell(QGraphicsRectItem):
     def __init__(self, row, col, color, parent=None):
         super().__init__(parent)
         self.setFlags(QGraphicsItem.ItemIsSelectable | QGraphicsItem.ItemIsFocusable)
+        self.color = color
         self.setBrush(QBrush(color))
         self.setAcceptHoverEvents(True)
         self.setPen(QPen(Qt.NoPen))
@@ -48,6 +49,7 @@ class ColorCell(QGraphicsRectItem):
         self.update()
 
     def setColor(self, color, strength=1.0, opacity=1.0):
+        self.color = color
         strength = max(0, min(strength, 1))
 
         hsv_color = color.toHsv()

@@ -10,7 +10,6 @@ from urllib.request import pathname2url
 import h5py
 import numpy as np
 import pyqtgraph as pg
-from pyqtgraph.Qt.QtGui import QIcon
 import qdarktheme
 from PyQt5.QtCore import (
     QLineF,
@@ -82,7 +81,11 @@ from widgets.GridWidget import GridWidget
 from widgets.GroupSelectionDialog import Group, GroupSelectionDialog
 from widgets.LegendWidget import LegendWidget
 from widgets.LoadingDialog import LoadingDialog
-from widgets.Media import SaveChannelPlotsDialog, save_grid_as_png, save_mea_with_plots
+from widgets.Media import (
+    SaveChannelPlotsDialog,
+    open_save_grid_dialog,
+    save_mea_with_plots,
+)
 from widgets.ProgressBar import EEGScrubberWidget
 from widgets.RasterPlot import RasterPlot
 from widgets.Settings import (
@@ -251,7 +254,7 @@ class MainWindow(QMainWindow):
         self.createVideoAction.triggered.connect(self.show_video_editor)
         self.fileMenu.addAction(self.createVideoAction)
         self.saveGridAction = QAction("Save MEA as png", self)
-        self.saveGridAction.triggered.connect(lambda: save_grid_as_png(self))
+        self.saveGridAction.triggered.connect(lambda: open_save_grid_dialog(self))
         self.fileMenu.addAction(self.saveGridAction)
         self.saveChannelPlotsAction = QAction("Save channel plots", self)
         self.saveChannelPlotsAction.triggered.connect(self.save_channel_plots)
@@ -381,7 +384,9 @@ class MainWindow(QMainWindow):
         self.grid_widget.setMinimumHeight(self.grid_widget.height() + 100)
         self.grid_widget.cell_clicked.connect(self.on_cell_clicked)
         self.grid_widget.save_as_video_requested.connect(self.show_video_editor)
-        self.grid_widget.save_as_image_requested.connect(lambda: save_grid_as_png(self))
+        self.grid_widget.save_as_image_requested.connect(
+            lambda: open_save_grid_dialog(self)
+        )
 
         square_widget = SquareWidget()
         square_layout = QVBoxLayout()
@@ -1448,14 +1453,14 @@ class MainWindow(QMainWindow):
             elif event.key() == Qt.Key_H:
                 cell_width = self.grid_widget.cells[0][0].rect().width()
                 cell_height = self.grid_widget.cells[0][0].rect().height()
-                self.cluster_tracker.draw_seizures_time(
+                self.cluster_tracker.draw_beginning_points(
                     self.grid_widget.scene, cell_width, cell_height
                 )
             elif event.key() == Qt.Key_J:
                 rows, cols = 64, 64
                 cell_width = self.grid_widget.cells[0][0].rect().width()
                 cell_height = self.grid_widget.cells[0][0].rect().height()
-                self.cluster_tracker.create_heatmap(
+                self.cluster_tracker.draw_heatmap(
                     self.grid_widget.scene, cell_width, cell_height, rows, cols
                 )
             elif event.key() == Qt.Key_K:
@@ -1543,7 +1548,6 @@ class MainWindow(QMainWindow):
                         "time_since_last_discharge": time_since_last_discharge,
                     }
 
-                    start_index = int(start_time * self.sampling_rate)
                     # Add a green line to the channel plots
                     for i in range(4):
                         if self.plotted_channels[i] is not None:
