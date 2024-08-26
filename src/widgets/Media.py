@@ -1,3 +1,4 @@
+from pathlib import Path
 from PyQt5.QtGui import QBrush, QImage, QIntValidator, QPainter, QPixmap
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtWidgets import (
@@ -351,8 +352,24 @@ def save_plots_to_image(
 def open_save_grid_dialog(self):
     dialog = QDialog(self)
     dialog.setWindowTitle("Save Grid")
-    dialog.setMinimumWidth(300)
+    dialog.setMinimumWidth(500)
     layout = QVBoxLayout(dialog)
+
+    # File selection
+    file_layout = QHBoxLayout()
+    file_path_input = QLineEdit()
+    file_path_input.setReadOnly(True)
+    file_layout.addWidget(file_path_input)
+    browse_button = QPushButton("Browse")
+    browse_button.clicked.connect(lambda: select_file(file_path_input))
+    file_layout.addWidget(browse_button)
+    layout.addLayout(file_layout)
+
+    # Set default path to Downloads folder
+    base_name = os.path.basename(self.file_path)
+    base_name = os.path.splitext(base_name)[0]
+    default_path = str(Path.home() / "Downloads" / f"{base_name}_grid.png")
+    file_path_input.setText(default_path)
 
     # Transparent background checkbox
     transparent_checkbox = QCheckBox("Transparent Background")
@@ -362,22 +379,27 @@ def open_save_grid_dialog(self):
     # Propagation checkboxes
     propagation_layout = QVBoxLayout()
     propagation_layout.addWidget(QLabel("Propagation:"))
-
     paths_checkbox = QCheckBox("Start/End Paths")
     paths_checkbox.setChecked(False)
     paths_checkbox.setEnabled(len(self.cluster_tracker.seizures) > 0)
     propagation_layout.addWidget(paths_checkbox)
-
     beginning_points_checkbox = QCheckBox("Beginning Points")
     beginning_points_checkbox.setChecked(False)
     beginning_points_checkbox.setEnabled(len(self.cluster_tracker.seizures) > 0)
     propagation_layout.addWidget(beginning_points_checkbox)
-
     heat_map_checkbox = QCheckBox("Heat Map")
     heat_map_checkbox.setChecked(False)
     heat_map_checkbox.setEnabled(len(self.cluster_tracker.seizures) > 0)
     propagation_layout.addWidget(heat_map_checkbox)
-
+    save_all_individually_checkbox = QCheckBox("Save All Individually")
+    save_all_individually_checkbox.setChecked(False)
+    save_all_individually_checkbox.setEnabled(len(self.cluster_tracker.seizures) > 0)
+    propagation_layout.addWidget(save_all_individually_checkbox)
+    save_all_individually_checkbox.stateChanged.connect(
+        lambda state: paths_checkbox.setEnabled(state == Qt.Unchecked)
+        or beginning_points_checkbox.setEnabled(state == Qt.Unchecked)
+        or heat_map_checkbox.setEnabled(state == Qt.Unchecked)
+    )
     layout.addLayout(propagation_layout)
 
     # Buttons
@@ -387,10 +409,12 @@ def open_save_grid_dialog(self):
         lambda: save_grid(
             self,
             dialog,
+            file_path_input.text(),
             transparent_checkbox,
             paths_checkbox,
             beginning_points_checkbox,
             heat_map_checkbox,
+            save_all_individually_checkbox,
         )
     )
     cancel_button = QPushButton("Cancel")
@@ -403,38 +427,62 @@ def open_save_grid_dialog(self):
     dialog.exec()
 
 
+def select_file(file_path_input):
+    initial_path = Path(file_path_input.text())
+    file_path, _ = QFileDialog.getSaveFileName(
+        None, "Save Grid", str(initial_path), "PNG Files (*.png);;All Files (*)"
+    )
+    if file_path:
+        file_path_input.setText(file_path)
+
+
 def save_grid(
     self,
     dialog,
+    file_path,
     transparent_checkbox,
     paths_checkbox,
     beginning_points_checkbox,
     heat_map_checkbox,
+    save_all_individually_checkbox,
 ):
     params = [
         transparent_checkbox.isChecked(),
-        paths_checkbox.isChecked(),
-        beginning_points_checkbox.isChecked(),
-        heat_map_checkbox.isChecked(),
+        paths_checkbox.isChecked() and paths_checkbox.isEnabled(),
+        beginning_points_checkbox.isChecked() and beginning_points_checkbox.isEnabled(),
+        heat_map_checkbox.isChecked() and heat_map_checkbox.isEnabled(),
     ]
 
-    if self.file_path:
-        default_filename = os.path.splitext(self.file_path)[0] + "_grid_transparent"
-    else:
-        default_filename = "grid_transparent"
+    post_fix = "" if params[0] else "_transparent"
+    # Add post_fix right before the file extension
+    if file_path.endswith(".png"):
+        file_path = file_path.replace(".png", f"_{post_fix}.png")
+    elif file_path.endswith(".svg"):
+        file_path = file_path.replace(".svg", f"_{post_fix}.svg")
 
-    save_grid_image(self, default_filename, params)
+    if save_all_individually_checkbox.isChecked():
+        params = [transparent_checkbox.isChecked(), False, False, False]
+        save_grid_image(self, file_path, params)
+        for i in range(3):
+            # Set the parameters for each iteration
+            params = [transparent_checkbox.isChecked(), False, False, False]
+            params[i + 1] = True
+            if file_path.endswith(".png"):
+                file_path = file_path.replace(
+                    ".png", f"_{['paths', 'beginning_points', 'heat_map'][i]}.png"
+                )
+            elif file_path.endswith(".svg"):
+                file_path = file_path.replace(
+                    ".svg", f"_{['paths', 'beginning_points', 'heat_map'][i]}.svg"
+                )
+            save_grid_image(self, file_path, params)
+    else:
+        save_grid_image(self, file_path, params)
 
     dialog.accept()
 
 
-def save_grid_image(self, file_name, params):
-    file_path, _ = QFileDialog.getSaveFileName(
-        self,
-        "Save Transparent Grid",
-        os.path.join(os.path.expanduser("~"), "Downloads", file_name),
-        "PNG Files (*.png);;SVG Files (*.svg)",
-    )
+def save_grid_image(self, file_path, params):
     if not file_path or file_path == "" or not file_path.endswith((".png", ".svg")):
         return
 
@@ -509,9 +557,3 @@ def save_grid_image(self, file_name, params):
     if file_path.endswith(".png"):
         pixmap.save(file_path, "PNG")
     painter.end()
-
-    QMessageBox.information(
-        self,
-        "Save Completed",
-        f"Grid with seizure visualization saved as {'PNG' if file_path.endswith('.png') else 'SVG'} to {file_path}",
-    )
