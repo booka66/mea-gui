@@ -24,7 +24,7 @@ class TraceViewBoxMenu(QMenu):
         save_all_plots_action = QAction("Save all plots", self)
         toggle_regions_action = QAction("Toggle regions", self)
         toggle_red_lines_action = QAction("Toggle red lines", self)
-        toggle_mini_map_action = QAction("Toggle minimap", self)
+        toggle_mini_map_action = QAction("Toggle mini-map", self)
 
         find_discharges_action.triggered.connect(
             self.parent.main_window.find_discharges

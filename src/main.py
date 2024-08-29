@@ -1961,10 +1961,10 @@ class MainWindow(QMainWindow):
             if voltages.size > 0:
                 min_voltage = np.min(voltages)
                 max_voltage = np.max(voltages)
-                normalized_range = (max_voltage - min_voltage) / (
-                    self.overall_max_voltage - self.overall_min_voltage
+                log_range = self.log_normalize(max_voltage) - self.log_normalize(
+                    min_voltage
                 )
-                voltage_ranges.append(normalized_range)
+                voltage_ranges.append(log_range)
             else:
                 voltage_ranges.append(None)
 
@@ -1975,6 +1975,24 @@ class MainWindow(QMainWindow):
             for voltage_range in voltage_ranges
         ]
         return colors
+
+    def log_normalize(self, voltage):
+        # Add a small constant to avoid log(0)
+        epsilon = 1e-10
+        normalized = (voltage - self.overall_min_voltage) / (
+            self.overall_max_voltage - self.overall_min_voltage
+        )
+        return np.log1p(normalized + epsilon)
+
+    def voltage_range_to_color(self, log_range):
+        if log_range is None:
+            return ACTIVE
+        # Adjust this constant to control the sensitivity of the color scale
+        sensitivity = 5
+        hue = int((1 - np.tanh(sensitivity * log_range)) * 240)
+        saturation = 255
+        value = 255 if log_range > 0 else 128
+        return QColor.fromHsv(hue, saturation, value)
 
     def get_new_se_cells(
         self, row, col, current_time, colors, i, newly_se_cells, found_se
@@ -2095,14 +2113,6 @@ class MainWindow(QMainWindow):
         )
 
         return blended_color
-
-    def voltage_range_to_color(self, normalized_range):
-        if normalized_range is None:
-            return ACTIVE
-        hue = int((1 - normalized_range) * 240)
-        saturation = 255
-        value = 255 if normalized_range > 0 else 128
-        return QColor.fromHsv(hue, saturation, value)
 
     def remove_seizure_arrows(self, row, col):
         arrows_to_remove = []

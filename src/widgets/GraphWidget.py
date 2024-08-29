@@ -1,5 +1,6 @@
-from PyQt5.QtCore import QTimer, pyqtSignal, Qt
+from PyQt5.QtCore import QEvent, QTimer, pyqtSignal, Qt
 from PyQt5.QtWidgets import (
+    QLabel,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -70,6 +71,14 @@ class GraphWidget(QWidget):
         self.do_show_mini_map = True
         self.last_active_plot_index = -1
 
+        self.temp_marker = None
+        self.mouse_marker = None
+        self.time_diff_label = None
+        self.g_key_pressed = False
+        self.marker_start_time = None
+
+        self.installEventFilter(self)
+
         for i in range(4):
             plot_widget = self.plot_widgets[i]
             red_line = self.red_lines[i]
@@ -107,6 +116,8 @@ class GraphWidget(QWidget):
                 lambda pos, i=i: self.update_active_plot(pos, i)
             )
 
+            plot_widget.scene().sigMouseMoved.connect(self.mouse_moved)
+
             self.plots_layout.addWidget(plot_widget)
 
         self.sync_timer = QTimer()
@@ -114,6 +125,84 @@ class GraphWidget(QWidget):
         self.sync_timer.timeout.connect(self.apply_synced_range)
 
         self.synced_range = None
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.KeyPress:
+            return self.handle_key_press(event)
+        elif event.type() == QEvent.KeyRelease:
+            return self.handle_key_release(event)
+        return super().eventFilter(obj, event)
+
+    def handle_key_press(self, event):
+        if event.key() == Qt.Key_G and not event.isAutoRepeat():
+            self.g_key_pressed = True
+            self.show_temp_marker()
+            return True
+        return False
+
+    def handle_key_release(self, event):
+        if event.key() == Qt.Key_G and not event.isAutoRepeat():
+            self.g_key_pressed = False
+            self.hide_temp_marker()
+            return True
+        return False
+
+    def show_temp_marker(self):
+        active_plot = self.plot_widgets[self.active_plot_index]
+        mouse_pos = active_plot.mapFromGlobal(self.cursor().pos())
+        mouse_point = active_plot.getPlotItem().vb.mapSceneToView(mouse_pos)
+
+        self.marker_start_time = mouse_point.x()
+        self.temp_marker = pg.InfiniteLine(
+            angle=90, movable=False, pen=pg.mkPen(color=(0, 255, 0), width=2)
+        )
+        self.temp_marker.setPos(self.marker_start_time)
+        active_plot.addItem(self.temp_marker)
+
+        self.mouse_marker = pg.InfiniteLine(
+            angle=90, movable=False, pen=pg.mkPen(color=(255, 0, 0), width=2)
+        )
+        active_plot.addItem(self.mouse_marker)
+
+        self.time_diff_label = pg.TextItem(
+            text="", color=(0, 0, 0), fill=(255, 255, 255, 200), anchor=(0.5, 0.5)
+        )
+        active_plot.addItem(self.time_diff_label)
+
+    def hide_temp_marker(self):
+        if self.temp_marker:
+            self.plot_widgets[self.active_plot_index].removeItem(self.temp_marker)
+            self.temp_marker = None
+
+        if self.mouse_marker:
+            self.plot_widgets[self.active_plot_index].removeItem(self.mouse_marker)
+            self.mouse_marker = None
+
+        if self.time_diff_label:
+            self.plot_widgets[self.active_plot_index].removeItem(self.time_diff_label)
+            self.time_diff_label = None
+
+    def update_time_difference(self, current_time, plot_index):
+        if self.marker_start_time is not None and self.time_diff_label is not None:
+            time_diff = current_time - self.marker_start_time
+            self.time_diff_label.setText(f"Time difference: {time_diff:.3f} s")
+
+            view_range = self.plot_widgets[plot_index].getPlotItem().vb.viewRange()
+            x_center = (view_range[0][0] + view_range[0][1]) / 2
+            y_center = (view_range[1][0] + view_range[1][1]) / 2
+
+            self.time_diff_label.setPos(x_center, y_center)
+
+            if self.mouse_marker:
+                self.mouse_marker.setPos(current_time)
+
+    def mouse_moved(self, pos):
+        for i, plot_widget in enumerate(self.plot_widgets):
+            if plot_widget.sceneBoundingRect().contains(pos):
+                mouse_point = plot_widget.getPlotItem().vb.mapSceneToView(pos)
+                if self.g_key_pressed:
+                    self.update_time_difference(mouse_point.x(), i)
+                break
 
     def sync_ranges(self, source_index, x_range, update_minimap=False):
         if self.updating_from_minimap:
