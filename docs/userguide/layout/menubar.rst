@@ -174,6 +174,8 @@ With anti-aliasing:
    :align: center
    :width: 600px
 
+.. _seizure_regions:
+
 Seizure Regions
 ---------------
 Similar to the MEA grid's detected events, the seizure regions are displayed on the trace plots with an identical color scheme. Blue regions represent seizure events, while orange regions represent SE events.

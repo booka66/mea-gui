@@ -1,5 +1,8 @@
+.. _configuration:
+
 Configuration
 =============
+
 MATLAB
 ------
 Certain features of the application require MATLAB to be installed on your system. 

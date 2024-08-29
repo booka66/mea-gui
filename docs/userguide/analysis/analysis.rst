@@ -7,5 +7,6 @@ Analysis
   openingfiles
   viewingfiles
   runninganalysis
+  ./dischargetracking.rst
 
 
