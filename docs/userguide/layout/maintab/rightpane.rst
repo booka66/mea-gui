@@ -35,6 +35,7 @@ The controls for mouse interaction are as follows:
   - Pressing ``l`` will toggle locking the view to the playhead (see warning above)
   - Clicking the ``A`` button in the bottom left corner will reset the view to the full signal range
   - If :ref:`seizure_regions` are visible, clicking on a region will zoom into that region and place the playhead at the start of the region
+  - Hold ``g`` to measure the time difference between two points on the trace plots
 
 Context Menu
 ------------
