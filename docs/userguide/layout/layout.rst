@@ -1,6 +1,6 @@
-==================
-Application Layout
-==================
+==============================
+Layout and Basic Functionality
+==============================
 
 .. toctree::
   :maxdepth: 1
@@ -8,29 +8,5 @@ Application Layout
   menubar
   maintab/maintab
 
-Main Tab
-========
-
-Left Pane
----------
-
-MEA Grid
-~~~~~~~~
-
-Raster Plot
-~~~~~~~~~~~
-
-Right Pane
-----------
-
-Trace Plots
-~~~~~~~~~~~
-
-Control Panel
-~~~~~~~~~~~~~
-
-Stats Tab
-=========
-
-
-
+The main purpose of this section is to provide a general overview of the layout and basic functionality of the GUI.
+For more detailed information on how to conduct certain analyses, please refer to the :ref:`analysis` section.
