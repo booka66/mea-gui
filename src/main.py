@@ -1549,13 +1549,13 @@ class MainWindow(QMainWindow):
                     }
 
                     # Add a green line to the channel plots
-                    for i in range(4):
-                        if self.plotted_channels[i] is not None:
-                            self.graph_widget.plot_widgets[i].addItem(
-                                pg.InfiniteLine(
-                                    pos=start_time, angle=90, pen=pg.mkPen("g", width=2)
-                                )
-                            )
+                    # for i in range(4):
+                    #     if self.plotted_channels[i] is not None:
+                    #         self.graph_widget.plot_widgets[i].addItem(
+                    #             pg.InfiniteLine(
+                    #                 pos=start_time, angle=90, pen=pg.mkPen("g", width=2)
+                    #             )
+                    #         )
 
                     self.cluster_tracker.seizures.append(seizure)
 
@@ -1797,6 +1797,7 @@ class MainWindow(QMainWindow):
             (strength - self.min_strength) / (self.max_strength - self.min_strength)
         )
 
+    # TODO: Find a way to store all the discharge events times for each channel
     def save_discharges_to_hdf5(self, row, col, start_time, stop_time):
         with h5py.File(self.file_path, "a") as f:
             if len(self.discharges[(row, col)][0]) == 0:
