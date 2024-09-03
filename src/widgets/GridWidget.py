@@ -4,11 +4,15 @@ from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QPointF
 from PyQt5.QtGui import QBrush, QColor, QPainterPath, QPen, QPixmap, QTransform
 from PyQt5.QtWidgets import (
     QAction,
+    QDialog,
     QGraphicsPathItem,
     QGraphicsScene,
     QGraphicsView,
+    QLabel,
     QMenu,
     QGraphicsEllipseItem,
+    QPushButton,
+    QVBoxLayout,
 )
 import random
 from widgets.ColorCell import ColorCell
@@ -35,6 +39,47 @@ class Spark(QGraphicsEllipseItem):
             self.scene().removeItem(self)
             return False
         return True
+
+
+class PurpleDot(QGraphicsEllipseItem):
+    def __init__(self, x, y, size=40, color=QColor(128, 0, 128, 128)):
+        super().__init__(0, 0, size, size)
+        self.setPos(x - size / 2, y - size / 2)
+        self.color = color
+        self.setBrush(QBrush(self.color))
+        self.setPen(QPen(Qt.NoPen))
+
+    def change_color(self, new_color):
+        self.color = new_color
+        self.setBrush(QBrush(self.color))
+
+
+class SimpleColorDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Choose a Color")
+        self.layout = QVBoxLayout(self)
+
+        self.predefined_colors = [
+            QColor(255, 0, 0, 128),  # Red
+            QColor(0, 255, 0, 128),  # Green
+            QColor(0, 0, 255, 128),  # Blue
+            QColor(255, 255, 0, 128),  # Yellow
+            QColor(255, 0, 255, 128),  # Magenta
+            QColor(0, 255, 255, 128),  # Cyan
+        ]
+
+        for color in self.predefined_colors:
+            button = QPushButton()
+            button.setStyleSheet(f"background-color: {color.name()}; min-height: 30px;")
+            button.clicked.connect(lambda _, c=color: self.color_chosen(c))
+            self.layout.addWidget(button)
+
+        self.selected_color = None
+
+    def color_chosen(self, color):
+        self.selected_color = color
+        self.accept()
 
 
 class GridWidget(QGraphicsView):
@@ -67,7 +112,44 @@ class GridWidget(QGraphicsView):
         self.spark_timer.timeout.connect(self.update_sparks)
         self.spark_timer.start(16)  # 60 FPS
 
+        self.is_seizure_beginning_mode = False
+        self.seizure_beginnings = []
+
         self.setFocusPolicy(Qt.StrongFocus)
+
+        # Add message label
+        self.message_label = QLabel(self)
+        self.message_label.setAlignment(Qt.AlignRight | Qt.AlignTop)
+        self.message_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                background-color: rgba(0, 0, 0, 150);
+                border-radius: 5px;
+                padding: 5px;
+            }
+        """)
+        self.message_label.hide()
+
+        # Timer for hiding the message
+        self.message_timer = QTimer(self)
+        self.message_timer.setSingleShot(True)
+        self.message_timer.timeout.connect(self.hide_message)
+
+    def show_temporary_message(self, message, duration=3000):
+        self.message_label.setText(message)
+        self.message_label.adjustSize()
+        self.update_message_position()
+        self.message_label.show()
+        self.message_timer.start(duration)
+
+    def hide_message(self):
+        self.message_label.hide()
+
+    def update_message_position(self):
+        margin = 10
+        self.message_label.move(
+            self.width() - self.message_label.width() - margin, margin
+        )
 
     def createGrid(self):
         self.cells = [[None for _ in range(self.cols)] for _ in range(self.rows)]
@@ -80,21 +162,33 @@ class GridWidget(QGraphicsView):
 
         self.resizeGrid()
 
+    def show_color_dialog(self, dot):
+        dialog = SimpleColorDialog(self)
+        if dialog.exec_() == QDialog.Accepted and dialog.selected_color:
+            dot.change_color(dialog.selected_color)
+
     def contextMenuEvent(self, event):
-        context_menu = QMenu(self)
-        save_video_action = QAction("Save as Video", self)
-        save_image_action = QAction("Save as Image", self)
-        toggle_lasso_action = QAction("Create Propagation Groups", self)
+        item = self.scene.itemAt(self.mapToScene(event.pos()), QTransform())
+        if isinstance(item, PurpleDot):
+            self.show_color_dialog(item)
+        else:
+            context_menu = QMenu(self)
+            save_video_action = QAction("Save as Video", self)
+            save_image_action = QAction("Save as Image", self)
+            toggle_lasso_action = QAction("Create Propagation Groups", self)
+            seizure_beginning_action = QAction("Place Seizure Beginning", self)
 
-        context_menu.addAction(save_video_action)
-        context_menu.addAction(save_image_action)
-        context_menu.addAction(toggle_lasso_action)
+            context_menu.addAction(save_video_action)
+            context_menu.addAction(save_image_action)
+            context_menu.addAction(toggle_lasso_action)
+            context_menu.addAction(seizure_beginning_action)
 
-        save_video_action.triggered.connect(self.save_as_video_requested.emit)
-        save_image_action.triggered.connect(self.save_as_image_requested.emit)
-        toggle_lasso_action.triggered.connect(self.start_lasso_mode)
+            save_video_action.triggered.connect(self.save_as_video_requested.emit)
+            save_image_action.triggered.connect(self.save_as_image_requested.emit)
+            toggle_lasso_action.triggered.connect(self.start_lasso_mode)
+            seizure_beginning_action.triggered.connect(self.start_purple_dot_mode)
 
-        context_menu.exec_(self.mapToGlobal(event.pos()))
+            context_menu.exec_(self.mapToGlobal(event.pos()))
 
     def update_cursor(self):
         if not self.is_lasso_mode:
@@ -106,7 +200,17 @@ class GridWidget(QGraphicsView):
         self.clear_lasso_selection()
 
     def keyPressEvent(self, event: typing.Optional[QtGui.QKeyEvent]) -> None:
-        if event.key() == Qt.Key_Z:
+        if event.key() == Qt.Key_E:
+            self.start_purple_dot_mode()
+        elif event.key() == Qt.Key_Return:
+            if self.is_seizure_beginning_mode:
+                self.end_purple_dot_mode()
+            elif self.is_lasso_mode:
+                self.is_lasso_mode = False
+                self.clear_lasso()
+                self.update_cursor()
+                self.show_temporary_message("Propagation groups created.")
+        elif event.key() == Qt.Key_Z:
             self.undo_lasso_selection()
         elif event.key() == Qt.Key_C:
             self.clear_lasso_selection()
@@ -116,16 +220,23 @@ class GridWidget(QGraphicsView):
                 self.clear_lasso()
                 self.clear_lasso_selection()
                 self.update_cursor()
-        elif event.key() == Qt.Key_Return:
-            self.is_lasso_mode = False
-            self.clear_lasso()
-            self.update_cursor()
+                self.show_temporary_message("Lasso selection cancelled.")
+            elif self.is_seizure_beginning_mode:
+                self.cancel_purple_dot_mode()
         else:
             super().keyPressEvent(event)
 
     def mousePressEvent(self, event):
-        if self.is_lasso_mode and event.button() == Qt.LeftButton:
-            self.start_lasso(event.pos())
+        if self.is_seizure_beginning_mode and event.button() == Qt.LeftButton:
+            self.place_purple_dot(event.pos())
+        elif not self.is_seizure_beginning_mode and event.button() == Qt.LeftButton:
+            item = self.scene.itemAt(self.mapToScene(event.pos()), QTransform())
+            if isinstance(item, PurpleDot):
+                self.remove_purple_dot(item)
+            elif self.is_lasso_mode:
+                self.start_lasso(event.pos())
+            else:
+                super().mousePressEvent(event)
         else:
             super().mousePressEvent(event)
 
@@ -137,6 +248,70 @@ class GridWidget(QGraphicsView):
         else:
             super().mouseMoveEvent(event)
 
+    def start_purple_dot_mode(self):
+        self.is_seizure_beginning_mode = True
+        self.show_temporary_message(
+            "Seizure beginning placement mode activated.\nPress 'Enter' to confirm or 'Esc' to cancel."
+        )
+
+    def end_purple_dot_mode(self):
+        self.is_seizure_beginning_mode = False
+        self.show_temporary_message("Seizure beginning placement mode ended.")
+
+    def cancel_purple_dot_mode(self):
+        for dot in self.seizure_beginnings:
+            self.scene.removeItem(dot)
+        self.seizure_beginnings.clear()
+        self.end_purple_dot_mode()
+        self.show_temporary_message("Seizure beginning placement cancelled.")
+
+    def place_purple_dot(self, pos):
+        scene_pos = self.mapToScene(pos)
+        dot = PurpleDot(scene_pos.x(), scene_pos.y())
+        self.seizure_beginnings.append(dot)
+        self.draw_purple_dots(self.scene)
+
+    def reset_scene(self, scene):
+        if scene is None:
+            return
+
+        # Create a new list for valid items
+        valid_items = []
+
+        for item in self.seizure_beginnings:
+            try:
+                if item.scene() == scene:
+                    scene.removeItem(item)
+                else:
+                    valid_items.append(item)
+            except RuntimeError:
+                # Item has been deleted, so we ignore it
+                pass
+
+        # Update the list with only valid items
+        self.seizure_beginnings = valid_items
+
+    def draw_purple_dots(self, scene, painter=None, reset_scene=False):
+        if reset_scene:
+            self.reset_scene(scene)
+
+        for dot in self.seizure_beginnings:
+            if dot not in scene.items():
+                scene.addItem(dot)
+
+    def draw_purple_dots_on_image(self, painter):
+        for dot in self.seizure_beginnings:
+            dot_pos = dot.scenePos()
+            painter.setBrush(dot.color)
+            painter.drawEllipse(
+                dot_pos, dot.rect().width() / 2, dot.rect().height() / 2
+            )
+
+    def remove_purple_dot(self, dot):
+        self.scene.removeItem(dot)
+        self.seizure_beginnings.remove(dot)
+        self.show_temporary_message("Seizure beginning removed.")
+
     def undo_lasso_selection(self):
         if self.lasso_history:
             # Restore the previous state
@@ -146,9 +321,9 @@ class GridWidget(QGraphicsView):
                 cell.lasso_selected = False
                 cell.setColor(ACTIVE)
             self.update()
-            print("Undid last lasso selection")
+            self.show_temporary_message("Undid last lasso selection")
         else:
-            print("No lasso selection to undo")
+            self.show_temporary_message("No lasso selection to undo")
 
     def clear_lasso_selection(self):
         # Clear all lasso selections
@@ -159,7 +334,7 @@ class GridWidget(QGraphicsView):
                     cell.setColor(ACTIVE)
         self.lasso_history.clear()
         self.update()
-        print("Cleared all lasso selections")
+        self.show_temporary_message("Cleared all lasso selections")
 
     def create_sparks(self, pos):
         scene_pos = self.mapToScene(pos)
@@ -298,6 +473,7 @@ class GridWidget(QGraphicsView):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.resizeGrid()
+        self.update_message_position()
         if self.image_path:
             self.setBackgroundImage(self.image_path)
 

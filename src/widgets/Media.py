@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QDialog,
     QFileDialog,
+    QGraphicsEllipseItem,
     QGraphicsScene,
     QHBoxLayout,
     QLabel,
@@ -391,6 +392,12 @@ def open_save_grid_dialog(self):
     heat_map_checkbox.setChecked(False)
     heat_map_checkbox.setEnabled(len(self.cluster_tracker.seizures) > 0)
     propagation_layout.addWidget(heat_map_checkbox)
+    seizure_beginnings_checkbox = QCheckBox("Seizure Beginnings")
+    seizure_beginnings_checkbox.setChecked(False)
+    seizure_beginnings_checkbox.setEnabled(
+        hasattr(self.grid_widget, "seizure_beginnings")
+    )
+    propagation_layout.addWidget(seizure_beginnings_checkbox)
     save_all_individually_checkbox = QCheckBox("Save All Individually")
     save_all_individually_checkbox.setChecked(False)
     save_all_individually_checkbox.setEnabled(len(self.cluster_tracker.seizures) > 0)
@@ -414,6 +421,7 @@ def open_save_grid_dialog(self):
             paths_checkbox,
             beginning_points_checkbox,
             heat_map_checkbox,
+            seizure_beginnings_checkbox,
             save_all_individually_checkbox,
         )
     )
@@ -444,6 +452,7 @@ def save_grid(
     paths_checkbox,
     beginning_points_checkbox,
     heat_map_checkbox,
+    seizure_beginnings_checkbox,
     save_all_individually_checkbox,
 ):
     params = [
@@ -451,31 +460,35 @@ def save_grid(
         paths_checkbox.isChecked() and paths_checkbox.isEnabled(),
         beginning_points_checkbox.isChecked() and beginning_points_checkbox.isEnabled(),
         heat_map_checkbox.isChecked() and heat_map_checkbox.isEnabled(),
+        seizure_beginnings_checkbox.isChecked()
+        and seizure_beginnings_checkbox.isEnabled(),
     ]
 
-    post_fix = "" if params[0] else "_transparent"
+    post_fix = "" if not params[0] else "_transparent"
     # Add post_fix right before the file extension
     if file_path.endswith(".png"):
-        file_path = file_path.replace(".png", f"_{post_fix}.png")
+        file_path = file_path.replace(".png", f"{post_fix}.png")
     elif file_path.endswith(".svg"):
-        file_path = file_path.replace(".svg", f"_{post_fix}.svg")
+        file_path = file_path.replace(".svg", f"{post_fix}.svg")
 
     if save_all_individually_checkbox.isChecked():
-        params = [transparent_checkbox.isChecked(), False, False, False]
+        params = [transparent_checkbox.isChecked(), False, False, False, False]
         save_grid_image(self, file_path, params)
-        for i in range(3):
+        for i in range(4):
             # Set the parameters for each iteration
-            params = [transparent_checkbox.isChecked(), False, False, False]
+            params = [transparent_checkbox.isChecked(), False, False, False, False]
             params[i + 1] = True
             if file_path.endswith(".png"):
-                file_path = file_path.replace(
-                    ".png", f"_{['paths', 'beginning_points', 'heat_map'][i]}.png"
+                export_file_path = file_path.replace(
+                    ".png",
+                    f"_{['paths', 'beginning_points', 'heat_map', 'seizure_beginnings'][i]}.png",
                 )
             elif file_path.endswith(".svg"):
-                file_path = file_path.replace(
-                    ".svg", f"_{['paths', 'beginning_points', 'heat_map'][i]}.svg"
+                export_file_path = file_path.replace(
+                    ".svg",
+                    f"_{['paths', 'beginning_points', 'heat_map', 'seizure_beginnings'][i]}.svg",
                 )
-            save_grid_image(self, file_path, params)
+            save_grid_image(self, export_file_path, params)
     else:
         save_grid_image(self, file_path, params)
 
@@ -485,6 +498,18 @@ def save_grid(
 def save_grid_image(self, file_path, params):
     if not file_path or file_path == "" or not file_path.endswith((".png", ".svg")):
         return
+
+    # Check if the file path exists:
+    if os.path.exists(file_path):
+        overwrite = QMessageBox.question(
+            self,
+            "Overwrite File?",
+            f"The file {file_path} already exists. Do you want to overwrite it?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if overwrite == QMessageBox.No:
+            return
 
     if file_path.endswith(".png"):
         pixmap = QPixmap(self.grid_widget.size())
@@ -531,7 +556,7 @@ def save_grid_image(self, file_path, params):
         )
         return
 
-    _, paths, beginning_points, heat_map = params
+    _, paths, beginning_points, heat_map, seizure_beginnings = params
     cell_width = self.grid_widget.cells[0][0].rect().width()
     cell_height = self.grid_widget.cells[0][0].rect().height()
     temp_scene = QGraphicsScene()
@@ -553,6 +578,10 @@ def save_grid_image(self, file_path, params):
         self.cluster_tracker.draw_beginning_points(
             temp_scene, cell_width, cell_height, painter, False
         )
+
+    if seizure_beginnings:
+        if hasattr(self.grid_widget, "seizure_beginnings"):
+            self.grid_widget.draw_purple_dots_on_image(painter)
 
     if file_path.endswith(".png"):
         pixmap.save(file_path, "PNG")
