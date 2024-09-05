@@ -1946,13 +1946,17 @@ class MainWindow(QMainWindow):
             self.grid_widget.scene, cell_width, cell_height
         )
 
+    def rgb_to_grayscale(self, rgb) -> QColor:
+        constant = int(0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2])
+        return QColor(constant, constant, constant)
+
     def get_false_color_map_colors(self, current_time):
         bin_start = int((current_time - self.bin_size) * self.sampling_rate)
         bin_end = int((current_time + self.bin_size) * self.sampling_rate)
         bin_voltages = [signal[bin_start:bin_end] for signal in self.signals]
 
         if self.overall_min_voltage is None or self.overall_max_voltage is None:
-            ignore_samples = int(10 * self.sampling_rate)
+            ignore_samples = int(20 * self.sampling_rate)
             trimmed_signals = self.signals[:, ignore_samples:-ignore_samples]
             self.overall_min_voltage = np.min(trimmed_signals)
             self.overall_max_voltage = np.max(trimmed_signals)
@@ -1975,7 +1979,33 @@ class MainWindow(QMainWindow):
             else ACTIVE
             for voltage_range in voltage_ranges
         ]
-        return colors
+        grayscale_colors = [self.rgb_to_grayscale(color.getRgb()) for color in colors]
+        color_values = [color.getRgb()[0] for color in grayscale_colors]
+
+        # TODO: The max and range of these values can be an indicator of the start of a discharge
+        if color_values[0] is None:
+            return grayscale_colors
+
+        min_color_value = min(color_values)
+        max_color_value = max(color_values)
+        color_range = max_color_value - min_color_value
+
+        # Calculate how many values are within 10% of the max value
+        max_color_count = 0
+        for value in color_values:
+            if value >= 0.7 * max_color_value:
+                max_color_count += 1
+
+        print("Max color count:", max_color_count)
+        print("Color range:", color_range)
+        # print("Min grayscale value:", min(color_values))
+        # print("Max grayscale value:", max(color_values))
+
+        if color_range > 110 and max_color_count > 3:
+            print("Discharge start detected")
+            self.pause_playback()
+
+        return grayscale_colors
 
     def log_normalize(self, voltage):
         # Add a small constant to avoid log(0)
