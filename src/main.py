@@ -22,6 +22,7 @@ from PyQt5.QtCore import (
     pyqtSignal,
 )
 from PyQt5.QtGui import (
+    QBrush,
     QColor,
     QCursor,
     QFont,
@@ -29,6 +30,7 @@ from PyQt5.QtGui import (
     QPen,
     QPixmap,
     QPolygonF,
+    QRadialGradient,
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWidgets import (
@@ -223,6 +225,9 @@ class MainWindow(QMainWindow):
         self.low_pass_cutoff = 35
         self.markers = []
         self.spaital_sections = []
+        self.potential_discharge = False
+        self.discharge_starts = []
+        self.last_found_discharge_time = None
 
         self.loading_dialog = LoadingDialog(self)
         self.loading_dialog.analysis_cancelled.connect(self.cancel_analysis)
@@ -1990,7 +1995,6 @@ class MainWindow(QMainWindow):
         max_color_value = max(color_values)
         color_range = max_color_value - min_color_value
 
-        # Calculate how many values are within 10% of the max value
         max_color_count = 0
         for value in color_values:
             if value >= 0.7 * max_color_value:
@@ -1998,12 +2002,11 @@ class MainWindow(QMainWindow):
 
         print("Max color count:", max_color_count)
         print("Color range:", color_range)
-        # print("Min grayscale value:", min(color_values))
-        # print("Max grayscale value:", max(color_values))
 
         if color_range > 110 and max_color_count > 3:
             print("Discharge start detected")
-            self.pause_playback()
+            self.potential_discharge = True
+            # self.pause_playback()
 
         return grayscale_colors
 
@@ -2129,6 +2132,75 @@ class MainWindow(QMainWindow):
             for row, col in cells_to_remove:
                 self.seized_cells.remove((row, col))
                 self.remove_seizure_arrows(row, col)
+
+        if self.potential_discharge:
+            # if self.discharge_starts:
+            #     self.grid_widget.scene.removeItem(self.discharge_starts)
+            #     self.discharge_starts = None
+            self.potential_discharge = False
+
+            luminance_threshold = np.percentile(
+                [cell.get_luminance() for cell in self.cells], 95
+            )
+
+            top_cells = [
+                cell
+                for cell in self.cells
+                if cell.get_luminance() >= luminance_threshold
+            ]
+
+            if len(top_cells) > 0 and (
+                self.last_found_discharge_time is None
+                or current_time - self.last_found_discharge_time > 0.5
+            ):
+                for cell in top_cells:
+                    cell.setColor(QColor(0, 255, 0), 1, self.opacity)
+                points = np.array([(cell.row, cell.col) for cell in top_cells])
+                new_centroid = np.average(
+                    points, axis=0, weights=[cell.get_luminance() for cell in top_cells]
+                )
+                highest_cell = max(top_cells, key=lambda cell: cell.row)
+                lowest_cell = min(top_cells, key=lambda cell: cell.row)
+                height = (
+                    highest_cell.row - lowest_cell.row + 1
+                ) * highest_cell.rect().height()
+                leftmost_cell = min(top_cells, key=lambda cell: cell.col)
+                rightmost_cell = max(top_cells, key=lambda cell: cell.col)
+                width = (
+                    rightmost_cell.col - leftmost_cell.col + 1
+                ) * rightmost_cell.rect().width()
+
+                print(f"Width: {width}, Height: {height}")
+
+                if width <= 400 and height <= 400:
+                    # Create a QRadialGradient
+                    gradient = QRadialGradient(
+                        width / 2, height / 2, max(width, height) / 2
+                    )
+                    gradient.setColorAt(
+                        0, QColor(255, 0, 0, int(255 * 0.1))
+                    )  # Opaque red at center
+                    gradient.setColorAt(
+                        1, QColor(255, 0, 0, 0)
+                    )  # Transparent red at edges
+
+                    discharge_point = QGraphicsEllipseItem(0, 0, width, height)
+                    discharge_point.setBrush(QBrush(gradient))
+                    discharge_point.setPen(QPen(Qt.NoPen))
+
+                    # Calculate scene coordinates for centroid
+                    centroid_x = new_centroid[1] * rightmost_cell.rect().width()
+                    centroid_y = new_centroid[0] * highest_cell.rect().height()
+
+                    # Position the discharge point, centering it on the centroid
+                    discharge_point.setPos(
+                        centroid_x - width / 2, centroid_y - height / 2
+                    )
+
+                    self.grid_widget.scene.addItem(discharge_point)
+                    self.discharge_starts.append(discharge_point)
+                    self.last_found_discharge_time = current_time
+                self.pause_playback()
 
         self.grid_widget.update()
         # end = perf_counter()
@@ -2583,7 +2655,7 @@ class MainWindow(QMainWindow):
     def playPause(self):
         if self.play_pause_button.text() == "":
             self.play_pause_button.setText("")
-            self.playback_timer.start(100)
+            self.playback_timer.start(50)
         else:
             self.play_pause_button.setText("")
             self.playback_timer.stop()
@@ -2665,7 +2737,7 @@ class MainWindow(QMainWindow):
             self.progress_bar.setValue(self.progress_bar.maximum())
 
     def setPlaybackSpeed(self, index):
-        interval = 100
+        interval = 50
         self.playback_timer.setInterval(interval)
 
     def seekPosition(self, value):

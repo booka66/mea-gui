@@ -44,6 +44,10 @@ class ColorCell(QGraphicsRectItem):
     def get_current_color(self):
         return self.brush().color()
 
+    def get_luminance(self):
+        rgb = self.get_current_color().getRgb()
+        return int(0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2])
+
     def setText(self, text):
         self.text = text
         self.update()
