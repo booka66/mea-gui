@@ -1951,10 +1951,6 @@ class MainWindow(QMainWindow):
             self.grid_widget.scene, cell_width, cell_height
         )
 
-    def rgb_to_grayscale(self, rgb) -> QColor:
-        constant = int(0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2])
-        return QColor(constant, constant, constant)
-
     def get_false_color_map_colors(self, current_time):
         bin_start = int((current_time - self.bin_size) * self.sampling_rate)
         bin_end = int((current_time + self.bin_size) * self.sampling_rate)
@@ -1978,37 +1974,40 @@ class MainWindow(QMainWindow):
             else:
                 voltage_ranges.append(None)
 
-        colors = [
-            self.voltage_range_to_color(voltage_range)
-            if voltage_range is not None
-            else ACTIVE
-            for voltage_range in voltage_ranges
-        ]
-        grayscale_colors = [self.rgb_to_grayscale(color.getRgb()) for color in colors]
-        color_values = [color.getRgb()[0] for color in grayscale_colors]
+        colors = []
+        min_gray_value = float("inf")
+        max_gray_value = float("-inf")
+        for voltage_range in voltage_ranges:
+            if voltage_range is None:
+                color = ACTIVE
+            else:
+                color = self.voltage_range_to_color(voltage_range)
+            gray_value = color.getRgb()[0]
+            if gray_value < min_gray_value:
+                min_gray_value = gray_value
+            if gray_value > max_gray_value:
+                max_gray_value = gray_value
 
-        # TODO: The max and range of these values can be an indicator of the start of a discharge
-        if color_values[0] is None:
-            return grayscale_colors
+            colors.append(color)
 
-        min_color_value = min(color_values)
-        max_color_value = max(color_values)
-        color_range = max_color_value - min_color_value
+        gray_range = max_gray_value - min_gray_value
 
-        max_color_count = 0
-        for value in color_values:
-            if value >= 0.7 * max_color_value:
-                max_color_count += 1
+        print("Color range:", gray_range)
 
-        print("Max color count:", max_color_count)
-        print("Color range:", color_range)
+        if gray_range > 110:
+            max_color_count = np.sum(
+                [color.getRgb()[0] >= 0.7 * max_gray_value for color in colors]
+            )
+            if max_color_count > 1:
+                print("Max color count:", max_color_count)
+                print("Discharge start detected")
+                self.potential_discharge = True
 
-        if color_range > 110 and max_color_count > 3:
-            print("Discharge start detected")
-            self.potential_discharge = True
-            # self.pause_playback()
+        return colors
 
-        return grayscale_colors
+    def rgb_to_grayscale(self, rgb) -> QColor:
+        constant = int(0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2])
+        return QColor(constant, constant, constant)
 
     def log_normalize(self, voltage):
         # Add a small constant to avoid log(0)
@@ -2026,7 +2025,11 @@ class MainWindow(QMainWindow):
         hue = int((1 - np.tanh(sensitivity * log_range)) * 240)
         saturation = 255
         value = 255 if log_range > 0 else 128
-        return QColor.fromHsv(hue, saturation, value)
+
+        color = QColor.fromHsv(hue, saturation, value)
+        grayscale = self.rgb_to_grayscale(color.getRgb())
+
+        return grayscale
 
     def get_new_se_cells(
         self, row, col, current_time, colors, i, newly_se_cells, found_se
@@ -2173,26 +2176,19 @@ class MainWindow(QMainWindow):
                 print(f"Width: {width}, Height: {height}")
 
                 if width <= 400 and height <= 400:
-                    # Create a QRadialGradient
                     gradient = QRadialGradient(
                         width / 2, height / 2, max(width, height) / 2
                     )
-                    gradient.setColorAt(
-                        0, QColor(255, 0, 0, int(255 * 0.1))
-                    )  # Opaque red at center
-                    gradient.setColorAt(
-                        1, QColor(255, 0, 0, 0)
-                    )  # Transparent red at edges
+                    gradient.setColorAt(0, QColor(255, 0, 0, int(255 * 0.1)))
+                    gradient.setColorAt(1, QColor(255, 0, 0, 0))
 
                     discharge_point = QGraphicsEllipseItem(0, 0, width, height)
                     discharge_point.setBrush(QBrush(gradient))
                     discharge_point.setPen(QPen(Qt.NoPen))
 
-                    # Calculate scene coordinates for centroid
                     centroid_x = new_centroid[1] * rightmost_cell.rect().width()
                     centroid_y = new_centroid[0] * highest_cell.rect().height()
 
-                    # Position the discharge point, centering it on the centroid
                     discharge_point.setPos(
                         centroid_x - width / 2, centroid_y - height / 2
                     )
