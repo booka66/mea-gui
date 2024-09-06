@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
     QAction,
     QDialog,
     QGraphicsPathItem,
+    QGraphicsProxyWidget,
     QGraphicsScene,
     QGraphicsView,
     QLabel,
@@ -17,6 +18,8 @@ from PyQt5.QtWidgets import (
 import random
 from widgets.ColorCell import ColorCell
 from helpers.Constants import BACKGROUND, ACTIVE
+import pyqtgraph as pg
+import numpy as np
 
 
 class Spark(QGraphicsEllipseItem):
@@ -99,6 +102,32 @@ class GridWidget(QGraphicsView):
         self.selected_channel = None
         self.image_path = None
         self.createGrid()
+
+        # Set up the pyqtgraph plot
+        self.plot_widget = pg.PlotWidget()
+        self.plot_widget.setBackground("w")
+        self.plot_widget.setFixedSize(300, 200)  # Adjust size as needed
+        self.plot_item = self.plot_widget.getPlotItem()
+        self.plot_item.showGrid(x=True, y=True, alpha=0.3)
+        # Auto scale the Y axis
+        self.plot_item.enableAutoRange(axis="y")
+
+        self.curve1 = self.plot_item.plot(pen="b")
+        self.curve2 = self.plot_item.plot(pen="r")
+
+        # Add the plot to the scene
+        self.plot_proxy = QGraphicsProxyWidget()
+        self.plot_proxy.setWidget(self.plot_widget)
+        # self.scene.addItem(self.plot_proxy)
+        self.plot_proxy.setZValue(1000)  # Ensure it's on top of other items
+
+        # Data for the plot
+        self.plot_data1 = np.zeros(100)
+        self.plot_data2 = np.zeros(100)
+        self.plot_x = np.arange(100)
+
+        # Connect to progress bar value changed signal
+        # self.main_window.progress_bar.valueChanged.connect(self.update_plot)
 
         self.is_lasso_mode = False
         self.lasso_path = None
@@ -476,6 +505,24 @@ class GridWidget(QGraphicsView):
         self.update_message_position()
         if self.image_path:
             self.setBackgroundImage(self.image_path)
+        self.update_plot_position()
+
+    def update_plot_position(self):
+        # Position the plot in the top-left corner
+        self.plot_proxy.setPos(10, 10)
+
+    def update_plot(self, value):
+        # Shift existing data
+        self.plot_data1[:-1] = self.plot_data1[1:]
+        self.plot_data2[:-1] = self.plot_data2[1:]
+
+        # Add new data points
+        self.plot_data1[-1] = self.main_window.metric_50
+        self.plot_data2[-1] = self.main_window.metric_cluster
+
+        # Update the curves
+        self.curve1.setData(self.plot_x, self.plot_data1)
+        self.curve2.setData(self.plot_x, self.plot_data2)
 
     def setBackgroundImage(self, image_path):
         self.image_path = image_path

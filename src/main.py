@@ -228,6 +228,7 @@ class MainWindow(QMainWindow):
         self.potential_discharge = False
         self.discharge_starts = []
         self.last_found_discharge_time = None
+        self.track_discharge_beginnings = True
 
         self.loading_dialog = LoadingDialog(self)
         self.loading_dialog.analysis_cancelled.connect(self.cancel_analysis)
@@ -303,6 +304,15 @@ class MainWindow(QMainWindow):
         self.togglePropLinesAction.setChecked(False)
         self.togglePropLinesAction.triggered.connect(self.toggle_prop_lines)
         self.viewMenu.addAction(self.togglePropLinesAction)
+
+        self.track_discharge_beginnings_action = QAction(
+            "Track Discharge Beginnings", self, checkable=True
+        )
+        self.track_discharge_beginnings_action.setChecked(True)
+        self.track_discharge_beginnings_action.triggered.connect(
+            self.toggle_track_discharge_beginnings
+        )
+        self.viewMenu.addAction(self.track_discharge_beginnings_action)
 
         self.toggleEventsAction = QAction("Detected events", self, checkable=True)
         self.toggleEventsAction.setChecked(True)
@@ -1001,6 +1011,9 @@ class MainWindow(QMainWindow):
             self.show_prop_lines()
         else:
             self.hide_prop_lines()
+
+    def toggle_track_discharge_beginnings(self, checked):
+        self.track_discharge_beginnings = checked
 
     def toggle_playheads(self, checked):
         # Toggle the trace plots playheads
@@ -1990,20 +2003,7 @@ class MainWindow(QMainWindow):
 
             colors.append(color)
 
-        gray_range = max_gray_value - min_gray_value
-
-        print("Color range:", gray_range)
-
-        if gray_range > 110:
-            max_color_count = np.sum(
-                [color.getRgb()[0] >= 0.7 * max_gray_value for color in colors]
-            )
-            if max_color_count > 1:
-                print("Max color count:", max_color_count)
-                print("Discharge start detected")
-                self.potential_discharge = True
-
-        return colors
+        return colors, min_gray_value, max_gray_value
 
     def rgb_to_grayscale(self, rgb) -> QColor:
         constant = int(0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2])
@@ -2093,7 +2093,110 @@ class MainWindow(QMainWindow):
             self.clear_discharges(current_time)
 
         if self.do_show_false_color_map:
-            colors = self.get_false_color_map_colors(current_time)
+            colors, min_gray_value, max_gray_value = self.get_false_color_map_colors(
+                current_time
+            )
+            top_cells = []
+            if self.track_discharge_beginnings:
+                gray_range = max_gray_value - min_gray_value
+
+                print("Color range:", gray_range)
+
+                if gray_range > 110:
+                    max_color_count = np.sum(
+                        [color.getRgb()[0] >= 0.7 * max_gray_value for color in colors]
+                    )
+                    if max_color_count > 1 and (
+                        self.last_found_discharge_time is None
+                        or current_time - self.last_found_discharge_time > 1
+                    ):
+                        print("Max color count:", max_color_count)
+                        print("Discharge start detected")
+                        self.potential_discharge = True
+                        luminance_threshold = np.percentile(
+                            [cell.get_luminance() for cell in self.cells], 95
+                        )
+
+                        top_cells = [
+                            cell
+                            for cell in self.cells
+                            if cell.get_luminance() >= luminance_threshold
+                        ]
+                        points = np.array([(cell.row, cell.col) for cell in top_cells])
+                        for cell in top_cells:
+                            cell.setColor(QColor(0, 255, 0), 1, self.opacity)
+
+                        # Use DBSCAN to get centroid and elminate outliers
+                        db = DBSCAN(eps=self.eps, min_samples=self.min_samples).fit(
+                            points
+                        )
+
+                        labels = db.labels_
+                        unique_labels = set(labels)
+                        if -1 in unique_labels:
+                            unique_labels.remove(-1)
+
+                        top_cells = [
+                            cell
+                            for cell, label in zip(top_cells, labels)
+                            if label != -1
+                        ]
+                        points = np.array([(cell.row, cell.col) for cell in top_cells])
+
+                        if len(top_cells) > 0:
+                            new_centroid = np.average(
+                                points,
+                                axis=0,
+                                weights=[cell.get_luminance() for cell in top_cells],
+                            )
+                            highest_cell = max(top_cells, key=lambda cell: cell.row)
+                            lowest_cell = min(top_cells, key=lambda cell: cell.row)
+                            height = (
+                                highest_cell.row - lowest_cell.row + 1
+                            ) * highest_cell.rect().height()
+                            leftmost_cell = min(top_cells, key=lambda cell: cell.col)
+                            rightmost_cell = max(top_cells, key=lambda cell: cell.col)
+                            width = (
+                                rightmost_cell.col - leftmost_cell.col + 1
+                            ) * rightmost_cell.rect().width()
+
+                            print(f"Width: {width}, Height: {height}")
+
+                            if width <= 400 and height <= 400:
+                                gradient = QRadialGradient(
+                                    width / 2, height / 2, max(width, height) / 2
+                                )
+                                gradient.setColorAt(
+                                    0, QColor(255, 0, 0, int(255 * 0.03))
+                                )
+                                gradient.setColorAt(1, QColor(255, 0, 0, 0))
+
+                                discharge_point = QGraphicsEllipseItem(
+                                    0, 0, width, height
+                                )
+                                discharge_point.setBrush(QBrush(gradient))
+                                discharge_point.setPen(QPen(Qt.NoPen))
+
+                                centroid_x = (
+                                    new_centroid[1] * rightmost_cell.rect().width()
+                                )
+                                centroid_y = (
+                                    new_centroid[0] * highest_cell.rect().height()
+                                )
+
+                                discharge_point.setPos(
+                                    centroid_x - width / 2, centroid_y - height / 2
+                                )
+
+                                self.grid_widget.scene.addItem(discharge_point)
+                                self.discharge_starts.append(discharge_point)
+                                self.last_found_discharge_time = current_time
+                                self.pause_playback()
+                                # Skip ahead 1 second to avoid finding the same discharge multiple times
+                                # self.progress_bar.setValue(
+                                #     int((current_time + 1.5) * self.sampling_rate)
+                                # )
+
         else:
             colors = [ACTIVE] * len(self.active_channels)
 
@@ -2136,67 +2239,8 @@ class MainWindow(QMainWindow):
                 self.seized_cells.remove((row, col))
                 self.remove_seizure_arrows(row, col)
 
-        if self.potential_discharge:
-            # if self.discharge_starts:
-            #     self.grid_widget.scene.removeItem(self.discharge_starts)
-            #     self.discharge_starts = None
-            self.potential_discharge = False
-
-            luminance_threshold = np.percentile(
-                [cell.get_luminance() for cell in self.cells], 95
-            )
-
-            top_cells = [
-                cell
-                for cell in self.cells
-                if cell.get_luminance() >= luminance_threshold
-            ]
-
-            if len(top_cells) > 0 and (
-                self.last_found_discharge_time is None
-                or current_time - self.last_found_discharge_time > 0.5
-            ):
-                for cell in top_cells:
-                    cell.setColor(QColor(0, 255, 0), 1, self.opacity)
-                points = np.array([(cell.row, cell.col) for cell in top_cells])
-                new_centroid = np.average(
-                    points, axis=0, weights=[cell.get_luminance() for cell in top_cells]
-                )
-                highest_cell = max(top_cells, key=lambda cell: cell.row)
-                lowest_cell = min(top_cells, key=lambda cell: cell.row)
-                height = (
-                    highest_cell.row - lowest_cell.row + 1
-                ) * highest_cell.rect().height()
-                leftmost_cell = min(top_cells, key=lambda cell: cell.col)
-                rightmost_cell = max(top_cells, key=lambda cell: cell.col)
-                width = (
-                    rightmost_cell.col - leftmost_cell.col + 1
-                ) * rightmost_cell.rect().width()
-
-                print(f"Width: {width}, Height: {height}")
-
-                if width <= 400 and height <= 400:
-                    gradient = QRadialGradient(
-                        width / 2, height / 2, max(width, height) / 2
-                    )
-                    gradient.setColorAt(0, QColor(255, 0, 0, int(255 * 0.1)))
-                    gradient.setColorAt(1, QColor(255, 0, 0, 0))
-
-                    discharge_point = QGraphicsEllipseItem(0, 0, width, height)
-                    discharge_point.setBrush(QBrush(gradient))
-                    discharge_point.setPen(QPen(Qt.NoPen))
-
-                    centroid_x = new_centroid[1] * rightmost_cell.rect().width()
-                    centroid_y = new_centroid[0] * highest_cell.rect().height()
-
-                    discharge_point.setPos(
-                        centroid_x - width / 2, centroid_y - height / 2
-                    )
-
-                    self.grid_widget.scene.addItem(discharge_point)
-                    self.discharge_starts.append(discharge_point)
-                    self.last_found_discharge_time = current_time
-                self.pause_playback()
+        for cell in top_cells:
+            cell.setColor(QColor(255, 0, 0), 1, self.opacity)
 
         self.grid_widget.update()
         # end = perf_counter()
