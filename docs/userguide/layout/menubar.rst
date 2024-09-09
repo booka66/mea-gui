@@ -58,6 +58,8 @@ Edit
 ====
 Contains actions for setting parameters used in the analysis.
 
+.. _peak_settings:
+
 Set Peak Settings
 -----------------
 Hovering over this action displays a window containing parameters used for a peak finding algorithm.
