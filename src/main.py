@@ -4,9 +4,7 @@ import math
 import os
 import sys
 from pathlib import Path
-from typing_extensions import List
 from urllib.request import pathname2url
-from uuid import uuid4
 
 import h5py
 import numpy as np
@@ -23,7 +21,6 @@ from PyQt5.QtCore import (
     pyqtSignal,
 )
 from PyQt5.QtGui import (
-    QBrush,
     QColor,
     QCursor,
     QFont,
@@ -31,7 +28,6 @@ from PyQt5.QtGui import (
     QPen,
     QPixmap,
     QPolygonF,
-    QRadialGradient,
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWidgets import (
@@ -165,33 +161,6 @@ class DischargeFinder(QThread):
         self.finished.emit(discharges)
 
 
-class DischargeStartArea:
-    def __init__(self, timestamp, x, y, width, height, involved_channels):
-        self.id = uuid4().__str__()
-        self.timestamp = timestamp
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.involved_channels = involved_channels
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "timestamp": self.timestamp,
-            "x": self.x,
-            "y": self.y,
-            "width": self.width,
-            "height": self.height,
-            "involved_channels": [
-                [cell.row, cell.col] for cell in self.involved_channels
-            ],
-        }
-
-    def __str__(self):
-        return f"Discharge:\n\tTime: {self.timestamp} s\n\t(x, y): ({self.x}, {self.y})\n\t(w, h): ({self.width}, {self.height}))"
-
-
 class MainWindow(QMainWindow):
     gridUpdateRequested = pyqtSignal()
 
@@ -256,7 +225,7 @@ class MainWindow(QMainWindow):
         self.spaital_sections = []
         self.potential_discharge = False
         self.discharge_starts_points = []
-        self.discharge_start_areas: List[DischargeStartArea] = []
+        self.discharge_start_dialog: DischargeStartDialog = None
         self.last_found_discharge_time = None
         self.track_discharge_beginnings = True
 
@@ -354,14 +323,13 @@ class MainWindow(QMainWindow):
         self.toggleColorMappingAction.triggered.connect(self.toggle_false_color_map)
         self.viewMenu.addAction(self.toggleColorMappingAction)
 
-        self.toggleDischargeStartDialogAction = QAction(
-            "Discharge Start Dialog", self, checkable=True
+        self.viewDischargeStartDialogAction = QAction(
+            "Open Discharge Start Dialog", self
         )
-        self.toggleDischargeStartDialogAction.setChecked(False)
-        self.toggleDischargeStartDialogAction.triggered.connect(
-            self.toggle_discharge_start_dialog
+        self.viewDischargeStartDialogAction.triggered.connect(
+            self.open_discharge_start_dialog
         )
-        self.viewMenu.addAction(self.toggleDischargeStartDialogAction)
+        self.viewMenu.addAction(self.viewDischargeStartDialogAction)
 
         self.viewMenu.addSeparator()
 
@@ -733,12 +701,13 @@ class MainWindow(QMainWindow):
         if self.raster_plot:
             self.raster_plot.toggle_color_mode()
 
-    def toggle_discharge_start_dialog(self, checked):
-        if checked:
-            self.discharge_start_dialog = DischargeStartDialog(self)
-            self.discharge_start_dialog.show()
-        else:
-            self.discharge_start_dialog.close()
+    def open_discharge_start_dialog(self):
+        if (
+            self.discharge_start_dialog is None
+            or self.discharge_start_dialog.isVisible()
+        ):
+            return
+        self.discharge_start_dialog.show()
 
     def toggle_false_color_map(self, checked):
         self.do_show_false_color_map = checked
@@ -2125,56 +2094,6 @@ class MainWindow(QMainWindow):
                 if self.do_show_spread_lines and (row, col) not in self.seized_cells:
                     newly_seized_cells.append((row, col))
 
-    def clear_discharge_start_areas_from_hdf5(self):
-        try:
-            with h5py.File(self.file_path, "a") as f:
-                if "discharge_start_areas" in f:
-                    del f["discharge_start_areas"]
-        except Exception as e:
-            print(f"Error clearing discharge start areas from HDF: {e}")
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Critical)
-            msg.setText(
-                "Error clearing discharge start areas from HDF file. Double check that the file is not open in another program as that apparently is a big no-no."
-            )
-            msg.setInformativeText(f"Error: {e}")
-            msg.setWindowTitle("Error")
-            msg.exec_()
-
-    def save_discharge_start_areas_to_hdf5(self):
-        if len(self.discharge_start_areas) == 0:
-            return
-        try:
-            with h5py.File(self.file_path, "a") as f:
-                if "discharge_start_areas" not in f:
-                    f.create_group("discharge_start_areas")
-                areas_group = f["discharge_start_areas"]
-                for discharge_start_area in self.discharge_start_areas:
-                    if discharge_start_area.id in areas_group:
-                        del areas_group[discharge_start_area.id]
-                    area_dataset = areas_group.create_dataset(
-                        discharge_start_area.id, data=[0], shape=(1,)
-                    )
-                    area_dataset.attrs["timestamp"] = discharge_start_area.timestamp
-                    area_dataset.attrs["centroid_x"] = discharge_start_area.x
-                    area_dataset.attrs["centroid_y"] = discharge_start_area.y
-                    area_dataset.attrs["width"] = discharge_start_area.width
-                    area_dataset.attrs["height"] = discharge_start_area.height
-                    area_dataset.attrs["involved_channels"] = [
-                        [cell.row, cell.col]
-                        for cell in discharge_start_area.involved_channels
-                    ]
-        except Exception as e:
-            print(f"Error saving discharge start areas to HDF: {e}")
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Critical)
-            msg.setText(
-                "Error saving discharge start areas to HDF file. Double check that the file is not open in another program as that apparently is a big no-no."
-            )
-            msg.setInformativeText(f"Error: {e}")
-            msg.setWindowTitle("Error")
-            msg.exec_()
-
     def update_grid(self, first=False):
         # start = perf_counter()
         if first:
@@ -2237,73 +2156,19 @@ class MainWindow(QMainWindow):
                             for cell, label in zip(top_cells, labels)
                             if label != -1
                         ]
-                        points = np.array([(cell.row, cell.col) for cell in top_cells])
 
                         if len(top_cells) > 0:
-                            new_centroid = np.average(
-                                points,
-                                axis=0,
-                                weights=[cell.get_luminance() for cell in top_cells],
+                            self.discharge_start_dialog.create_discharge_start_area(
+                                current_time, top_cells
                             )
-                            highest_cell = max(top_cells, key=lambda cell: cell.row)
-                            lowest_cell = min(top_cells, key=lambda cell: cell.row)
-                            height = (
-                                highest_cell.row - lowest_cell.row + 1
-                            ) * highest_cell.rect().height()
-                            leftmost_cell = min(top_cells, key=lambda cell: cell.col)
-                            rightmost_cell = max(top_cells, key=lambda cell: cell.col)
-                            width = (
-                                rightmost_cell.col - leftmost_cell.col + 1
-                            ) * rightmost_cell.rect().width()
+                            self.discharge_start_dialog.update_discharges()
 
-                            print(f"Width: {width}, Height: {height}")
+                            # self.save_discharge_start_areas_to_hdf5()
 
-                            if width <= 400 and height <= 400:
-                                gradient = QRadialGradient(
-                                    width / 2, height / 2, max(width, height) / 2
-                                )
-                                gradient.setColorAt(
-                                    0, QColor(255, 0, 0, int(255 * 0.03))
-                                )
-                                gradient.setColorAt(1, QColor(255, 0, 0, 0))
-
-                                discharge_point = QGraphicsEllipseItem(
-                                    0, 0, width, height
-                                )
-                                discharge_point.setBrush(QBrush(gradient))
-                                discharge_point.setPen(QPen(Qt.NoPen))
-
-                                centroid_x = (
-                                    new_centroid[1] * rightmost_cell.rect().width()
-                                )
-                                centroid_y = (
-                                    new_centroid[0] * highest_cell.rect().height()
-                                )
-
-                                discharge_point.setPos(
-                                    centroid_x - width / 2, centroid_y - height / 2
-                                )
-
-                                discharge_start_area = DischargeStartArea(
-                                    current_time,
-                                    centroid_x,
-                                    centroid_y,
-                                    width,
-                                    height,
-                                    top_cells,
-                                )
-                                print(discharge_start_area)
-                                self.discharge_start_areas.append(discharge_start_area)
-                                self.save_discharge_start_areas_to_hdf5()
-
-                                self.grid_widget.scene.addItem(discharge_point)
-                                self.discharge_starts_points.append(discharge_point)
-                                self.last_found_discharge_time = current_time
-                                self.pause_playback()
-                                # Skip ahead 1 second to avoid finding the same discharge multiple times
-                                # self.progress_bar.setValue(
-                                #     int((current_time + 1.5) * self.sampling_rate)
-                                # )
+                            # self.grid_widget.scene.addItem(discharge_point)
+                            # self.discharge_starts_points.append(discharge_point)
+                            self.last_found_discharge_time = current_time
+                            self.pause_playback()
 
         else:
             colors = [ACTIVE] * len(self.active_channels)
@@ -2714,6 +2579,8 @@ class MainWindow(QMainWindow):
                 np.array([]),
                 np.array([]),
             )
+
+        self.discharge_start_dialog = DischargeStartDialog(self)
 
         self.set_widgets_enabled()
 
