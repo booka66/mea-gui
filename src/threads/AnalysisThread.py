@@ -160,6 +160,20 @@ class AnalysisThread(QThread):
             self.time_vector = [i / self.sampling_rate for i in range(num_rec_frames)]
             rows, cols = self.get_channels()
             self.active_channels = list(zip(rows, cols))
+            for cell_data in self.data.flatten():
+                if cell_data is None:
+                    continue
+                signal = cell_data["signal"]
+                if signal is not None:
+                    # Print stats about the signal
+                    min_strength = signal.min()
+                    max_strength = signal.max()
+                    mean_strength = signal.mean()
+                    std_strength = signal.std()
+                    print(
+                        f"min: {min_strength}, max: {max_strength}, mean: {mean_strength}, std: {std_strength}\n{signal[:20]}"
+                    )
+                    break
             self.analysis_completed.emit()
             end = perf_counter()
             analysis_time = end - start

@@ -4,8 +4,9 @@ import math
 import os
 import sys
 from pathlib import Path
-from time import perf_counter
+from typing_extensions import List
 from urllib.request import pathname2url
+from uuid import uuid4
 
 import h5py
 import numpy as np
@@ -78,6 +79,7 @@ from threads.MatlabEngineThread import MatlabEngineThread
 from widgets.ChannelExtract import ChannelExtract
 from widgets.ClusterTracker import ClusterTracker
 from widgets.ColorCell import ColorCell
+from widgets.DischargeStartDialog import DischargeStartDialog
 from widgets.GraphWidget import GraphWidget
 from widgets.GridWidget import GridWidget
 from widgets.GroupSelectionDialog import Group, GroupSelectionDialog
@@ -163,6 +165,33 @@ class DischargeFinder(QThread):
         self.finished.emit(discharges)
 
 
+class DischargeStartArea:
+    def __init__(self, timestamp, x, y, width, height, involved_channels):
+        self.id = uuid4().__str__()
+        self.timestamp = timestamp
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.involved_channels = involved_channels
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp,
+            "x": self.x,
+            "y": self.y,
+            "width": self.width,
+            "height": self.height,
+            "involved_channels": [
+                [cell.row, cell.col] for cell in self.involved_channels
+            ],
+        }
+
+    def __str__(self):
+        return f"Discharge:\n\tTime: {self.timestamp} s\n\t(x, y): ({self.x}, {self.y})\n\t(w, h): ({self.width}, {self.height}))"
+
+
 class MainWindow(QMainWindow):
     gridUpdateRequested = pyqtSignal()
 
@@ -226,7 +255,8 @@ class MainWindow(QMainWindow):
         self.markers = []
         self.spaital_sections = []
         self.potential_discharge = False
-        self.discharge_starts = []
+        self.discharge_starts_points = []
+        self.discharge_start_areas: List[DischargeStartArea] = []
         self.last_found_discharge_time = None
         self.track_discharge_beginnings = True
 
@@ -323,6 +353,15 @@ class MainWindow(QMainWindow):
         self.toggleColorMappingAction.setChecked(True)
         self.toggleColorMappingAction.triggered.connect(self.toggle_false_color_map)
         self.viewMenu.addAction(self.toggleColorMappingAction)
+
+        self.toggleDischargeStartDialogAction = QAction(
+            "Discharge Start Dialog", self, checkable=True
+        )
+        self.toggleDischargeStartDialogAction.setChecked(False)
+        self.toggleDischargeStartDialogAction.triggered.connect(
+            self.toggle_discharge_start_dialog
+        )
+        self.viewMenu.addAction(self.toggleDischargeStartDialogAction)
 
         self.viewMenu.addSeparator()
 
@@ -693,6 +732,13 @@ class MainWindow(QMainWindow):
     def toggle_raster_color_mode(self):
         if self.raster_plot:
             self.raster_plot.toggle_color_mode()
+
+    def toggle_discharge_start_dialog(self, checked):
+        if checked:
+            self.discharge_start_dialog = DischargeStartDialog(self)
+            self.discharge_start_dialog.show()
+        else:
+            self.discharge_start_dialog.close()
 
     def toggle_false_color_map(self, checked):
         self.do_show_false_color_map = checked
@@ -2079,6 +2125,56 @@ class MainWindow(QMainWindow):
                 if self.do_show_spread_lines and (row, col) not in self.seized_cells:
                     newly_seized_cells.append((row, col))
 
+    def clear_discharge_start_areas_from_hdf5(self):
+        try:
+            with h5py.File(self.file_path, "a") as f:
+                if "discharge_start_areas" in f:
+                    del f["discharge_start_areas"]
+        except Exception as e:
+            print(f"Error clearing discharge start areas from HDF: {e}")
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText(
+                "Error clearing discharge start areas from HDF file. Double check that the file is not open in another program as that apparently is a big no-no."
+            )
+            msg.setInformativeText(f"Error: {e}")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+
+    def save_discharge_start_areas_to_hdf5(self):
+        if len(self.discharge_start_areas) == 0:
+            return
+        try:
+            with h5py.File(self.file_path, "a") as f:
+                if "discharge_start_areas" not in f:
+                    f.create_group("discharge_start_areas")
+                areas_group = f["discharge_start_areas"]
+                for discharge_start_area in self.discharge_start_areas:
+                    if discharge_start_area.id in areas_group:
+                        del areas_group[discharge_start_area.id]
+                    area_dataset = areas_group.create_dataset(
+                        discharge_start_area.id, data=[0], shape=(1,)
+                    )
+                    area_dataset.attrs["timestamp"] = discharge_start_area.timestamp
+                    area_dataset.attrs["centroid_x"] = discharge_start_area.x
+                    area_dataset.attrs["centroid_y"] = discharge_start_area.y
+                    area_dataset.attrs["width"] = discharge_start_area.width
+                    area_dataset.attrs["height"] = discharge_start_area.height
+                    area_dataset.attrs["involved_channels"] = [
+                        [cell.row, cell.col]
+                        for cell in discharge_start_area.involved_channels
+                    ]
+        except Exception as e:
+            print(f"Error saving discharge start areas to HDF: {e}")
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText(
+                "Error saving discharge start areas to HDF file. Double check that the file is not open in another program as that apparently is a big no-no."
+            )
+            msg.setInformativeText(f"Error: {e}")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+
     def update_grid(self, first=False):
         # start = perf_counter()
         if first:
@@ -2188,8 +2284,20 @@ class MainWindow(QMainWindow):
                                     centroid_x - width / 2, centroid_y - height / 2
                                 )
 
+                                discharge_start_area = DischargeStartArea(
+                                    current_time,
+                                    centroid_x,
+                                    centroid_y,
+                                    width,
+                                    height,
+                                    top_cells,
+                                )
+                                print(discharge_start_area)
+                                self.discharge_start_areas.append(discharge_start_area)
+                                self.save_discharge_start_areas_to_hdf5()
+
                                 self.grid_widget.scene.addItem(discharge_point)
-                                self.discharge_starts.append(discharge_point)
+                                self.discharge_starts_points.append(discharge_point)
                                 self.last_found_discharge_time = current_time
                                 self.pause_playback()
                                 # Skip ahead 1 second to avoid finding the same discharge multiple times
@@ -2533,7 +2641,6 @@ class MainWindow(QMainWindow):
             return None
 
     def on_analysis_completed(self):
-        start = perf_counter()
         self.loading_dialog.hide()
         self.data = self.analysis_thread.data
 
@@ -2549,8 +2656,6 @@ class MainWindow(QMainWindow):
         self.active_channels = self.analysis_thread.active_channels
         self.min_voltage = float("inf")
         self.max_voltage = float("-inf")
-        end = perf_counter()
-        print(f"Data transfered in {end - start:.2f} seconds")
 
         self.peak_settings_widget.threshold_slider.setValue(self.n_std_dev)
         self.peak_settings_widget.threshold_value.setText(str(self.n_std_dev))
@@ -2571,7 +2676,6 @@ class MainWindow(QMainWindow):
             [delta_t_str, "0.1", "0.25", "0.5", "1.0", "2.0", "4.0", "16.0"]
         )
 
-        start = perf_counter()
         for row, col in self.active_channels:
             volt_signal = self.data[row - 1, col - 1]["signal"]
             voltages = np.abs(np.diff(volt_signal))
@@ -2582,21 +2686,11 @@ class MainWindow(QMainWindow):
 
             self.grid_widget.update_cursor()
 
-        end = perf_counter()
-        print(f"Min/max voltages calculated in {end - start:.2f} seconds")
-
         self.progress_bar.setSamplingRate(self.sampling_rate)
         self.progress_bar.setRange(0, int(self.recording_length * self.sampling_rate))
 
-        start = perf_counter()
         self.create_grid()
-        end = perf_counter()
-        print(f"Grid created in {end - start:.2f} seconds")
-        start = perf_counter()
         self.update_grid(first=True)
-        end = perf_counter()
-        print(f"Grid updated in {end - start:.2f} seconds")
-        start = perf_counter()
         self.raster_plot = RasterPlot(
             self.data,
             self.sampling_rate,
@@ -2606,8 +2700,6 @@ class MainWindow(QMainWindow):
         self.raster_plot.generate_raster()
         self.raster_plot.create_raster_plot(self.second_plot_widget)
         self.raster_plot.set_main_window(self)
-        end = perf_counter()
-        print(f"Raster plot created in {end - start:.2f} seconds")
 
         title = "Select Channel"
         for i in range(4):
@@ -2622,14 +2714,6 @@ class MainWindow(QMainWindow):
                 np.array([]),
                 np.array([]),
             )
-
-        # for i in range(1, 4):
-        #     self.graph_widget.plot_widgets[i].setXLink(
-        #         self.graph_widget.plot_widgets[0]
-        #     )
-        #     self.graph_widget.plot_widgets[i].setYLink(
-        #         self.graph_widget.plot_widgets[0]
-        #     )
 
         self.set_widgets_enabled()
 

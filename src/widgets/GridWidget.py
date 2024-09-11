@@ -206,16 +206,21 @@ class GridWidget(QGraphicsView):
             save_image_action = QAction("Save as Image", self)
             toggle_lasso_action = QAction("Create Propagation Groups", self)
             seizure_beginning_action = QAction("Place Seizure Beginning", self)
+            clear_discharge_start_areas = QAction("Clear Discharge Start Areas", self)
 
             context_menu.addAction(save_video_action)
             context_menu.addAction(save_image_action)
             context_menu.addAction(toggle_lasso_action)
             context_menu.addAction(seizure_beginning_action)
+            context_menu.addAction(clear_discharge_start_areas)
 
             save_video_action.triggered.connect(self.save_as_video_requested.emit)
             save_image_action.triggered.connect(self.save_as_image_requested.emit)
             toggle_lasso_action.triggered.connect(self.start_lasso_mode)
             seizure_beginning_action.triggered.connect(self.start_purple_dot_mode)
+            clear_discharge_start_areas.triggered.connect(
+                self.main_window.clear_discharge_start_areas_from_hdf5
+            )
 
             context_menu.exec_(self.mapToGlobal(event.pos()))
 

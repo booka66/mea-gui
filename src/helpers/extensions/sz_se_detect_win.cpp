@@ -437,23 +437,117 @@ std::vector<ChannelData> get_cat_envelop(const std::string &FileName) {
       }
     };
 
+    auto readAttr = [&file](const std::string &objPath,
+                            const std::string &attrName) -> double {
+      try {
+        H5::Attribute attr;
+        if (objPath.empty() || objPath == "/") {
+          if (!file.attrExists(attrName)) {
+            throw std::runtime_error("Attribute '" + attrName +
+                                     "' does not exist in root");
+          }
+          attr = file.openAttribute(attrName);
+        } else {
+          if (H5Lexists(file.getId(), objPath.c_str(), H5P_DEFAULT) <= 0) {
+            throw std::runtime_error("Object path '" + objPath +
+                                     "' does not exist");
+          }
+          H5O_info2_t oinfo;
+          H5Oget_info_by_name3(file.getId(), objPath.c_str(), &oinfo,
+                               H5O_INFO_BASIC, H5P_DEFAULT);
+          if (oinfo.type == H5O_TYPE_DATASET) {
+            H5::DataSet dataset = file.openDataSet(objPath);
+            if (!dataset.attrExists(attrName)) {
+              throw std::runtime_error("Attribute '" + attrName +
+                                       "' does not exist in dataset");
+            }
+            attr = dataset.openAttribute(attrName);
+          } else if (oinfo.type == H5O_TYPE_GROUP) {
+            H5::Group group = file.openGroup(objPath);
+            if (!group.attrExists(attrName)) {
+              throw std::runtime_error("Attribute '" + attrName +
+                                       "' does not exist in group");
+            }
+            attr = group.openAttribute(attrName);
+          } else {
+            throw std::runtime_error("Unsupported object type");
+          }
+        }
+
+        H5T_class_t type_class = attr.getTypeClass();
+        if (type_class == H5T_INTEGER) {
+          int data;
+          attr.read(H5::PredType::NATIVE_INT, &data);
+          return static_cast<double>(data);
+        } else if (type_class == H5T_FLOAT) {
+          double data;
+          attr.read(H5::PredType::NATIVE_DOUBLE, &data);
+          return data;
+        } else {
+          throw std::runtime_error("Unsupported attribute data type");
+        }
+      } catch (H5::Exception &e) {
+        std::cerr << "HDF5 Exception in readAttr: " << e.getDetailMsg()
+                  << std::endl;
+        throw;
+      } catch (std::exception &e) {
+        std::cerr << "Standard exception in readAttr: " << e.what()
+                  << std::endl;
+        throw;
+      } catch (...) {
+        std::cerr << "Unknown exception in readAttr" << std::endl;
+        throw;
+      }
+    };
+
     long long NRecFrames =
         static_cast<long long>(readDataset("/3BRecInfo/3BRecVars/NRecFrames"));
+    // std::cout << "---------------------------------" << std::endl;
+    // std::cout << "NRecFrames: " << NRecFrames << std::endl;
     double sampRate = readDataset("/3BRecInfo/3BRecVars/SamplingRate");
+    // std::cout << "Sampling Rate: " << sampRate << std::endl;
     double signalInversion =
         readDataset("/3BRecInfo/3BRecVars/SignalInversion");
+    // std::cout << "Signal Inversion: " << signalInversion << std::endl;
     double maxUVolt = readDataset("/3BRecInfo/3BRecVars/MaxVolt");
+    // std::cout << "Max Voltage: " << maxUVolt << std::endl;
     double minUVolt = readDataset("/3BRecInfo/3BRecVars/MinVolt");
+    // std::cout << "Min Voltage: " << minUVolt << std::endl;
     int bitDepth =
         static_cast<int>(readDataset("/3BRecInfo/3BRecVars/BitDepth"));
+    // std::cout << "Bit Depth: " << bitDepth << std::endl;
 
     uint64_t qLevel =
-        static_cast<uint64_t>(1) ^ static_cast<uint64_t>(bitDepth);
+        static_cast<uint64_t>(2) ^ static_cast<uint64_t>(bitDepth);
+    // std::cout << "Quantization Level: " << qLevel << std::endl;
 
     double fromQLevelToUVolt =
         (maxUVolt - minUVolt) / static_cast<double>(qLevel);
+    // std::cout << "From Quantization Level to Microvolts: " <<
+    // fromQLevelToUVolt
+    << std::endl;
     double ADCCountsToMV = signalInversion * fromQLevelToUVolt;
+    // std::cout << "ADC Counts to mV: " << ADCCountsToMV << std::endl;
     double MVOffset = signalInversion * minUVolt;
+    // std::cout << "mV Offset: " << MVOffset << std::endl;
+    // std::cout << "---------------------------------" << std::endl;
+
+    bool use_old_conversion = false;
+    double conversion_factor = 1.0;
+    double offset_value = 0.0;
+    try {
+      double min_analog_value = readAttr("/", "MinAnalogValue");
+      double max_analog_value = readAttr("/", "MaxAnalogValue");
+      double min_digital_value = readAttr("/", "MinDigitalValue");
+      double max_digital_value = readAttr("/", "MaxDigitalValue");
+      conversion_factor = (max_analog_value - min_analog_value) /
+                          (max_digital_value - min_digital_value);
+      offset_value = min_analog_value - (conversion_factor * min_digital_value);
+    } catch (std::exception &e) {
+      std::cerr << "Error reading attributes: " << e.what() << std::endl;
+      std::cerr << "Reverting to original conversion method." << std::endl;
+      use_old_conversion = true;
+    }
 
     auto [Rows, Cols] = getChs(FileName);
     int total_channels = Rows.size();
@@ -485,9 +579,17 @@ std::vector<ChannelData> get_cat_envelop(const std::string &FileName) {
       ch_data.signal.reserve(NRecFrames);
 
       for (long long i = 0; i < NRecFrames; ++i) {
-        double val = static_cast<double>(all_data[i * total_channels + k]);
-        val = (val * ADCCountsToMV + MVOffset) / 1000000.0; // Convert to mV
-        ch_data.signal.push_back(val);
+        double digital_val =
+            static_cast<double>(all_data[i * total_channels + k]);
+        if (use_old_conversion) {
+          double analog_value =
+              (digital_val * ADCCountsToMV + MVOffset) / 1000000.0;
+          ch_data.signal.push_back(analog_value);
+          continue;
+        }
+        double analog_value =
+            (offset_value + digital_val * conversion_factor) / 1000.0;
+        ch_data.signal.push_back(analog_value);
       }
       double mean =
           std::accumulate(ch_data.signal.begin(), ch_data.signal.end(), 0.0) /

@@ -1,6 +1,5 @@
 from PyQt5.QtCore import QEvent, QTimer, pyqtSignal, Qt
 from PyQt5.QtWidgets import (
-    QLabel,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -429,14 +428,12 @@ class GraphWidget(QWidget):
         self.plot_widgets[plot_index].clear()
         self.x_data[plot_index] = x
         self.y_data[plot_index] = y
-        print(f"We have {len(x)} points to plot")
         seizure_regions, se_regions = self.get_regions(seizures, se)
 
         curve = self.plot_widgets[plot_index].plot(pen=pg.mkPen("k", width=3))
         curve.setData(x, y)
         curve.setDownsampling(auto=True, method="peak", ds=100)
         curve.setClipToView(True)
-        print(f"plot_index: {plot_index}")
         self.trace_curves[plot_index] = curve
 
         self.plot_widgets[plot_index].addItem(self.red_lines[plot_index])
