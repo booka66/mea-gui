@@ -565,9 +565,17 @@ std::vector<ChannelData> get_cat_envelop(const std::string &FileName) {
       ch_data.signal.reserve(NRecFrames);
 
       for (long long i = 0; i < NRecFrames; ++i) {
-        double val = static_cast<double>(all_data[i * total_channels + k]);
-        val = (val * ADCCountsToMV + MVOffset) / 1000000.0; // Convert to mV
-        ch_data.signal.push_back(val);
+        double digital_val =
+            static_cast<double>(all_data[i * total_channels + k]);
+        if (use_old_conversion) {
+          double analog_value =
+              (digital_val * ADCCountsToMV + MVOffset) / 1000000.0;
+          ch_data.signal.push_back(analog_value);
+          continue;
+        }
+        double analog_value =
+            (offset_value + digital_val * conversion_factor) / 1000.0;
+        ch_data.signal.push_back(analog_value);
       }
       double mean =
           std::accumulate(ch_data.signal.begin(), ch_data.signal.end(), 0.0) /
