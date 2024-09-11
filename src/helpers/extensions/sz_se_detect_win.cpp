@@ -521,6 +521,23 @@ std::vector<ChannelData> get_cat_envelop(const std::string &FileName) {
     auto [Rows, Cols] = getChs(FileName);
     int total_channels = Rows.size();
 
+    bool use_old_conversion = false;
+    double conversion_factor = 1.0;
+    double offset_value = 0.0;
+    try {
+      double min_analog_value = readAttr("/", "MinAnalogValue");
+      double max_analog_value = readAttr("/", "MaxAnalogValue");
+      double min_digital_value = readAttr("/", "MinDigitalValue");
+      double max_digital_value = readAttr("/", "MaxDigitalValue");
+      conversion_factor = (max_analog_value - min_analog_value) /
+                          (max_digital_value - min_digital_value);
+      offset_value = min_analog_value - (conversion_factor * min_digital_value);
+    } catch (std::exception &e) {
+      std::cerr << "Error reading attributes: " << e.what() << std::endl;
+      std::cerr << "Reverting to original conversion method." << std::endl;
+      use_old_conversion = true;
+    }
+
     H5::DataSet full_data = file.openDataSet("/3BData/Raw");
     H5::DataSpace dataspace = full_data.getSpace();
     int rank = dataspace.getSimpleExtentNdims();
