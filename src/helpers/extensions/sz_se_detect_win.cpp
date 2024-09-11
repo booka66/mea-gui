@@ -437,6 +437,69 @@ std::vector<ChannelData> get_cat_envelop(const std::string &FileName) {
       }
     };
 
+    auto readAttr = [&file](const std::string &objPath,
+                            const std::string &attrName) -> double {
+      try {
+        H5::Attribute attr;
+        if (objPath.empty() || objPath == "/") {
+          if (!file.attrExists(attrName)) {
+            throw std::runtime_error("Attribute '" + attrName +
+                                     "' does not exist in root");
+          }
+          attr = file.openAttribute(attrName);
+        } else {
+          if (H5Lexists(file.getId(), objPath.c_str(), H5P_DEFAULT) <= 0) {
+            throw std::runtime_error("Object path '" + objPath +
+                                     "' does not exist");
+          }
+          H5O_info2_t oinfo;
+          H5Oget_info_by_name3(file.getId(), objPath.c_str(), &oinfo,
+                               H5O_INFO_BASIC, H5P_DEFAULT);
+          if (oinfo.type == H5O_TYPE_DATASET) {
+            H5::DataSet dataset = file.openDataSet(objPath);
+            if (!dataset.attrExists(attrName)) {
+              throw std::runtime_error("Attribute '" + attrName +
+                                       "' does not exist in dataset");
+            }
+            attr = dataset.openAttribute(attrName);
+          } else if (oinfo.type == H5O_TYPE_GROUP) {
+            H5::Group group = file.openGroup(objPath);
+            if (!group.attrExists(attrName)) {
+              throw std::runtime_error("Attribute '" + attrName +
+                                       "' does not exist in group");
+            }
+            attr = group.openAttribute(attrName);
+          } else {
+            throw std::runtime_error("Unsupported object type");
+          }
+        }
+
+        H5T_class_t type_class = attr.getTypeClass();
+        if (type_class == H5T_INTEGER) {
+          int data;
+          attr.read(H5::PredType::NATIVE_INT, &data);
+          return static_cast<double>(data);
+        } else if (type_class == H5T_FLOAT) {
+          double data;
+          attr.read(H5::PredType::NATIVE_DOUBLE, &data);
+          return data;
+        } else {
+          throw std::runtime_error("Unsupported attribute data type");
+        }
+      } catch (H5::Exception &e) {
+        std::cerr << "HDF5 Exception in readAttr: " << e.getDetailMsg()
+                  << std::endl;
+        throw;
+      } catch (std::exception &e) {
+        std::cerr << "Standard exception in readAttr: " << e.what()
+                  << std::endl;
+        throw;
+      } catch (...) {
+        std::cerr << "Unknown exception in readAttr" << std::endl;
+        throw;
+      }
+    };
+
     long long NRecFrames =
         static_cast<long long>(readDataset("/3BRecInfo/3BRecVars/NRecFrames"));
     double sampRate = readDataset("/3BRecInfo/3BRecVars/SamplingRate");
