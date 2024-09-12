@@ -219,7 +219,7 @@ class GridWidget(QGraphicsView):
             toggle_lasso_action.triggered.connect(self.start_lasso_mode)
             seizure_beginning_action.triggered.connect(self.start_purple_dot_mode)
             clear_discharge_start_areas.triggered.connect(
-                self.main_window.clear_discharge_start_areas_from_hdf5
+                self.main_window.discharge_start_dialog.clear_discharge_start_areas_from_hdf5
             )
 
             context_menu.exec_(self.mapToGlobal(event.pos()))

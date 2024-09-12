@@ -2163,13 +2163,6 @@ class MainWindow(QMainWindow):
                             )
                             self.discharge_start_dialog.update_discharges()
 
-                            # self.save_discharge_start_areas_to_hdf5()
-
-                            # self.grid_widget.scene.addItem(discharge_point)
-                            # self.discharge_starts_points.append(discharge_point)
-                            self.last_found_discharge_time = current_time
-                            self.pause_playback()
-
         else:
             colors = [ACTIVE] * len(self.active_channels)
 

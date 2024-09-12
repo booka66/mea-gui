@@ -1,10 +1,12 @@
-from PyQt5.QtGui import QBrush, QColor, QPen, QRadialGradient
+from PyQt5.QtGui import QBrush, QColor, QPainterPath, QRadialGradient
 import h5py
 from typing_extensions import List
 from PyQt5.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QCheckBox,
     QDialog,
-    QGraphicsEllipseItem,
-    QGraphicsScene,
+    QGraphicsItem,
     QHBoxLayout,
     QLabel,
     QMessageBox,
@@ -12,10 +14,31 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QTableWidget,
     QTableWidgetItem,
+    QWidget,
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import QEvent, QRectF, Qt
 import numpy as np
 from widgets.DischargeStartArea import DischargeStartArea
+import pyqtgraph as pg
+
+
+class TransparentEllipseItem(QGraphicsItem):
+    def __init__(self, x, y, width, height, brush):
+        super().__init__()
+        self.rect = QRectF(0, 0, width, height)
+        self.brush = brush
+        self.setPos(x - width / 2, y - height / 2)
+
+    def boundingRect(self):
+        return self.rect
+
+    def paint(self, painter, option, widget):
+        painter.setBrush(self.brush)
+        painter.setPen(Qt.NoPen)
+        painter.drawEllipse(self.rect)
+
+    def shape(self):
+        return QPainterPath()
 
 
 class DischargeStartDialog(QDialog):
@@ -23,7 +46,7 @@ class DischargeStartDialog(QDialog):
         super().__init__(main_window, Qt.Window)
         self.main_window = main_window
         self.setWindowTitle("Discharge Start Viewer")
-        self.setMinimumSize(400, 300)
+        self.setMinimumSize(800, 500)  # Increased size to accommodate the histogram
 
         self.discharge_start_areas: List[DischargeStartArea] = []
         self.discharge_start_items = []
@@ -31,11 +54,16 @@ class DischargeStartDialog(QDialog):
         # Set window flags to keep it on top
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
 
-        main_layout = QVBoxLayout()
+        main_layout = QHBoxLayout()  # Changed to QHBoxLayout
         self.setLayout(main_layout)
 
+        left_widget = QWidget()
+        left_layout = QVBoxLayout()
+        left_widget.setLayout(left_layout)
+        main_layout.addWidget(left_widget)
+
         bin_layout = QHBoxLayout()
-        main_layout.addLayout(bin_layout)
+        left_layout.addLayout(bin_layout)
 
         num_bins_label = QLabel("Number of Bins:")
         bin_layout.addWidget(num_bins_label)
@@ -52,7 +80,7 @@ class DischargeStartDialog(QDialog):
         bin_layout.addWidget(self.bins_size)
 
         self.num_discharge_label = QLabel("Number of Discharges: 0")
-        main_layout.addWidget(self.num_discharge_label)
+        left_layout.addWidget(self.num_discharge_label)
 
         # Create table widget
         self.table = QTableWidget()
@@ -60,9 +88,17 @@ class DischargeStartDialog(QDialog):
         self.table.setHorizontalHeaderLabels(["Bins", "Discharges"])
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setSelectionMode(QTableWidget.SingleSelection)
-        main_layout.addWidget(self.table)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.table.itemSelectionChanged.connect(self.on_selection_changed)
+        self.table.viewport().installEventFilter(self)
+        left_layout.addWidget(self.table)
+
+        # Add checkbox for filtering empty bins
+        self.filter_empty_bins = QCheckBox("Filter empty bins")
+        self.filter_empty_bins.setChecked(True)
+        self.filter_empty_bins.stateChanged.connect(self.update_table)
+        left_layout.addWidget(self.filter_empty_bins)
 
         self.num_bins.valueChanged.connect(self.update_bins_size)
         self.bins_size.valueChanged.connect(self.update_num_bins)
@@ -77,13 +113,40 @@ class DischargeStartDialog(QDialog):
             self.bins_size.setValue(int(new_bins_size))
             self.bins_size.blockSignals(False)
 
-        # Initial table update
+        # Create histogram widget
+        self.histogram = pg.PlotWidget()
+        self.histogram.setBackground("w")
+        self.histogram.setTitle("Discharge Distribution")
+        self.histogram.setLabel("left", "Number of Discharges")
+        self.histogram.setLabel("bottom", "Time (s)")
+        main_layout.addWidget(self.histogram)
+
+        # Initial table and histogram update
         self.update_table()
 
     def show(self):
         super().show()
         self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
         self.activateWindow()
+
+    def eventFilter(self, source, event):
+        if source is self.table.viewport() and event.type() == QEvent.MouseButtonPress:
+            item = self.table.itemAt(event.pos())
+            if item is not None:
+                row = self.table.row(item)
+                modifiers = QApplication.keyboardModifiers()
+                if modifiers == Qt.ControlModifier:
+                    self.table.setSelectionMode(QAbstractItemView.MultiSelection)
+                elif modifiers == Qt.ShiftModifier:
+                    self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+                else:
+                    self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+                    self.table.clearSelection()
+                self.table.selectRow(row)
+                print(f"Row {row} selected")  # Debug print
+                self.on_selection_changed()
+                return True
+        return super().eventFilter(source, event)
 
     def update_discharges(self):
         if len(self.discharge_start_areas) == 0:
@@ -94,7 +157,9 @@ class DischargeStartDialog(QDialog):
             f"Number of Discharges: {len(self.discharge_start_areas)}"
         )
         self.update_table()
-        self.draw_discharge_start_areas()
+        self.draw_selected_bins(
+            sorted(set(index.row() for index in self.table.selectedIndexes()))
+        )
 
     def update_bins_size(self):
         if not self.num_bins.hasFocus():
@@ -167,27 +232,93 @@ class DischargeStartDialog(QDialog):
             msg.exec_()
 
     def update_table(self):
+        bin_data = self.get_bin_data()
+
+        if self.filter_empty_bins.isChecked():
+            bin_data = [data for data in bin_data if data[2] > 0]
+
+        self.table.setRowCount(len(bin_data))
+
+        for row, (start_time, end_time, discharge_count) in enumerate(bin_data):
+            bin_item = QTableWidgetItem(f"{start_time}-{end_time} s")
+            bin_item.setTextAlignment(Qt.AlignCenter)
+            self.table.setItem(row, 0, bin_item)
+
+            discharge_item = QTableWidgetItem(f"{discharge_count}")
+            discharge_item.setTextAlignment(Qt.AlignCenter)
+            self.table.setItem(row, 1, discharge_item)
+
+        self.table.resizeColumnsToContents()
+        self.update_histogram(bin_data)
+
+    def update_histogram(self, bin_data):
+        self.histogram.clear()
+
+        x = [data[0] for data in bin_data]
+        y = [data[2] for data in bin_data]
+
+        bar_graph = pg.BarGraphItem(
+            x=x, height=y, width=self.bins_size.value() * 0.9, brush="b"
+        )
+        self.histogram.addItem(bar_graph)
+
+    def get_bin_data(self):
         num_bins = self.num_bins.value()
         bins_size = self.bins_size.value()
-        self.table.setRowCount(num_bins)
+        bin_data = []
 
         for i in range(num_bins):
             start_time = i * bins_size
             end_time = (i + 1) * bins_size
-            bin_item = QTableWidgetItem(f"{start_time}-{end_time} s")
-            bin_item.setTextAlignment(Qt.AlignCenter)
-            self.table.setItem(i, 0, bin_item)
+            discharge_count = sum(
+                1
+                for discharge in self.discharge_start_areas
+                if start_time <= discharge.timestamp < end_time
+            )
+            bin_data.append((start_time, end_time, discharge_count))
 
-            discharge_count = 0
-            for discharge in self.discharge_start_areas:
-                if start_time < discharge.timestamp < end_time:
-                    discharge_count += 1
+        print(f"Bin data before filtering: {bin_data}")  # Debug print
+        return bin_data
 
-            discharge_item = QTableWidgetItem(f"{discharge_count}")
-            discharge_item.setTextAlignment(Qt.AlignCenter)
-            self.table.setItem(i, 1, discharge_item)
+    def on_selection_changed(self):
+        selected_rows = sorted(
+            set(index.row() for index in self.table.selectedIndexes())
+        )
+        print(f"Selected rows: {selected_rows}")  # Debug print
+        self.draw_selected_bins(selected_rows)
 
-        self.table.resizeColumnsToContents()
+    def draw_selected_bins(self, selected_rows):
+        scene = self.main_window.grid_widget.scene
+        for item in self.discharge_start_items:
+            scene.removeItem(item)
+        self.discharge_start_items.clear()
+
+        bin_data = self.get_bin_data()
+        if self.filter_empty_bins.isChecked():
+            bin_data = [data for data in bin_data if data[2] > 0]
+
+        print(f"Drawing bins for rows: {selected_rows}")
+        print(
+            f"Total number of discharge start areas: {len(self.discharge_start_areas)}"
+        )
+
+        for row in selected_rows:
+            start_time, end_time, _ = bin_data[row]
+            print(f"Bin {row}: Start time: {start_time}, End time: {end_time}")
+
+            matching_discharges = [
+                discharge
+                for discharge in self.discharge_start_areas
+                if start_time <= discharge.timestamp < end_time
+            ]
+            print(
+                f"Number of matching discharges in bin {row}: {len(matching_discharges)}"
+            )
+
+            for discharge in matching_discharges:
+                self.draw_discharge_point(scene, discharge)
+
+        print(f"Total discharge points drawn: {len(self.discharge_start_items)}")
 
     def create_discharge_start_area(self, current_time, top_cells):
         points = np.array([(cell.row, cell.col) for cell in top_cells])
@@ -220,33 +351,42 @@ class DischargeStartDialog(QDialog):
                     top_cells,
                 )
             )
+            self.main_window.last_found_discharge_time = current_time
+            self.main_window.pause_playback()
+            self.save_discharge_start_areas_to_hdf5()
 
-    def draw_discharge_start_areas(self):
-        scene: QGraphicsScene = self.main_window.grid_widget.scene
+    def draw_discharge_point(self, scene, discharge):
+        gradient = QRadialGradient(
+            discharge.width / 2,
+            discharge.height / 2,
+            max(discharge.width, discharge.height) / 2,
+        )
+        gradient.setColorAt(
+            0, QColor(255, 0, 0, int(255 * 0.3))
+        )  # Increased opacity for visibility
+        gradient.setColorAt(1, QColor(255, 0, 0, 0))
 
-        # Remove previous discharge start areas
-        for item in self.discharge_start_items:
-            scene.removeItem(item)
-            self.discharge_start_items.remove(item)
+        discharge_point = TransparentEllipseItem(
+            discharge.x,
+            discharge.y,
+            discharge.width,
+            discharge.height,
+            QBrush(gradient),
+        )
+        scene.addItem(discharge_point)
+        self.discharge_start_items.append(discharge_point)
+        print(
+            f"Discharge point drawn at ({discharge.x}, {discharge.y}), time: {discharge.timestamp}"
+        )
 
-        for discharge in self.discharge_start_areas:
-            gradient = QRadialGradient(
-                discharge.width / 2,
-                discharge.height / 2,
-                max(discharge.width, discharge.height) / 2,
-            )
-            gradient.setColorAt(0, QColor(255, 0, 0, int(255 * 0.03)))
-            gradient.setColorAt(1, QColor(255, 0, 0, 0))
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Control or event.key() == Qt.Key_Meta:
+            self.table.setSelectionMode(QAbstractItemView.MultiSelection)
+        elif event.key() == Qt.Key_Shift:
+            self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        super().keyPressEvent(event)
 
-            discharge_point = QGraphicsEllipseItem(
-                0, 0, discharge.width, discharge.height
-            )
-            discharge_point.setBrush(QBrush(gradient))
-            discharge_point.setPen(QPen(Qt.NoPen))
-
-            discharge_point.setPos(
-                discharge.x - discharge.width / 2,
-                discharge.y - discharge.height / 2,
-            )
-
-            scene.addItem(discharge_point)
+    def keyReleaseEvent(self, event):
+        if event.key() in (Qt.Key_Control, Qt.Key_Meta, Qt.Key_Shift):
+            self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        super().keyReleaseEvent(event)
