@@ -227,7 +227,7 @@ class MainWindow(QMainWindow):
         self.discharge_starts_points = []
         self.discharge_start_dialog: DischargeStartDialog = None
         self.last_found_discharge_time = None
-        self.track_discharge_beginnings = True
+        self.track_discharge_beginnings = False
 
         self.loading_dialog = LoadingDialog(self)
         self.loading_dialog.analysis_cancelled.connect(self.cancel_analysis)
@@ -303,15 +303,6 @@ class MainWindow(QMainWindow):
         self.togglePropLinesAction.setChecked(False)
         self.togglePropLinesAction.triggered.connect(self.toggle_prop_lines)
         self.viewMenu.addAction(self.togglePropLinesAction)
-
-        self.track_discharge_beginnings_action = QAction(
-            "Track Discharge Beginnings", self, checkable=True
-        )
-        self.track_discharge_beginnings_action.setChecked(True)
-        self.track_discharge_beginnings_action.triggered.connect(
-            self.toggle_track_discharge_beginnings
-        )
-        self.viewMenu.addAction(self.track_discharge_beginnings_action)
 
         self.toggleEventsAction = QAction("Detected events", self, checkable=True)
         self.toggleEventsAction.setChecked(True)
@@ -1026,9 +1017,6 @@ class MainWindow(QMainWindow):
             self.show_prop_lines()
         else:
             self.hide_prop_lines()
-
-    def toggle_track_discharge_beginnings(self, checked):
-        self.track_discharge_beginnings = checked
 
     def toggle_playheads(self, checked):
         # Toggle the trace plots playheads
@@ -2117,7 +2105,7 @@ class MainWindow(QMainWindow):
 
                 print("Color range:", gray_range)
 
-                if gray_range > 110:
+                if gray_range > 105:
                     max_color_count = np.sum(
                         [color.getRgb()[0] >= 0.7 * max_gray_value for color in colors]
                     )

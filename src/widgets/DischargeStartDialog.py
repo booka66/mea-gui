@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMessageBox,
+    QPushButton,
     QSpinBox,
     QVBoxLayout,
     QTableWidget,
@@ -20,6 +21,7 @@ from PyQt5.QtCore import QEvent, QRectF, Qt
 import numpy as np
 from widgets.DischargeStartArea import DischargeStartArea
 import pyqtgraph as pg
+from matplotlib import cm
 
 
 class TransparentEllipseItem(QGraphicsItem):
@@ -50,6 +52,7 @@ class DischargeStartDialog(QDialog):
 
         self.discharge_start_areas: List[DischargeStartArea] = []
         self.discharge_start_items = []
+        self.colormap = cm.get_cmap("viridis")
 
         # Set window flags to keep it on top
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
@@ -79,8 +82,17 @@ class DischargeStartDialog(QDialog):
         self.bins_size.setMaximum(10000)
         bin_layout.addWidget(self.bins_size)
 
+        discharge_row = QHBoxLayout()
+        left_layout.addLayout(discharge_row)
+
         self.num_discharge_label = QLabel("Number of Discharges: 0")
-        left_layout.addWidget(self.num_discharge_label)
+        discharge_row.addWidget(self.num_discharge_label)
+
+        self.load_discharge_start_areas_button = QPushButton("Load Discharges")
+        self.load_discharge_start_areas_button.clicked.connect(
+            self.load_discharge_start_areas_from_hdf5
+        )
+        discharge_row.addWidget(self.load_discharge_start_areas_button)
 
         # Create table widget
         self.table = QTableWidget()
@@ -100,6 +112,14 @@ class DischargeStartDialog(QDialog):
         self.filter_empty_bins.stateChanged.connect(self.update_table)
         left_layout.addWidget(self.filter_empty_bins)
 
+        # Create histogram widget
+        self.histogram = pg.PlotWidget()
+        self.histogram.setBackground("w")
+        self.histogram.setTitle("Discharge Distribution")
+        self.histogram.setLabel("left", "Number of Discharges")
+        self.histogram.setLabel("bottom", "Time (s)")
+        main_layout.addWidget(self.histogram)
+
         self.num_bins.valueChanged.connect(self.update_bins_size)
         self.bins_size.valueChanged.connect(self.update_num_bins)
         self.num_bins.valueChanged.connect(self.update_table)
@@ -113,14 +133,6 @@ class DischargeStartDialog(QDialog):
             self.bins_size.setValue(int(new_bins_size))
             self.bins_size.blockSignals(False)
 
-        # Create histogram widget
-        self.histogram = pg.PlotWidget()
-        self.histogram.setBackground("w")
-        self.histogram.setTitle("Discharge Distribution")
-        self.histogram.setLabel("left", "Number of Discharges")
-        self.histogram.setLabel("bottom", "Time (s)")
-        main_layout.addWidget(self.histogram)
-
         # Initial table and histogram update
         self.update_table()
 
@@ -128,6 +140,11 @@ class DischargeStartDialog(QDialog):
         super().show()
         self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
         self.activateWindow()
+        self.main_window.track_discharge_beginnings = True
+
+    def closeEvent(self, event):
+        self.main_window.track_discharge_beginnings = False
+        self.clear_discharges_from_scene()
 
     def eventFilter(self, source, event):
         if source is self.table.viewport() and event.type() == QEvent.MouseButtonPress:
@@ -143,7 +160,6 @@ class DischargeStartDialog(QDialog):
                     self.table.setSelectionMode(QAbstractItemView.SingleSelection)
                     self.table.clearSelection()
                 self.table.selectRow(row)
-                print(f"Row {row} selected")  # Debug print
                 self.on_selection_changed()
                 return True
         return super().eventFilter(source, event)
@@ -152,7 +168,6 @@ class DischargeStartDialog(QDialog):
         if len(self.discharge_start_areas) == 0:
             self.num_discharge_label.setText("Number of Discharges: 0")
             return
-        print("Updating discharges")
         self.num_discharge_label.setText(
             f"Number of Discharges: {len(self.discharge_start_areas)}"
         )
@@ -181,13 +196,69 @@ class DischargeStartDialog(QDialog):
             self.num_bins.setValue(int(new_num_bins))
             self.num_bins.blockSignals(False)
 
+    def load_discharge_start_areas_from_hdf5(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setText(
+            "Loading discharge start areas from the file will clear the current ones."
+        )
+        msg.setWindowTitle("Warning")
+        response = msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        if response == QMessageBox.Cancel:
+            return
+
+        self.discharge_start_areas.clear()
+        self.update_discharges()
+
+        try:
+            with h5py.File(self.main_window.file_path, "r") as f:
+                if "discharge_start_areas" in f:
+                    areas_group = f["discharge_start_areas"]
+                    for id in areas_group:
+                        area_dataset = areas_group[id]
+                        timestamp = area_dataset.attrs["timestamp"]
+                        centroid_x = area_dataset.attrs["centroid_x"]
+                        centroid_y = area_dataset.attrs["centroid_y"]
+                        width = area_dataset.attrs["width"]
+                        height = area_dataset.attrs["height"]
+                        involved_channels = area_dataset.attrs["involved_channels"]
+                        self.discharge_start_areas.append(
+                            DischargeStartArea(
+                                timestamp,
+                                centroid_x,
+                                centroid_y,
+                                width,
+                                height,
+                                involved_channels,
+                            )
+                        )
+            self.update_discharges()
+        except Exception as e:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText(
+                "Error loading discharge start areas from HDF file. Double check that the file is not open in another program as that apparently is a big no-no."
+            )
+            msg.setInformativeText(f"Error: {e}")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+
     def clear_discharge_start_areas_from_hdf5(self):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Warning)
+        msg.setText(
+            "Are you sure you want to clear all discharge start areas from the HDF file? This action cannot be undone"
+        )
+        msg.setWindowTitle("Warning")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        response = msg.exec_()
+        if response == QMessageBox.No:
+            return
         try:
             with h5py.File(self.main_window.file_path, "a") as f:
                 if "discharge_start_areas" in f:
                     del f["discharge_start_areas"]
         except Exception as e:
-            print(f"Error clearing discharge start areas from HDF: {e}")
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
             msg.setText(
@@ -221,7 +292,6 @@ class DischargeStartDialog(QDialog):
                         for cell in discharge_start_area.involved_channels
                     ]
         except Exception as e:
-            print(f"Error saving discharge start areas to HDF: {e}")
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
             msg.setText(
@@ -277,48 +347,75 @@ class DischargeStartDialog(QDialog):
             )
             bin_data.append((start_time, end_time, discharge_count))
 
-        print(f"Bin data before filtering: {bin_data}")  # Debug print
         return bin_data
 
     def on_selection_changed(self):
         selected_rows = sorted(
             set(index.row() for index in self.table.selectedIndexes())
         )
-        print(f"Selected rows: {selected_rows}")  # Debug print
         self.draw_selected_bins(selected_rows)
 
-    def draw_selected_bins(self, selected_rows):
-        scene = self.main_window.grid_widget.scene
+    def clear_discharges_from_scene(self):
         for item in self.discharge_start_items:
-            scene.removeItem(item)
+            self.main_window.grid_widget.scene.removeItem(item)
         self.discharge_start_items.clear()
+
+    def draw_selected_bins(self, selected_rows):
+        self.clear_discharges_from_scene()
 
         bin_data = self.get_bin_data()
         if self.filter_empty_bins.isChecked():
             bin_data = [data for data in bin_data if data[2] > 0]
 
-        print(f"Drawing bins for rows: {selected_rows}")
-        print(
-            f"Total number of discharge start areas: {len(self.discharge_start_areas)}"
-        )
-
-        for row in selected_rows:
+        for i, row in enumerate(selected_rows):
             start_time, end_time, _ = bin_data[row]
-            print(f"Bin {row}: Start time: {start_time}, End time: {end_time}")
+            if len(selected_rows) == 1:
+                color = self.colormap(0)
+            else:
+                color = self.colormap(i / (len(selected_rows) - 1))
 
             matching_discharges = [
                 discharge
                 for discharge in self.discharge_start_areas
                 if start_time <= discharge.timestamp < end_time
             ]
-            print(
-                f"Number of matching discharges in bin {row}: {len(matching_discharges)}"
-            )
 
             for discharge in matching_discharges:
-                self.draw_discharge_point(scene, discharge)
+                self.draw_discharge_point(
+                    self.main_window.grid_widget.scene, discharge, color
+                )
 
-        print(f"Total discharge points drawn: {len(self.discharge_start_items)}")
+    def draw_discharge_point(self, scene, discharge, color):
+        rgba_color = [int(c * 255) for c in color]
+        gradient = QRadialGradient(
+            discharge.width / 2,
+            discharge.height / 2,
+            max(discharge.width, discharge.height) / 2,
+        )
+        gradient.setColorAt(0, QColor(*rgba_color[:3], int(255 * 0.1)))
+        gradient.setColorAt(1, QColor(*rgba_color[:3], 0))
+
+        discharge_area = TransparentEllipseItem(
+            discharge.x,
+            discharge.y,
+            discharge.width,
+            discharge.height,
+            QBrush(gradient),
+        )
+        scene.addItem(discharge_area)
+
+        point_size = 3
+        discharge_point = TransparentEllipseItem(
+            discharge.x,
+            discharge.y,
+            point_size,
+            point_size,
+            QBrush(QColor(*rgba_color)),
+        )
+        scene.addItem(discharge_point)
+
+        self.discharge_start_items.append(discharge_area)
+        self.discharge_start_items.append(discharge_point)
 
     def create_discharge_start_area(self, current_time, top_cells):
         points = np.array([(cell.row, cell.col) for cell in top_cells])
@@ -354,30 +451,6 @@ class DischargeStartDialog(QDialog):
             self.main_window.last_found_discharge_time = current_time
             self.main_window.pause_playback()
             self.save_discharge_start_areas_to_hdf5()
-
-    def draw_discharge_point(self, scene, discharge):
-        gradient = QRadialGradient(
-            discharge.width / 2,
-            discharge.height / 2,
-            max(discharge.width, discharge.height) / 2,
-        )
-        gradient.setColorAt(
-            0, QColor(255, 0, 0, int(255 * 0.3))
-        )  # Increased opacity for visibility
-        gradient.setColorAt(1, QColor(255, 0, 0, 0))
-
-        discharge_point = TransparentEllipseItem(
-            discharge.x,
-            discharge.y,
-            discharge.width,
-            discharge.height,
-            QBrush(gradient),
-        )
-        scene.addItem(discharge_point)
-        self.discharge_start_items.append(discharge_point)
-        print(
-            f"Discharge point drawn at ({discharge.x}, {discharge.y}), time: {discharge.timestamp}"
-        )
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Control or event.key() == Qt.Key_Meta:
