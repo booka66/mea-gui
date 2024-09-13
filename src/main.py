@@ -458,11 +458,9 @@ class MainWindow(QMainWindow):
         self.right_pane.setLayout(self.right_layout)
         self.main_tab_layout.addWidget(self.right_pane)
 
-        # Create a splitter for the right pane
         self.right_splitter = QSplitter(Qt.Vertical)
         self.right_layout.addWidget(self.right_splitter)
 
-        # Add graph pane to the splitter
         self.graph_pane = QWidget()
         self.graph_layout = QVBoxLayout()
         self.graph_pane.setLayout(self.graph_layout)
@@ -476,7 +474,6 @@ class MainWindow(QMainWindow):
         )
         self.graph_widget.save_all_plots.connect(self.save_channel_plots)
 
-        # Add settings pane to the splitter
         self.settings_pane = QWidget()
         self.settings_layout = QVBoxLayout()
         self.settings_pane.setLayout(self.settings_layout)
@@ -2082,6 +2079,23 @@ class MainWindow(QMainWindow):
                 if self.do_show_spread_lines and (row, col) not in self.seized_cells:
                     newly_seized_cells.append((row, col))
 
+    def get_high_luminance_cells(self, luminance_threshold):
+        top_cells = [
+            cell for cell in self.cells if cell.get_luminance() >= luminance_threshold
+        ]
+        points = np.array([(cell.row, cell.col) for cell in top_cells])
+        for cell in top_cells:
+            cell.setColor(QColor(0, 255, 0), 1, self.opacity)
+
+        db = DBSCAN(eps=self.eps, min_samples=self.min_samples).fit(points)
+
+        labels = db.labels_
+        unique_labels = set(labels)
+        if -1 in unique_labels:
+            unique_labels.remove(-1)
+
+        return [cell for cell, label in zip(top_cells, labels) if label != -1]
+
     def update_grid(self, first=False):
         # start = perf_counter()
         if first:
@@ -2120,34 +2134,13 @@ class MainWindow(QMainWindow):
                             [cell.get_luminance() for cell in self.cells], 95
                         )
 
-                        top_cells = [
-                            cell
-                            for cell in self.cells
-                            if cell.get_luminance() >= luminance_threshold
-                        ]
-                        points = np.array([(cell.row, cell.col) for cell in top_cells])
-                        for cell in top_cells:
-                            cell.setColor(QColor(0, 255, 0), 1, self.opacity)
-
-                        # Use DBSCAN to get centroid and elminate outliers
-                        db = DBSCAN(eps=self.eps, min_samples=self.min_samples).fit(
-                            points
+                        high_luminance_cells = self.get_high_luminance_cells(
+                            luminance_threshold
                         )
 
-                        labels = db.labels_
-                        unique_labels = set(labels)
-                        if -1 in unique_labels:
-                            unique_labels.remove(-1)
-
-                        top_cells = [
-                            cell
-                            for cell, label in zip(top_cells, labels)
-                            if label != -1
-                        ]
-
-                        if len(top_cells) > 0:
+                        if len(high_luminance_cells) > 0:
                             self.discharge_start_dialog.create_discharge_start_area(
-                                current_time, top_cells
+                                current_time, high_luminance_cells
                             )
                             self.discharge_start_dialog.update_discharges()
 

@@ -26,17 +26,15 @@ class Spark(QGraphicsEllipseItem):
     def __init__(self, x, y):
         super().__init__(0, 0, 3, 3)
         self.setPos(x, y)
-        self.setBrush(QBrush(QColor(255, 165, 0)))  # Orange color for sparks
+        self.setBrush(QBrush(QColor(255, 165, 0)))
         self.setPen(QPen(Qt.NoPen))
-        self.velocity = QPointF(
-            random.uniform(-2, 2), random.uniform(-8, -4)
-        )  # More upward velocity
-        self.gravity = 0.8  # Gravity effect
-        self.life = random.randint(5, 15)  # Increased life for longer trails
+        self.velocity = QPointF(random.uniform(-2, 2), random.uniform(-8, -4))
+        self.gravity = 0.8
+        self.life = random.randint(5, 15)
 
     def update_position(self):
         self.moveBy(self.velocity.x(), self.velocity.y())
-        self.velocity.setY(self.velocity.y() + self.gravity)  # Apply gravity
+        self.velocity.setY(self.velocity.y() + self.gravity)
         self.life -= 1
         if self.life <= 0:
             self.scene().removeItem(self)
@@ -64,12 +62,12 @@ class SimpleColorDialog(QDialog):
         self.layout = QVBoxLayout(self)
 
         self.predefined_colors = [
-            QColor(255, 0, 0, 128),  # Red
-            QColor(0, 255, 0, 128),  # Green
-            QColor(0, 0, 255, 128),  # Blue
-            QColor(255, 255, 0, 128),  # Yellow
-            QColor(255, 0, 255, 128),  # Magenta
-            QColor(0, 255, 255, 128),  # Cyan
+            QColor(255, 0, 0, 128),
+            QColor(0, 255, 0, 128),
+            QColor(0, 0, 255, 128),
+            QColor(255, 255, 0, 128),
+            QColor(255, 0, 255, 128),
+            QColor(0, 255, 255, 128),
         ]
 
         for color in self.predefined_colors:
@@ -103,31 +101,25 @@ class GridWidget(QGraphicsView):
         self.image_path = None
         self.createGrid()
 
-        # Set up the pyqtgraph plot
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground("w")
-        self.plot_widget.setFixedSize(300, 200)  # Adjust size as needed
+        self.plot_widget.setFixedSize(300, 200)
         self.plot_item = self.plot_widget.getPlotItem()
         self.plot_item.showGrid(x=True, y=True, alpha=0.3)
-        # Auto scale the Y axis
+
         self.plot_item.enableAutoRange(axis="y")
 
         self.curve1 = self.plot_item.plot(pen="b")
         self.curve2 = self.plot_item.plot(pen="r")
 
-        # Add the plot to the scene
         self.plot_proxy = QGraphicsProxyWidget()
         self.plot_proxy.setWidget(self.plot_widget)
-        # self.scene.addItem(self.plot_proxy)
-        self.plot_proxy.setZValue(1000)  # Ensure it's on top of other items
 
-        # Data for the plot
+        self.plot_proxy.setZValue(1000)
+
         self.plot_data1 = np.zeros(100)
         self.plot_data2 = np.zeros(100)
         self.plot_x = np.arange(100)
-
-        # Connect to progress bar value changed signal
-        # self.main_window.progress_bar.valueChanged.connect(self.update_plot)
 
         self.is_lasso_mode = False
         self.lasso_path = None
@@ -139,14 +131,13 @@ class GridWidget(QGraphicsView):
         self.sparks = []
         self.spark_timer = QTimer(self)
         self.spark_timer.timeout.connect(self.update_sparks)
-        self.spark_timer.start(16)  # 60 FPS
+        self.spark_timer.start(16)
 
         self.is_seizure_beginning_mode = False
         self.seizure_beginnings = []
 
         self.setFocusPolicy(Qt.StrongFocus)
 
-        # Add message label
         self.message_label = QLabel(self)
         self.message_label.setAlignment(Qt.AlignRight | Qt.AlignTop)
         self.message_label.setStyleSheet("""
@@ -159,7 +150,6 @@ class GridWidget(QGraphicsView):
         """)
         self.message_label.hide()
 
-        # Timer for hiding the message
         self.message_timer = QTimer(self)
         self.message_timer.setSingleShot(True)
         self.message_timer.timeout.connect(self.hide_message)
@@ -277,8 +267,7 @@ class GridWidget(QGraphicsView):
     def mouseMoveEvent(self, event):
         if self.is_lasso_mode and event.buttons() & Qt.LeftButton:
             self.continue_lasso(event.pos())
-            # if random.random() < 0.1:
-            #     self.create_sparks(event.pos())
+
         else:
             super().mouseMoveEvent(event)
 
@@ -309,7 +298,6 @@ class GridWidget(QGraphicsView):
         if scene is None:
             return
 
-        # Create a new list for valid items
         valid_items = []
 
         for item in self.seizure_beginnings:
@@ -319,10 +307,8 @@ class GridWidget(QGraphicsView):
                 else:
                     valid_items.append(item)
             except RuntimeError:
-                # Item has been deleted, so we ignore it
                 pass
 
-        # Update the list with only valid items
         self.seizure_beginnings = valid_items
 
     def draw_purple_dots(self, scene, painter=None, reset_scene=False):
@@ -348,7 +334,6 @@ class GridWidget(QGraphicsView):
 
     def undo_lasso_selection(self):
         if self.lasso_history:
-            # Restore the previous state
             previous_state = self.lasso_history.pop()
             for cell in previous_state:
                 print(f"({cell.row}, {cell.col})")
@@ -360,7 +345,6 @@ class GridWidget(QGraphicsView):
             self.show_temporary_message("No lasso selection to undo")
 
     def clear_lasso_selection(self):
-        # Clear all lasso selections
         for row in self.cells:
             for cell in row:
                 if cell.lasso_selected:
@@ -394,7 +378,6 @@ class GridWidget(QGraphicsView):
         self.lasso_item.setPen(QPen(QColor(255, 0, 0), 2))
         self.scene.addItem(self.lasso_item)
 
-        # Save the original colors of the cells
         for row in self.cells:
             for cell in row:
                 if not cell.lasso_selected:
@@ -404,15 +387,12 @@ class GridWidget(QGraphicsView):
         scene_pos = self.mapToScene(pos)
         self.lasso_points.append(scene_pos)
 
-        # Clear the existing path
         self.lasso_path = QPainterPath()
         self.lasso_path.moveTo(self.lasso_points[0])
 
-        # Draw lines to all points, including the current one
         for point in self.lasso_points[1:]:
             self.lasso_path.lineTo(point)
 
-        # Connect back to the start
         self.lasso_path.lineTo(self.lasso_points[0])
 
         self.lasso_item.setPath(self.lasso_path)
@@ -441,7 +421,7 @@ class GridWidget(QGraphicsView):
         if len(self.lasso_points) > 2:
             self.select_cells_in_lasso()
         self.clear_lasso()
-        # Clear highlights after selection
+
         for cell in self.highlighted_cells:
             cell.lasso_highlighted = False
         self.highlighted_cells.clear()
@@ -455,7 +435,6 @@ class GridWidget(QGraphicsView):
         return selected_cells
 
     def select_cells_in_lasso(self):
-        # Store the current state before making a new selection
         current_state = set(cell for cell in self.highlighted_cells)
         self.lasso_history.append(current_state)
 
@@ -473,7 +452,7 @@ class GridWidget(QGraphicsView):
             self.lasso_item = None
         self.lasso_path = None
         self.lasso_points = []
-        # Clear any remaining highlights
+
         for cell in self.highlighted_cells:
             cell.highlighted = False
         self.highlighted_cells.clear()
@@ -513,19 +492,15 @@ class GridWidget(QGraphicsView):
         self.update_plot_position()
 
     def update_plot_position(self):
-        # Position the plot in the top-left corner
         self.plot_proxy.setPos(10, 10)
 
     def update_plot(self, value):
-        # Shift existing data
         self.plot_data1[:-1] = self.plot_data1[1:]
         self.plot_data2[:-1] = self.plot_data2[1:]
 
-        # Add new data points
         self.plot_data1[-1] = self.main_window.metric_50
         self.plot_data2[-1] = self.main_window.metric_cluster
 
-        # Update the curves
         self.curve1.setData(self.plot_x, self.plot_data1)
         self.curve2.setData(self.plot_x, self.plot_data2)
 

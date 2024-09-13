@@ -48,16 +48,15 @@ class DischargeStartDialog(QDialog):
         super().__init__(main_window, Qt.Window)
         self.main_window = main_window
         self.setWindowTitle("Discharge Start Viewer")
-        self.setMinimumSize(800, 500)  # Increased size to accommodate the histogram
+        self.setMinimumSize(800, 500)
 
         self.discharge_start_areas: List[DischargeStartArea] = []
         self.discharge_start_items = []
         self.colormap = cm.get_cmap("viridis")
 
-        # Set window flags to keep it on top
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
 
-        main_layout = QHBoxLayout()  # Changed to QHBoxLayout
+        main_layout = QHBoxLayout()
         self.setLayout(main_layout)
 
         left_widget = QWidget()
@@ -94,7 +93,6 @@ class DischargeStartDialog(QDialog):
         )
         discharge_row.addWidget(self.load_discharge_start_areas_button)
 
-        # Create table widget
         self.table = QTableWidget()
         self.table.setColumnCount(2)
         self.table.setHorizontalHeaderLabels(["Bins", "Discharges"])
@@ -106,13 +104,11 @@ class DischargeStartDialog(QDialog):
         self.table.viewport().installEventFilter(self)
         left_layout.addWidget(self.table)
 
-        # Add checkbox for filtering empty bins
         self.filter_empty_bins = QCheckBox("Filter empty bins")
         self.filter_empty_bins.setChecked(True)
         self.filter_empty_bins.stateChanged.connect(self.update_table)
         left_layout.addWidget(self.filter_empty_bins)
 
-        # Create histogram widget
         self.histogram = pg.PlotWidget()
         self.histogram.setBackground("w")
         self.histogram.setTitle("Discharge Distribution")
@@ -133,7 +129,6 @@ class DischargeStartDialog(QDialog):
             self.bins_size.setValue(int(new_bins_size))
             self.bins_size.blockSignals(False)
 
-        # Initial table and histogram update
         self.update_table()
 
     def show(self):
@@ -417,19 +412,19 @@ class DischargeStartDialog(QDialog):
         self.discharge_start_items.append(discharge_area)
         self.discharge_start_items.append(discharge_point)
 
-    def create_discharge_start_area(self, current_time, top_cells):
-        points = np.array([(cell.row, cell.col) for cell in top_cells])
+    def create_discharge_start_area(self, current_time, involved_channels):
+        points = np.array([(cell.row, cell.col) for cell in involved_channels])
         new_centroid = np.average(
             points,
             axis=0,
-            weights=[cell.get_luminance() for cell in top_cells],
+            weights=[cell.get_luminance() for cell in involved_channels],
         )
-        highest_cell = max(top_cells, key=lambda cell: cell.row)
-        lowest_cell = min(top_cells, key=lambda cell: cell.row)
+        highest_cell = max(involved_channels, key=lambda cell: cell.row)
+        lowest_cell = min(involved_channels, key=lambda cell: cell.row)
         height = (highest_cell.row - lowest_cell.row + 1) * highest_cell.rect().height()
 
-        leftmost_cell = min(top_cells, key=lambda cell: cell.col)
-        rightmost_cell = max(top_cells, key=lambda cell: cell.col)
+        leftmost_cell = min(involved_channels, key=lambda cell: cell.col)
+        rightmost_cell = max(involved_channels, key=lambda cell: cell.col)
         width = (
             rightmost_cell.col - leftmost_cell.col + 1
         ) * rightmost_cell.rect().width()
@@ -445,7 +440,7 @@ class DischargeStartDialog(QDialog):
                     centroid_y,
                     width,
                     height,
-                    top_cells,
+                    involved_channels,
                 )
             )
             self.main_window.last_found_discharge_time = current_time
