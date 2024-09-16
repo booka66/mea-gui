@@ -50,6 +50,7 @@ class DischargeStartDialog(QDialog):
         self.setWindowTitle("Discharge Start Viewer")
         self.setMinimumSize(800, 500)
 
+        self.current_time = None
         self.discharge_start_areas: List[DischargeStartArea] = []
         self.discharge_start_items = []
         self.colormap = cm.get_cmap("viridis")
@@ -412,7 +413,15 @@ class DischargeStartDialog(QDialog):
         self.discharge_start_items.append(discharge_area)
         self.discharge_start_items.append(discharge_point)
 
-    def create_discharge_start_area(self, current_time, involved_channels):
+    def create_discharge_start_area(self, current_time):
+        involved_channels = []
+        for row in self.main_window.grid_widget.cells:
+            for cell in row:
+                if cell.is_high_luminance:
+                    involved_channels.append(cell)
+
+        print(f"Involved channels: {len(involved_channels)}")
+
         points = np.array([(cell.row, cell.col) for cell in involved_channels])
         new_centroid = np.average(
             points,
@@ -429,23 +438,33 @@ class DischargeStartDialog(QDialog):
             rightmost_cell.col - leftmost_cell.col + 1
         ) * rightmost_cell.rect().width()
 
-        if width <= 400 and height <= 400:
-            centroid_x = new_centroid[1] * rightmost_cell.rect().width()
-            centroid_y = new_centroid[0] * highest_cell.rect().height()
+        centroid_x = new_centroid[1] * rightmost_cell.rect().width()
+        centroid_y = new_centroid[0] * highest_cell.rect().height()
 
-            self.discharge_start_areas.append(
-                DischargeStartArea(
-                    current_time,
-                    centroid_x,
-                    centroid_y,
-                    width,
-                    height,
-                    involved_channels,
-                )
+        self.discharge_start_areas.append(
+            DischargeStartArea(
+                current_time,
+                centroid_x,
+                centroid_y,
+                width,
+                height,
+                involved_channels,
             )
-            self.main_window.last_found_discharge_time = current_time
-            self.main_window.pause_playback()
-            self.save_discharge_start_areas_to_hdf5()
+        )
+        self.save_discharge_start_areas_to_hdf5()
+
+    def confirm(self, accepted):
+        print("confirm")
+        if accepted:
+            print("accepted")
+            self.create_discharge_start_area(
+                self.main_window.progress_bar.value() / self.main_window.sampling_rate
+            )
+            self.update_discharges()
+
+        for cell in self.main_window.grid_widget.cells:
+            for cell in cell:
+                cell.is_high_luminance = False
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Control or event.key() == Qt.Key_Meta:

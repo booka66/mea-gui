@@ -40,6 +40,7 @@ class ColorCell(QGraphicsRectItem):
         self.lasso_selected = False
         self.highlighted = False
         self.prev_color = None
+        self.is_high_luminance = False
 
     def get_current_color(self):
         return self.brush().color()
@@ -71,12 +72,12 @@ class ColorCell(QGraphicsRectItem):
         self.setBrush(QBrush(rgb_color))
 
     def hoverEnterEvent(self, event):
-        if not self.is_recording_video:
+        if not self.is_recording_video and not self.is_high_luminance:
             if not self.clicked_state:
                 self.tooltip_timer.start()
 
     def hoverLeaveEvent(self, event):
-        if not self.is_recording_video:
+        if not self.is_recording_video and not self.is_high_luminance:
             if not self.clicked_state:
                 self.tooltip_timer.stop()
                 self.hover_tooltip.hide()

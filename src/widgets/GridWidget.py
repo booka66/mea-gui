@@ -533,7 +533,15 @@ class GridWidget(QGraphicsView):
         if not self.is_recording_video and not self.is_lasso_mode:
             if event.button() == Qt.LeftButton:
                 cell = self.scene.itemAt(event.scenePos(), QTransform())
+
                 if isinstance(cell, ColorCell):
+                    if self.main_window.need_confirmation:
+                        cell.is_high_luminance = not cell.is_high_luminance
+                        if cell.is_high_luminance:
+                            cell.setColor(QColor(255, 0, 0))
+                        else:
+                            cell.setColor(ACTIVE)
+                        return
                     cell.clicked_state = not cell.clicked_state
                     self.cell_clicked.emit(cell.row, cell.col)
                     cell.update()

@@ -168,7 +168,6 @@ class MainWindow(QMainWindow):
         super().__init__()
         pg.setConfigOptions(antialias=False)
         self.file_path = None
-        self.tolerance = 40
         self.recording_length = None
         self.sampling_rate = 100
         self.time_vector = None
@@ -223,7 +222,6 @@ class MainWindow(QMainWindow):
         self.low_pass_cutoff = 35
         self.markers = []
         self.spaital_sections = []
-        self.potential_discharge = False
         self.discharge_starts_points = []
         self.discharge_start_dialog: DischargeStartDialog = None
         self.last_found_discharge_time = None
@@ -1498,12 +1496,26 @@ class MainWindow(QMainWindow):
                 self.markers.append(current_time)
                 self.progress_bar.setMarkers(self.markers)
                 print(f"Added marker at {current_time}")
+            elif event.key() == Qt.Key_Return:
+                print("Enter pressed")
+                if self.need_confirmation:
+                    self.discharge_start_dialog.confirm(True)
+                    self.need_confirmation = False
+            elif event.key() == Qt.Key_Escape:
+                if self.need_confirmation:
+                    self.discharge_start_dialog.confirm(False)
+                    self.need_confirmation = False
+                    self.stepForward()
+            elif event.key() == Qt.Key_C:
+                self.update_grid(red=False)
 
     def keyReleaseEvent(self, event):
         if event.key() == Qt.Key_Shift:
             self.graph_widget.change_view_mode("rect")
         elif event.key() in [Qt.Key_R, Qt.Key_H, Qt.Key_J, Qt.Key_K]:
             self.cluster_tracker.clear_plot(self.grid_widget.scene)
+        elif event.key() == Qt.Key_C:
+            self.update_grid(red=True)
 
     def set_custom_region(self):
         print("Setting custom region")
@@ -2094,15 +2106,22 @@ class MainWindow(QMainWindow):
         if -1 in unique_labels:
             unique_labels.remove(-1)
 
-        return [cell for cell, label in zip(top_cells, labels) if label != -1]
+        high_luminance_cells = []
+        for cell, label in zip(top_cells, labels):
+            if label in unique_labels:
+                high_luminance_cells.append(cell)
+                cell.is_high_luminance = True
 
-    def update_grid(self, first=False):
+        return high_luminance_cells
+
+    def update_grid(self, first=False, red=True):
         # start = perf_counter()
         if first:
             self.initialize_data()
             self.get_min_max_strengths()
 
         current_time = self.progress_bar.value() / self.sampling_rate
+        self.need_confirmation = False
 
         if self.do_show_prop_lines and self.custom_region:
             self.handle_prop_lines(current_time)
@@ -2113,23 +2132,22 @@ class MainWindow(QMainWindow):
             colors, min_gray_value, max_gray_value = self.get_false_color_map_colors(
                 current_time
             )
-            top_cells = []
+            high_luminance_cells = []
             if self.track_discharge_beginnings:
                 gray_range = max_gray_value - min_gray_value
 
-                print("Color range:", gray_range)
+                for row in self.grid_widget.cells:
+                    for cell in row:
+                        cell.is_high_luminance = False
 
-                if gray_range > 105:
+                if gray_range > 50:
                     max_color_count = np.sum(
                         [color.getRgb()[0] >= 0.7 * max_gray_value for color in colors]
                     )
                     if max_color_count > 1 and (
                         self.last_found_discharge_time is None
-                        or current_time - self.last_found_discharge_time > 1
+                        or current_time - self.last_found_discharge_time > 0.5
                     ):
-                        print("Max color count:", max_color_count)
-                        print("Discharge start detected")
-                        self.potential_discharge = True
                         luminance_threshold = np.percentile(
                             [cell.get_luminance() for cell in self.cells], 95
                         )
@@ -2137,12 +2155,20 @@ class MainWindow(QMainWindow):
                         high_luminance_cells = self.get_high_luminance_cells(
                             luminance_threshold
                         )
+                        # Get the index of the high luminance cells within the active channels
+                        high_luminance_indices = [
+                            self.active_channels.index((cell.row + 1, cell.col + 1))
+                            for cell in high_luminance_cells
+                        ]
+                        if red:
+                            for index in high_luminance_indices:
+                                colors[index] = self.blend_colors(
+                                    colors[index], QColor(255, 0, 0, int(255 * 0.3)), 1
+                                )
 
                         if len(high_luminance_cells) > 0:
-                            self.discharge_start_dialog.create_discharge_start_area(
-                                current_time, high_luminance_cells
-                            )
-                            self.discharge_start_dialog.update_discharges()
+                            self.need_confirmation = True
+                            self.discharge_start_dialog.current_time = current_time
 
         else:
             colors = [ACTIVE] * len(self.active_channels)
@@ -2186,8 +2212,8 @@ class MainWindow(QMainWindow):
                 self.seized_cells.remove((row, col))
                 self.remove_seizure_arrows(row, col)
 
-        for cell in top_cells:
-            cell.setColor(QColor(255, 0, 0), 1, self.opacity)
+        # for cell in high_luminance_cells:
+        #     cell.setColor(QColor(255, 0, 0), 1, self.opacity)
 
         self.grid_widget.update()
         # end = perf_counter()
