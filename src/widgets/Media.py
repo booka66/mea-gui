@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QDialog,
     QFileDialog,
-    QGraphicsEllipseItem,
     QGraphicsScene,
     QHBoxLayout,
     QLabel,
@@ -380,32 +379,47 @@ def open_save_grid_dialog(self):
     # Propagation checkboxes
     propagation_layout = QVBoxLayout()
     propagation_layout.addWidget(QLabel("Propagation:"))
+
     paths_checkbox = QCheckBox("Start/End Paths")
     paths_checkbox.setChecked(False)
     paths_checkbox.setEnabled(len(self.cluster_tracker.seizures) > 0)
     propagation_layout.addWidget(paths_checkbox)
+
     beginning_points_checkbox = QCheckBox("Beginning Points")
     beginning_points_checkbox.setChecked(False)
     beginning_points_checkbox.setEnabled(len(self.cluster_tracker.seizures) > 0)
     propagation_layout.addWidget(beginning_points_checkbox)
+
     heat_map_checkbox = QCheckBox("Heat Map")
     heat_map_checkbox.setChecked(False)
     heat_map_checkbox.setEnabled(len(self.cluster_tracker.seizures) > 0)
     propagation_layout.addWidget(heat_map_checkbox)
+
     seizure_beginnings_checkbox = QCheckBox("Seizure Beginnings")
     seizure_beginnings_checkbox.setChecked(False)
     seizure_beginnings_checkbox.setEnabled(
         hasattr(self.grid_widget, "seizure_beginnings")
     )
     propagation_layout.addWidget(seizure_beginnings_checkbox)
+
+    discharge_start_areas_checkbox = QCheckBox("Discharge Start Areas")
+    discharge_start_areas_checkbox.setChecked(False)
+    discharge_start_areas_checkbox.setEnabled(
+        len(self.discharge_start_dialog.discharge_start_areas) > 0
+    )
+    propagation_layout.addWidget(discharge_start_areas_checkbox)
+
     save_all_individually_checkbox = QCheckBox("Save All Individually")
     save_all_individually_checkbox.setChecked(False)
     save_all_individually_checkbox.setEnabled(len(self.cluster_tracker.seizures) > 0)
     propagation_layout.addWidget(save_all_individually_checkbox)
+
     save_all_individually_checkbox.stateChanged.connect(
         lambda state: paths_checkbox.setEnabled(state == Qt.Unchecked)
         or beginning_points_checkbox.setEnabled(state == Qt.Unchecked)
         or heat_map_checkbox.setEnabled(state == Qt.Unchecked)
+        or seizure_beginnings_checkbox.setEnabled(state == Qt.Unchecked)
+        or discharge_start_areas_checkbox.setEnabled(state == Qt.Unchecked)
     )
     layout.addLayout(propagation_layout)
 
@@ -422,6 +436,7 @@ def open_save_grid_dialog(self):
             beginning_points_checkbox,
             heat_map_checkbox,
             seizure_beginnings_checkbox,
+            discharge_start_areas_checkbox,
             save_all_individually_checkbox,
         )
     )
@@ -438,7 +453,7 @@ def open_save_grid_dialog(self):
 def select_file(file_path_input):
     initial_path = Path(file_path_input.text())
     file_path, _ = QFileDialog.getSaveFileName(
-        None, "Save Grid", str(initial_path), "PNG Files (*.png);;All Files (*)"
+        None, "Save Grid", str(initial_path), "PNG Files (*.png);;SVG Files (*.svg)"
     )
     if file_path:
         file_path_input.setText(file_path)
@@ -453,6 +468,7 @@ def save_grid(
     beginning_points_checkbox,
     heat_map_checkbox,
     seizure_beginnings_checkbox,
+    discharge_start_areas_checkbox,
     save_all_individually_checkbox,
 ):
     params = [
@@ -462,6 +478,8 @@ def save_grid(
         heat_map_checkbox.isChecked() and heat_map_checkbox.isEnabled(),
         seizure_beginnings_checkbox.isChecked()
         and seizure_beginnings_checkbox.isEnabled(),
+        discharge_start_areas_checkbox.isChecked()
+        and discharge_start_areas_checkbox.isEnabled(),
     ]
 
     post_fix = "" if not params[0] else "_transparent"
@@ -472,21 +490,28 @@ def save_grid(
         file_path = file_path.replace(".svg", f"{post_fix}.svg")
 
     if save_all_individually_checkbox.isChecked():
-        params = [transparent_checkbox.isChecked(), False, False, False, False]
+        params = [transparent_checkbox.isChecked(), False, False, False, False, False]
         save_grid_image(self, file_path, params)
         for i in range(4):
             # Set the parameters for each iteration
-            params = [transparent_checkbox.isChecked(), False, False, False, False]
+            params = [
+                transparent_checkbox.isChecked(),
+                False,
+                False,
+                False,
+                False,
+                False,
+            ]
             params[i + 1] = True
             if file_path.endswith(".png"):
                 export_file_path = file_path.replace(
                     ".png",
-                    f"_{['paths', 'beginning_points', 'heat_map', 'seizure_beginnings'][i]}.png",
+                    f"_{['paths', 'beginning_points', 'heat_map', 'seizure_beginnings', 'discharge_start_areas'][i]}.png",
                 )
             elif file_path.endswith(".svg"):
                 export_file_path = file_path.replace(
                     ".svg",
-                    f"_{['paths', 'beginning_points', 'heat_map', 'seizure_beginnings'][i]}.svg",
+                    f"_{['paths', 'beginning_points', 'heat_map', 'seizure_beginnings', 'discharge_start_areas'][i]}.svg",
                 )
             save_grid_image(self, export_file_path, params)
     else:
@@ -556,7 +581,9 @@ def save_grid_image(self, file_path, params):
         )
         return
 
-    _, paths, beginning_points, heat_map, seizure_beginnings = params
+    _, paths, beginning_points, heat_map, seizure_beginnings, discharge_start_areas = (
+        params
+    )
     cell_width = self.grid_widget.cells[0][0].rect().width()
     cell_height = self.grid_widget.cells[0][0].rect().height()
     temp_scene = QGraphicsScene()
@@ -582,6 +609,10 @@ def save_grid_image(self, file_path, params):
     if seizure_beginnings:
         if hasattr(self.grid_widget, "seizure_beginnings"):
             self.grid_widget.draw_purple_dots_on_image(painter)
+
+    if discharge_start_areas:
+        print("Drawing discharge start areas")
+        self.discharge_start_dialog.draw_discharge_starts_on_image(painter)
 
     if file_path.endswith(".png"):
         pixmap.save(file_path, "PNG")

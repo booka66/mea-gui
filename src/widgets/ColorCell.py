@@ -77,7 +77,7 @@ class ColorCell(QGraphicsRectItem):
                 self.tooltip_timer.start()
 
     def hoverLeaveEvent(self, event):
-        if not self.is_recording_video and not self.is_high_luminance:
+        if not self.is_recording_video:
             if not self.clicked_state:
                 self.tooltip_timer.stop()
                 self.hover_tooltip.hide()

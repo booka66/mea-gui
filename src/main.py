@@ -1506,7 +1506,7 @@ class MainWindow(QMainWindow):
                     self.discharge_start_dialog.confirm(False)
                     self.need_confirmation = False
                     self.stepForward()
-            elif event.key() == Qt.Key_C:
+            elif event.key() == Qt.Key_V:
                 self.update_grid(red=False)
 
     def keyReleaseEvent(self, event):
@@ -1514,21 +1514,17 @@ class MainWindow(QMainWindow):
             self.graph_widget.change_view_mode("rect")
         elif event.key() in [Qt.Key_R, Qt.Key_H, Qt.Key_J, Qt.Key_K]:
             self.cluster_tracker.clear_plot(self.grid_widget.scene)
-        elif event.key() == Qt.Key_C:
+        elif event.key() == Qt.Key_V:
             self.update_grid(red=True)
 
     def set_custom_region(self):
-        print("Setting custom region")
         start, stop = self.graph_widget.plot_widgets[0].viewRange()[0]
         self.custom_region = (start, stop)
 
     def terminate_auto_analysis(self):
         self.is_auto_analyzing = False
-        print("Auto-analysis terminated by user")
 
     def load_discharges(self):
-        print("Loading discharges")
-
         with h5py.File(self.file_path, "r") as f:
             tracked_discharges_group = f["tracked_discharges"]
             timeranges = list(tracked_discharges_group.keys())
@@ -2141,15 +2137,12 @@ class MainWindow(QMainWindow):
                         cell.is_high_luminance = False
 
                 if gray_range > 50:
-                    max_color_count = np.sum(
-                        [color.getRgb()[0] >= 0.7 * max_gray_value for color in colors]
-                    )
-                    if max_color_count > 1 and (
+                    if (
                         self.last_found_discharge_time is None
                         or current_time - self.last_found_discharge_time > 0.5
                     ):
                         luminance_threshold = np.percentile(
-                            [cell.get_luminance() for cell in self.cells], 95
+                            [cell.get_luminance() for cell in self.cells], 96
                         )
 
                         high_luminance_cells = self.get_high_luminance_cells(

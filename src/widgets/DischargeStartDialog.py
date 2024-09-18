@@ -1,4 +1,4 @@
-from PyQt5.QtGui import QBrush, QColor, QPainterPath, QRadialGradient
+from PyQt5.QtGui import QBrush, QColor, QPainter, QPainterPath, QRadialGradient
 import h5py
 from typing_extensions import List
 from PyQt5.QtWidgets import (
@@ -23,6 +23,8 @@ from widgets.DischargeStartArea import DischargeStartArea
 import pyqtgraph as pg
 from matplotlib import cm
 
+POINT_SIZE = 3
+
 
 class TransparentEllipseItem(QGraphicsItem):
     def __init__(self, x, y, width, height, brush):
@@ -30,6 +32,9 @@ class TransparentEllipseItem(QGraphicsItem):
         self.rect = QRectF(0, 0, width, height)
         self.brush = brush
         self.setPos(x - width / 2, y - height / 2)
+        self.color = brush.color()
+        self.width = width
+        self.height = height
 
     def boundingRect(self):
         return self.rect
@@ -41,6 +46,9 @@ class TransparentEllipseItem(QGraphicsItem):
 
     def shape(self):
         return QPainterPath()
+
+    def get_color(self):
+        return self.color
 
 
 class DischargeStartDialog(QDialog):
@@ -88,6 +96,14 @@ class DischargeStartDialog(QDialog):
         self.num_discharge_label = QLabel("Number of Discharges: 0")
         discharge_row.addWidget(self.num_discharge_label)
 
+        self.draw_points_box = QCheckBox("Draw Points")
+        self.draw_points_box.setChecked(True)
+        discharge_row.addWidget(self.draw_points_box)
+
+        self.draw_areas_box = QCheckBox("Draw Areas")
+        self.draw_areas_box.setChecked(True)
+        discharge_row.addWidget(self.draw_areas_box)
+
         self.load_discharge_start_areas_button = QPushButton("Load Discharges")
         self.load_discharge_start_areas_button.clicked.connect(
             self.load_discharge_start_areas_from_hdf5
@@ -121,6 +137,8 @@ class DischargeStartDialog(QDialog):
         self.bins_size.valueChanged.connect(self.update_num_bins)
         self.num_bins.valueChanged.connect(self.update_table)
         self.bins_size.valueChanged.connect(self.update_table)
+        self.draw_points_box.stateChanged.connect(self.on_selection_changed)
+        self.draw_areas_box.stateChanged.connect(self.on_selection_changed)
 
         self.num_bins.setValue(10)
         num_bins = self.num_bins.value()
@@ -140,7 +158,7 @@ class DischargeStartDialog(QDialog):
 
     def closeEvent(self, event):
         self.main_window.track_discharge_beginnings = False
-        self.clear_discharges_from_scene()
+        self.clear_discharges_from_scene(self.main_window.grid_widget.scene)
 
     def eventFilter(self, source, event):
         if source is self.table.viewport() and event.type() == QEvent.MouseButtonPress:
@@ -351,13 +369,17 @@ class DischargeStartDialog(QDialog):
         )
         self.draw_selected_bins(selected_rows)
 
-    def clear_discharges_from_scene(self):
+    def clear_discharges_from_scene(self, scene):
         for item in self.discharge_start_items:
-            self.main_window.grid_widget.scene.removeItem(item)
+            if item.scene() == scene:
+                scene.removeItem(item)
         self.discharge_start_items.clear()
 
-    def draw_selected_bins(self, selected_rows):
-        self.clear_discharges_from_scene()
+    def draw_selected_bins(self, selected_rows, scene=False):
+        if not scene:
+            scene = self.main_window.grid_widget.scene
+
+        self.clear_discharges_from_scene(scene)
 
         bin_data = self.get_bin_data()
         if self.filter_empty_bins.isChecked():
@@ -377,41 +399,48 @@ class DischargeStartDialog(QDialog):
             ]
 
             for discharge in matching_discharges:
-                self.draw_discharge_point(
-                    self.main_window.grid_widget.scene, discharge, color
-                )
+                self.draw_discharge_point(scene, discharge, color)
 
     def draw_discharge_point(self, scene, discharge, color):
         rgba_color = [int(c * 255) for c in color]
-        gradient = QRadialGradient(
-            discharge.width / 2,
-            discharge.height / 2,
-            max(discharge.width, discharge.height) / 2,
-        )
-        gradient.setColorAt(0, QColor(*rgba_color[:3], int(255 * 0.1)))
-        gradient.setColorAt(1, QColor(*rgba_color[:3], 0))
+        if self.draw_areas_box.isChecked():
+            gradient = QRadialGradient(
+                discharge.width / 2,
+                discharge.height / 2,
+                max(discharge.width, discharge.height) / 2,
+            )
+            gradient.setColorAt(0, QColor(*rgba_color[:3], int(255 * 0.1)))
+            gradient.setColorAt(1, QColor(*rgba_color[:3], 0))
 
-        discharge_area = TransparentEllipseItem(
-            discharge.x,
-            discharge.y,
-            discharge.width,
-            discharge.height,
-            QBrush(gradient),
-        )
-        scene.addItem(discharge_area)
+            discharge_area = TransparentEllipseItem(
+                discharge.x,
+                discharge.y,
+                discharge.width,
+                discharge.height,
+                QBrush(gradient),
+            )
+            scene.addItem(discharge_area)
+            self.discharge_start_items.append(discharge_area)
 
-        point_size = 3
-        discharge_point = TransparentEllipseItem(
-            discharge.x,
-            discharge.y,
-            point_size,
-            point_size,
-            QBrush(QColor(*rgba_color)),
-        )
-        scene.addItem(discharge_point)
+        if self.draw_points_box.isChecked():
+            discharge_point = TransparentEllipseItem(
+                discharge.x,
+                discharge.y,
+                POINT_SIZE,
+                POINT_SIZE,
+                QBrush(QColor(*rgba_color)),
+            )
+            scene.addItem(discharge_point)
+            self.discharge_start_items.append(discharge_point)
 
-        self.discharge_start_items.append(discharge_area)
-        self.discharge_start_items.append(discharge_point)
+    def draw_discharge_starts_on_image(self, painter: QPainter):
+        print(f"Total discharge start items: {len(self.discharge_start_items)}")
+        for item in self.discharge_start_items:
+            if isinstance(item, TransparentEllipseItem):
+                pos = item.pos()
+                painter.translate(pos.x(), pos.y())
+                item.paint(painter, None, None)
+                painter.translate(-pos.x(), -pos.y())
 
     def create_discharge_start_area(self, current_time):
         involved_channels = []
@@ -426,7 +455,7 @@ class DischargeStartDialog(QDialog):
         new_centroid = np.average(
             points,
             axis=0,
-            weights=[cell.get_luminance() for cell in involved_channels],
+            # weights=[cell.get_luminance() for cell in involved_channels],
         )
         highest_cell = max(involved_channels, key=lambda cell: cell.row)
         lowest_cell = min(involved_channels, key=lambda cell: cell.row)
