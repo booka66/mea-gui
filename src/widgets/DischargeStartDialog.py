@@ -1,6 +1,5 @@
 from PyQt5.QtGui import QBrush, QColor, QPainter, QPainterPath, QRadialGradient
 import h5py
-from typing_extensions import List
 from PyQt5.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -59,7 +58,7 @@ class DischargeStartDialog(QDialog):
         self.setMinimumSize(800, 500)
 
         self.current_time = None
-        self.discharge_start_areas: List[DischargeStartArea] = []
+        self.discharge_start_areas: list[DischargeStartArea] = []
         self.discharge_start_items = []
         self.colormap = cm.get_cmap("viridis")
 
@@ -229,23 +228,27 @@ class DischargeStartDialog(QDialog):
                 if "discharge_start_areas" in f:
                     areas_group = f["discharge_start_areas"]
                     for id in areas_group:
-                        area_dataset = areas_group[id]
-                        timestamp = area_dataset.attrs["timestamp"]
-                        centroid_x = area_dataset.attrs["centroid_x"]
-                        centroid_y = area_dataset.attrs["centroid_y"]
-                        width = area_dataset.attrs["width"]
-                        height = area_dataset.attrs["height"]
-                        involved_channels = area_dataset.attrs["involved_channels"]
-                        self.discharge_start_areas.append(
-                            DischargeStartArea(
-                                timestamp,
-                                centroid_x,
-                                centroid_y,
-                                width,
-                                height,
-                                involved_channels,
+                        try:
+                            area_dataset = areas_group[id]
+                            timestamp = area_dataset.attrs["timestamp"]
+                            centroid_x = area_dataset.attrs["centroid_x"]
+                            centroid_y = area_dataset.attrs["centroid_y"]
+                            width = area_dataset.attrs["width"]
+                            height = area_dataset.attrs["height"]
+                            involved_channels = area_dataset.attrs["involved_channels"]
+                            self.discharge_start_areas.append(
+                                DischargeStartArea(
+                                    timestamp,
+                                    centroid_x,
+                                    centroid_y,
+                                    width,
+                                    height,
+                                    involved_channels,
+                                )
                             )
-                        )
+                        except Exception as e:
+                            print(f"Error loading discharge start area: {e}")
+                            continue
             self.update_discharges()
         except Exception as e:
             msg = QMessageBox()
@@ -264,9 +267,9 @@ class DischargeStartDialog(QDialog):
             "Are you sure you want to clear all discharge start areas from the HDF file? This action cannot be undone"
         )
         msg.setWindowTitle("Warning")
-        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.Abort)
         response = msg.exec_()
-        if response == QMessageBox.No:
+        if response == QMessageBox.Abort:
             return
         try:
             with h5py.File(self.main_window.file_path, "a") as f:
@@ -296,15 +299,20 @@ class DischargeStartDialog(QDialog):
                     area_dataset = areas_group.create_dataset(
                         discharge_start_area.id, data=[0], shape=(1,)
                     )
-                    area_dataset.attrs["timestamp"] = discharge_start_area.timestamp
-                    area_dataset.attrs["centroid_x"] = discharge_start_area.x
-                    area_dataset.attrs["centroid_y"] = discharge_start_area.y
-                    area_dataset.attrs["width"] = discharge_start_area.width
-                    area_dataset.attrs["height"] = discharge_start_area.height
-                    area_dataset.attrs["involved_channels"] = [
-                        [cell.row, cell.col]
-                        for cell in discharge_start_area.involved_channels
-                    ]
+                    try:
+                        area_dataset.attrs["timestamp"] = discharge_start_area.timestamp
+                        area_dataset.attrs["centroid_x"] = discharge_start_area.x
+                        area_dataset.attrs["centroid_y"] = discharge_start_area.y
+                        area_dataset.attrs["width"] = discharge_start_area.width
+                        area_dataset.attrs["height"] = discharge_start_area.height
+                        area_dataset.attrs["involved_channels"] = [
+                            [cell.row, cell.col]
+                            for cell in discharge_start_area.involved_channels
+                        ]
+                    except Exception as e:
+                        del areas_group[discharge_start_area.id]
+                        print(f"Error saving discharge start area: {e}")
+                        continue
         except Exception as e:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Critical)
@@ -375,6 +383,27 @@ class DischargeStartDialog(QDialog):
                 scene.removeItem(item)
         self.discharge_start_items.clear()
 
+    def draw_bin(self, bin_index, scene=False):
+        color = self.colormap(0)
+        if not scene:
+            scene = self.main_window.grid_widget.scene
+
+        self.clear_discharges_from_scene(scene)
+
+        bin_data = self.get_bin_data()
+        if self.filter_empty_bins.isChecked():
+            bin_data = [data for data in bin_data if data[2] > 0]
+
+        start_time, end_time, _ = bin_data[bin_index]
+        matching_discharges = [
+            discharge
+            for discharge in self.discharge_start_areas
+            if start_time <= discharge.timestamp < end_time
+        ]
+
+        for discharge in matching_discharges:
+            self.draw_discharge_point(scene, discharge, color)
+
     def draw_selected_bins(self, selected_rows, scene=False):
         if not scene:
             scene = self.main_window.grid_widget.scene
@@ -434,6 +463,7 @@ class DischargeStartDialog(QDialog):
             self.discharge_start_items.append(discharge_point)
 
     def draw_discharge_starts_on_image(self, painter: QPainter):
+        # Save the visible items to the scene
         print(f"Total discharge start items: {len(self.discharge_start_items)}")
         for item in self.discharge_start_items:
             if isinstance(item, TransparentEllipseItem):
