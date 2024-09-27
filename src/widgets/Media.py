@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import QRect, QSize, Qt
 import os
+import zipfile
 
 from helpers.Constants import BACKGROUND
 
@@ -517,6 +518,24 @@ def save_grid(
     else:
         save_grid_image(self, file_path, params)
 
+    if discharge_start_areas_checkbox.isChecked():
+        params = [transparent_checkbox.isChecked(), False, False, False, False, True]
+        discharge_files = []
+        for i in range(self.discharge_start_dialog.table.rowCount()):
+            self.discharge_start_dialog.draw_bin(i)
+            if file_path.endswith(".png"):
+                export_file_path = file_path.replace(".png", f"_discharge_bin{i}.png")
+            elif file_path.endswith(".svg"):
+                export_file_path = file_path.replace(".svg", f"_discharge_bin{i}.svg")
+            save_grid_image(self, export_file_path, params)
+            discharge_files.append(export_file_path)
+
+        zip_file_path = os.path.splitext(file_path)[0] + "_discharge_bins.zip"
+        with zipfile.ZipFile(zip_file_path, "w") as zipf:
+            for file in discharge_files:
+                zipf.write(file, os.path.basename(file))
+                os.remove(file)
+
     dialog.accept()
 
 
@@ -617,3 +636,6 @@ def save_grid_image(self, file_path, params):
     if file_path.endswith(".png"):
         pixmap.save(file_path, "PNG")
     painter.end()
+
+    def save_each_bin():
+        pass
