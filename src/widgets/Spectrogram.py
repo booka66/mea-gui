@@ -1,8 +1,6 @@
 import numpy as np
 import pyqtgraph as pg
-from PyQt5 import QtWidgets
 from scipy.signal import spectrogram
-from matplotlib import pyplot as plt
 
 FS = 100  # Sampling frequency of the EEG data
 CHUNKSZ = 1024  # Chunk size for FFT
