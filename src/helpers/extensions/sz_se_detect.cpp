@@ -522,7 +522,7 @@ std::vector<ChannelData> get_cat_envelop(const std::string &FileName) {
         (maxUVolt - minUVolt) / static_cast<double>(qLevel);
     // std::cout << "From Quantization Level to Microvolts: " <<
     // fromQLevelToUVolt
-    << std::endl;
+    // << std::endl;
     double ADCCountsToMV = signalInversion * fromQLevelToUVolt;
     // std::cout << "ADC Counts to mV: " << ADCCountsToMV << std::endl;
     double MVOffset = signalInversion * minUVolt;

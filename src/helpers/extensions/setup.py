@@ -5,7 +5,7 @@ import os
 import sys
 
 # HDF5 paths for Homebrew installation
-hdf5_dir = "/opt/homebrew/Cellar/hdf5/1.14.3_1" if sys.platform == "darwin" else ""
+hdf5_dir = "/opt/homebrew/Cellar/hdf5/1.14.4.3" if sys.platform == "darwin" else ""
 hdf5_include_dir = os.path.join(hdf5_dir, "include")
 hdf5_lib_dir = os.path.join(hdf5_dir, "lib")
 

@@ -1,0 +1,7 @@
+Metadata-Version: 2.1
+Name: neuro_signal_processing
+Version: 0.0.2
+Summary: A module for seizure and status epilepticus detection, and signal analysis
+Author: Jake Cahoon
+Author-email: jacobbcahoon@gmail.com
+Requires-Python: >=3.6
