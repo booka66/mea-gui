@@ -582,6 +582,10 @@ def save_grid_image(self, file_path, params):
             cell_pos = self.grid_widget.mapFromScene(cell_rect.topLeft())
             # Draw the cell with a slight overlap
             painter.setBrush(QBrush(cell.get_current_color()))
+            if self.toggleEventsOverlayAction.isChecked():
+                for overlay in self.grid_widget.overlays:
+                    if (cell.row, cell.col) in [(c.row, c.col) for c in overlay.cells]:
+                        painter.setBrush(QBrush(overlay.color))
             painter.setPen(Qt.NoPen)
             painter.drawRect(
                 int(cell_pos.x()) - 1,

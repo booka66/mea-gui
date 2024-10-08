@@ -134,10 +134,11 @@ async def main(tag=None, no_package=False):
         pyinstaller_command = """sudo pyinstaller --noconfirm --onedir --argv-emulation --windowed ../../main.py --icon=../../../resources/icon.ico --add-data "../../../docs/_build/:." --add-data "../../helpers/mat/SzDetectCat.m:." --add-data "../../helpers/mat/save_channel_to_mat.m:." --add-data "../../helpers/mat/getChs.m:." --add-data "../../helpers/mat/get_cat_envelop.m:." --additional-hooks-dir "../../../hooks/" --add-data "../../helpers/mat/*.m:."
         """
         package_commands = [
-            "rm -rf package_root/Applications/MEA\\ GUI.app",
-            "cp -R dist/main.app package_root/Applications/MEA\\ GUI.app",
-            "cp ../../../resources/fonts/HackNerdFontMono-Regular.ttf package_root/Library/Fonts ",
-            "pkgbuild --root package_root --identifier com.booka66.meagui --install-location / MEA_GUI_MacOS.pkg",
+            "rm -rf package_root/MEA\\ GUI.app",
+            "cp -R dist/main.app package_root/MEA\\ GUI.app",
+            "cp ../../../resources/fonts/HackNerdFontMono-Regular.ttf package_root/MEA\\ GUI.app/Contents/Resources/",
+            "chmod -R 755 package_root/MEA\\ GUI.app",
+            "pkgbuild --root package_root --identifier com.booka66.meagui --install-location /Applications MEA_GUI_MacOS.pkg",
         ]
         package_file = "MEA_GUI_MacOS.pkg"
     else:

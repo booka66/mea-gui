@@ -22,7 +22,7 @@ from widgets.DischargeStartArea import DischargeStartArea
 import pyqtgraph as pg
 from matplotlib import cm
 
-POINT_SIZE = 3
+POINT_SIZE = 10
 
 
 class TransparentEllipseItem(QGraphicsItem):
@@ -60,7 +60,7 @@ class DischargeStartDialog(QDialog):
         self.current_time = None
         self.discharge_start_areas: list[DischargeStartArea] = []
         self.discharge_start_items = []
-        self.colormap = cm.get_cmap("viridis")
+        self.colormap = cm.get_cmap("cool")
 
         self.setWindowFlags(self.windowFlags() | Qt.WindowStaysOnTopHint)
 
@@ -438,7 +438,7 @@ class DischargeStartDialog(QDialog):
                 discharge.height / 2,
                 max(discharge.width, discharge.height) / 2,
             )
-            gradient.setColorAt(0, QColor(*rgba_color[:3], int(255 * 0.1)))
+            gradient.setColorAt(0, QColor(*rgba_color[:3], int(255 * 0.05)))
             gradient.setColorAt(1, QColor(*rgba_color[:3], 0))
 
             discharge_area = TransparentEllipseItem(

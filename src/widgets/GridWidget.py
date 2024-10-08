@@ -17,6 +17,7 @@ from PyQt5.QtWidgets import (
 )
 import random
 from widgets.ColorCell import ColorCell
+from widgets.Overlay import Overlay
 from helpers.Constants import BACKGROUND, ACTIVE
 import pyqtgraph as pg
 import numpy as np
@@ -96,6 +97,7 @@ class GridWidget(QGraphicsView):
         self.scene = QGraphicsScene(self)
         self.setScene(self.scene)
         self.cells = []
+        self.overlays = []
         self.is_recording_video = False
         self.selected_channel = None
         self.image_path = None
@@ -483,6 +485,32 @@ class GridWidget(QGraphicsView):
                     top_left_x + j * cell_size, top_left_y + i * cell_size
                 )
 
+    def add_overlay(self, cells, color, opacity=0.5):
+        overlay = Overlay(cells, color, opacity)
+        for cell in cells:
+            cell.overlay_color = color
+        self.scene.addItem(overlay)
+        self.overlays.append(overlay)
+        if self.main_window.toggleEventsOverlayAction.isChecked():
+            overlay.setVisible(True)
+        else:
+            overlay.setVisible(False)
+        return overlay
+
+    def remove_overlay(self, overlay):
+        if overlay in self.overlays:
+            self.scene.removeItem(overlay)
+            self.overlays.remove(overlay)
+
+    def clear_overlays(self):
+        for overlay in self.overlays:
+            self.scene.removeItem(overlay)
+        self.overlays.clear()
+
+    def toggle_overlay(self, checked):
+        for overlay in self.overlays:
+            overlay.setVisible(checked)
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.resizeGrid()
@@ -490,6 +518,9 @@ class GridWidget(QGraphicsView):
         if self.image_path:
             self.setBackgroundImage(self.image_path)
         self.update_plot_position()
+
+        for overlay in self.overlays:
+            overlay.updateBoundingRect()
 
     def update_plot_position(self):
         self.plot_proxy.setPos(10, 10)

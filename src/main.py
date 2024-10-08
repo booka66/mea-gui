@@ -244,7 +244,7 @@ class MainWindow(QMainWindow):
 
         self.fileMenu = QMenu("File", self)
         self.menuBar.addMenu(self.fileMenu)
-        self.openAction = QAction("Open file", self)
+        self.openAction = QAction("Open File", self)
         self.openAction.triggered.connect(self.openFile)
         self.fileMenu.addAction(self.openAction)
         self.downsampleExportAction = QAction("Downsample and Export", self)
@@ -253,16 +253,16 @@ class MainWindow(QMainWindow):
         )
         self.fileMenu.addAction(self.downsampleExportAction)
         self.fileMenu.addSeparator()
-        self.createVideoAction = QAction("Save MEA as video", self)
+        self.createVideoAction = QAction("Save MEA as Video", self)
         self.createVideoAction.triggered.connect(self.show_video_editor)
         self.fileMenu.addAction(self.createVideoAction)
-        self.saveGridAction = QAction("Save MEA as png", self)
+        self.saveGridAction = QAction("Save MEA as PNG", self)
         self.saveGridAction.triggered.connect(lambda: open_save_grid_dialog(self))
         self.fileMenu.addAction(self.saveGridAction)
-        self.saveChannelPlotsAction = QAction("Save channel plots", self)
+        self.saveChannelPlotsAction = QAction("Save Channel Plots", self)
         self.saveChannelPlotsAction.triggered.connect(self.save_channel_plots)
         self.fileMenu.addAction(self.saveChannelPlotsAction)
-        self.saveMeaWithPlotsAction = QAction("Save MEA with channel plots", self)
+        self.saveMeaWithPlotsAction = QAction("Save MEA with Channel Plots", self)
         self.saveMeaWithPlotsAction.triggered.connect(lambda: save_mea_with_plots(self))
         self.fileMenu.addAction(self.saveMeaWithPlotsAction)
 
@@ -287,12 +287,27 @@ class MainWindow(QMainWindow):
         self.viewMenu = QMenu("View", self)
         self.menuBar.addMenu(self.viewMenu)
 
+        self.viewDischargeStartDialogAction = QAction(
+            "Open Discharge Start Dialog", self
+        )
+        self.viewDischargeStartDialogAction.triggered.connect(
+            self.open_discharge_start_dialog
+        )
+        self.viewMenu.addAction(self.viewDischargeStartDialogAction)
+
+        self.toggleEventsOverlayAction = QAction(
+            "Detected Events Overlay", self, checkable=True
+        )
+        self.toggleEventsOverlayAction.setChecked(False)
+        self.toggleEventsOverlayAction.triggered.connect(self.toggle_events_overlay)
+        self.viewMenu.addAction(self.toggleEventsOverlayAction)
+
         self.toggleLegendAction = QAction("Legend", self, checkable=True)
         self.toggleLegendAction.setChecked(False)
         self.toggleLegendAction.triggered.connect(self.toggle_legend)
         self.viewMenu.addAction(self.toggleLegendAction)
 
-        self.toggleLinesAction = QAction("Spread lines", self, checkable=True)
+        self.toggleLinesAction = QAction("Spread Lines", self, checkable=True)
         self.toggleLinesAction.setChecked(False)
         self.toggleLinesAction.triggered.connect(self.toggle_lines)
         self.viewMenu.addAction(self.toggleLinesAction)
@@ -302,23 +317,15 @@ class MainWindow(QMainWindow):
         self.togglePropLinesAction.triggered.connect(self.toggle_prop_lines)
         self.viewMenu.addAction(self.togglePropLinesAction)
 
-        self.toggleEventsAction = QAction("Detected events", self, checkable=True)
+        self.toggleEventsAction = QAction("Detected Events", self, checkable=True)
         self.toggleEventsAction.setChecked(True)
         self.toggleEventsAction.triggered.connect(self.toggle_events)
         self.viewMenu.addAction(self.toggleEventsAction)
 
-        self.toggleColorMappingAction = QAction("False color map", self, checkable=True)
+        self.toggleColorMappingAction = QAction("False Color Map", self, checkable=True)
         self.toggleColorMappingAction.setChecked(True)
         self.toggleColorMappingAction.triggered.connect(self.toggle_false_color_map)
         self.viewMenu.addAction(self.toggleColorMappingAction)
-
-        self.viewDischargeStartDialogAction = QAction(
-            "Open Discharge Start Dialog", self
-        )
-        self.viewDischargeStartDialogAction.triggered.connect(
-            self.open_discharge_start_dialog
-        )
-        self.viewMenu.addAction(self.viewDischargeStartDialogAction)
 
         self.viewMenu.addSeparator()
 
@@ -337,7 +344,7 @@ class MainWindow(QMainWindow):
         self.antiAliasAction.triggered.connect(self.toggle_antialiasing)
         self.viewMenu.addAction(self.antiAliasAction)
 
-        self.toggleRegionsAction = QAction("Seizure regions", self, checkable=True)
+        self.toggleRegionsAction = QAction("Seizure Regions", self, checkable=True)
         self.toggleRegionsAction.setChecked(True)
         self.toggleRegionsAction.triggered.connect(self.toggle_regions)
         self.viewMenu.addAction(self.toggleRegionsAction)
@@ -349,11 +356,11 @@ class MainWindow(QMainWindow):
 
         self.viewMenu.addSeparator()
 
-        self.setBinSizeAction = QAction("Set bin size", self)
+        self.setBinSizeAction = QAction("Set Bin Size", self)
         self.setBinSizeAction.triggered.connect(self.set_bin_size)
         self.viewMenu.addAction(self.setBinSizeAction)
 
-        self.setOrderAmountAction = QAction("Set order amount", self)
+        self.setOrderAmountAction = QAction("Set Order Amount", self)
         self.setOrderAmountAction.triggered.connect(self.set_order_amount)
         self.viewMenu.addAction(self.setOrderAmountAction)
 
@@ -819,6 +826,9 @@ class MainWindow(QMainWindow):
 
             self.order_amount = order_amount
             self.toggle_order(self.show_order_checkbox.checkState())
+
+    def toggle_events_overlay(self, checked):
+        self.grid_widget.toggle_overlay(checked)
 
     def toggle_legend(self, checked):
         self.legend_widget.setVisible(checked)
@@ -2111,7 +2121,6 @@ class MainWindow(QMainWindow):
         return high_luminance_cells
 
     def update_grid(self, first=False, red=True):
-        # start = perf_counter()
         if first:
             self.initialize_data()
             self.get_min_max_strengths()
@@ -2205,11 +2214,7 @@ class MainWindow(QMainWindow):
                 self.seized_cells.remove((row, col))
                 self.remove_seizure_arrows(row, col)
 
-        # for cell in high_luminance_cells:
-        #     cell.setColor(QColor(255, 0, 0), 1, self.opacity)
-
         self.grid_widget.update()
-        # end = perf_counter()
 
     def blend_colors(self, color1, color2, strength):
         r1, g1, b1, _ = color1.getRgb()
@@ -2575,6 +2580,28 @@ class MainWindow(QMainWindow):
 
         self.discharge_start_dialog = DischargeStartDialog(self)
 
+        sz_cells = []
+        se_cells = []
+        no_event_cells = []
+        for row, col in self.active_channels:
+            sz_events = self.data[row - 1, col - 1]["SzTimes"]
+            se_events = self.data[row - 1, col - 1]["SETimes"]
+            if len(se_events) > 0:
+                se_cells.append(self.grid_widget.cells[row - 1][col - 1])
+                continue
+            if len(sz_events) > 0:
+                sz_cells.append(self.grid_widget.cells[row - 1][col - 1])
+                continue
+            no_event_cells.append(self.grid_widget.cells[row - 1][col - 1])
+
+        print(f"Number of active channels: {len(self.active_channels)}")
+        print(f"Number of seizure cells: {len(sz_cells)}")
+        print(f"Number of SE cells: {len(se_cells)}")
+        print(f"Number of no event cells: {len(no_event_cells)}")
+        self.grid_widget.add_overlay(sz_cells, SEIZURE)
+        self.grid_widget.add_overlay(se_cells, SE)
+        self.grid_widget.add_overlay(no_event_cells, QColor(0, 0, 0))
+
         self.set_widgets_enabled()
 
     def cancel_analysis(self):
@@ -2753,7 +2780,7 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
 
-font_name = "Hack Nerd Font Mono"
+font_name = "GeistMono Nerd Font"
 font_url = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/Hack.zip"
 
 if sys.platform == MAC:
@@ -2788,7 +2815,6 @@ if __name__ == "__main__":
         if sys.argv[1]:
             window.file_path = sys.argv[1]
             window.set_widgets_enabled()
-            window.use_cpp = True
             window.run_analysis()
     except IndexError:
         print("No file path provided")

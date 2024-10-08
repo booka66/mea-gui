@@ -15,6 +15,7 @@ from PyQt5.QtGui import QPainterPath
 from PyQt5.QtCore import QPointF
 from helpers.Constants import CELL_SIZE
 
+from matplotlib import cm
 from scipy.ndimage import gaussian_filter
 
 
@@ -431,25 +432,29 @@ class ClusterTracker:
     ):
         if reset_scene:
             self.reset_graphics_items(scene)
-
         if not self.seizures:
             return
-
         start_times = [seizure["start_time"] for seizure in self.seizures]
         earliest_start = min(start_times)
         latest_start = max(start_times)
 
-        for seizure in self.seizures:
+        colormap = cm.get_cmap("cool")
+
+        for i, seizure in enumerate(self.seizures):
             points = seizure["points"]
             if len(points) < 1:
                 continue
-
             start_point = points[0]
-
-            time_fraction = (seizure["start_time"] - earliest_start) / (
-                latest_start - earliest_start
+            time_fraction = (
+                (seizure["start_time"] - earliest_start)
+                / (latest_start - earliest_start)
+                if latest_start != earliest_start
+                else 0
             )
-            color = self.get_color_for_time(time_fraction)
+
+            # Use the colormap to get the color
+            color_rgba = colormap(time_fraction)
+            color = QColor.fromRgbF(color_rgba[0], color_rgba[1], color_rgba[2])
 
             start_marker = QGraphicsEllipseItem(0, 0, 10, 10)
             start_marker.setBrush(color)
@@ -469,45 +474,54 @@ class ClusterTracker:
         if reset_scene:
             self.reset_graphics_items(scene)
 
+        colormap = cm.get_cmap("cool")
+        start_color = colormap(0.1)  # First color in the colormap
+        end_color = colormap(0.9)  # Last color in the colormap
+
         for seizure in self.seizures:
             points = seizure["points"]
             if len(points) < 2:
                 continue
 
+            # Draw the seizure path
             path = QPainterPath(
                 QPointF(points[0][1] * cell_width, points[0][0] * cell_height)
             )
             for point in points[1:]:
                 path.lineTo(QPointF(point[1] * cell_width, point[0] * cell_height))
-
             path_item = QGraphicsPathItem(path)
-            path_item.setPen(QPen(QColor(0, 0, 0, 128), 2, Qt.SolidLine))
+            path_item.setPen(QPen(QColor(0, 0, 0, int(255 * 0.1)), 2, Qt.DashLine))
             scene.addItem(path_item)
             self.seizure_graphics_items.append(path_item)
+
             if painter:
                 painter.setPen(path_item.pen())
                 painter.setBrush(Qt.NoBrush)  # Ensure no fill
                 painter.drawPath(path_item.path())
 
+            # Draw start point
             start_point = QGraphicsEllipseItem(0, 0, 10, 10)
-            start_point.setBrush(QColor(0, 255, 0))
+            start_point.setBrush(QColor.fromRgbF(*start_color))
             start_point.setPos(
                 points[0][1] * cell_width - 5, points[0][0] * cell_height - 5
             )
             scene.addItem(start_point)
             self.seizure_graphics_items.append(start_point)
+
             if painter:
                 painter.setBrush(start_point.brush())
                 painter.setPen(Qt.NoPen)
                 painter.drawEllipse(start_point.rect().translated(start_point.pos()))
 
+            # Draw end point
             end_point = QGraphicsEllipseItem(0, 0, 10, 10)
-            end_point.setBrush(QColor(255, 0, 0))  # Red
+            end_point.setBrush(QColor.fromRgbF(*end_color))
             end_point.setPos(
                 points[-1][1] * cell_width - 5, points[-1][0] * cell_height - 5
             )
             scene.addItem(end_point)
             self.seizure_graphics_items.append(end_point)
+
             if painter:
                 painter.setBrush(end_point.brush())
                 painter.setPen(Qt.NoPen)
@@ -528,52 +542,3 @@ class ClusterTracker:
             if item in self.seizure_graphics_items:
                 scene.removeItem(item)
         self.seizure_graphics_items.clear()
-
-
-# class ClusterLegend:
-#     def __init__(self, scene, x, y, width, height):
-#         self.scene = scene
-#         self.x = x
-#         self.y = y
-#         self.width = width
-#         self.height = height
-#         self.legend_items = []
-#
-#     def update(self, cluster_stats):
-#         for item in self.legend_items:
-#             self.scene.removeItem(item)
-#         self.legend_items.clear()
-#
-#         background = QGraphicsRectItem(self.x, self.y, self.width, self.height)
-#         background.setBrush(QColor(255, 255, 255, 200))
-#         background.setPen(QPen(Qt.black))
-#         self.scene.addItem(background)
-#         self.legend_items.append(background)
-#
-#         font = QFont()
-#         font.setPointSize(10)
-#
-#         y_offset = self.y + 10
-#         for i, stats in enumerate(cluster_stats):
-#             color_rect = QGraphicsRectItem(self.x + 10, y_offset, 20, 20)
-#             color_rect.setBrush(stats["color"])
-#             color_rect.setPen(QPen(Qt.black))
-#             self.scene.addItem(color_rect)
-#             self.legend_items.append(color_rect)
-#
-#             text = (
-#                 f"Cluster {i+1}: Duration: {stats['duration']:.2f} ms, "
-#                 f"Length: {stats['length']:.2f} mm, "
-#                 f"Avg Speed: {stats['avg_speed']:.2f} mm/s, "
-#             )
-#             text_item = QGraphicsTextItem(text)
-#             text_item.setFont(font)
-#             text_item.setDefaultTextColor(Qt.black)
-#             text_item.setPos(self.x + 40, y_offset)
-#             self.scene.addItem(text_item)
-#             self.legend_items.append(text_item)
-#
-#             y_offset += 30
-#
-#         self.height = y_offset - self.y + 10
-#         background.setRect(self.x, self.y, self.width, self.height)

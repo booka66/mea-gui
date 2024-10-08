@@ -14,8 +14,11 @@ from threads.ProgressUpdaterThread import ProgressUpdaterThread
 cpp_import_failed = False
 try:
     from helpers.extensions import sz_se_detect
+
+    print("C++ extension loaded successfully")
 except ImportError:
     cpp_import_failed = True
+    print("C++ extension failed to load")
 
 
 class CppAnalysisThread(QThread):
