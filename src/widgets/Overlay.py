@@ -8,7 +8,7 @@ class Overlay(QGraphicsItem):
         super().__init__()
         self.cells = cells
         self.color = color
-        self.color.setAlphaF(opacity)
+        # self.color.setAlphaF(opacity)
         self.updateBoundingRect()
         self.setAcceptHoverEvents(False)
         self.setAcceptedMouseButtons(Qt.NoButton)

@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
 )
 import pyqtgraph as pg
 import numpy as np
-from helpers.Constants import STROKE_WIDTH, GRAPH_DOWNSAMPLE
+from helpers.Constants import SE, SEIZURE, STROKE_WIDTH, GRAPH_DOWNSAMPLE
 from widgets.CustomViewBox import TraceViewBoxMenu
 
 failed_import = False
@@ -469,8 +469,10 @@ class GraphWidget(QWidget):
         )
 
         for start, stop in se_regions:
+            color = SE
+            color.setAlpha(int(255 * 0.5))
             region = pg.LinearRegionItem(
-                values=(start, stop), brush="#ffb70380", movable=False
+                values=(start, stop), brush=color, movable=False
             )
             region.mouseClickEvent = (
                 lambda event,
@@ -485,8 +487,10 @@ class GraphWidget(QWidget):
             region.setZValue(-1)
 
         for start, stop in seizure_regions:
+            color = SEIZURE
+            color.setAlpha(int(255 * 0.5))
             region = pg.LinearRegionItem(
-                values=(start, stop), brush="#0096c780", movable=False
+                values=(start, stop), brush=color, movable=False
             )
             region.mouseClickEvent = (
                 lambda event,

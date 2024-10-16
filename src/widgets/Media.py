@@ -1,11 +1,13 @@
 from pathlib import Path
-from PyQt5.QtGui import QBrush, QImage, QIntValidator, QPainter, QPixmap
+from PyQt5.QtGui import QBrush, QImage, QIntValidator, QPainter, QPixmap, QTransform
 from PyQt5.QtSvg import QSvgGenerator
 from PyQt5.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
+    QGraphicsEllipseItem,
+    QGraphicsPathItem,
     QGraphicsScene,
     QHBoxLayout,
     QLabel,
@@ -424,6 +426,21 @@ def open_save_grid_dialog(self):
     )
     layout.addLayout(propagation_layout)
 
+    current_state_checkbox = QCheckBox("Current State")
+    current_state_checkbox.setChecked(False)
+    layout.addWidget(current_state_checkbox)
+
+    save_with_plots_checkbox = QCheckBox("Save with Plots")
+    save_with_plots_checkbox.setChecked(False)
+    save_with_plots_checkbox.setEnabled(
+        len(self.graph_widget.plot_widgets) > 0
+        and any(
+            self.plotted_channels[i] is not None
+            for i in range(len(self.graph_widget.plot_widgets))
+        )
+    )
+    layout.addWidget(save_with_plots_checkbox)
+
     # Buttons
     button_layout = QHBoxLayout()
     save_button = QPushButton("Save")
@@ -439,6 +456,8 @@ def open_save_grid_dialog(self):
             seizure_beginnings_checkbox,
             discharge_start_areas_checkbox,
             save_all_individually_checkbox,
+            current_state_checkbox,
+            save_with_plots_checkbox,
         )
     )
     cancel_button = QPushButton("Cancel")
@@ -471,6 +490,8 @@ def save_grid(
     seizure_beginnings_checkbox,
     discharge_start_areas_checkbox,
     save_all_individually_checkbox,
+    current_state_checkbox,
+    save_with_plots_checkbox,
 ):
     params = [
         transparent_checkbox.isChecked(),
@@ -481,22 +502,33 @@ def save_grid(
         and seizure_beginnings_checkbox.isEnabled(),
         discharge_start_areas_checkbox.isChecked()
         and discharge_start_areas_checkbox.isEnabled(),
+        current_state_checkbox.isChecked(),
+        save_with_plots_checkbox.isChecked() and save_with_plots_checkbox.isEnabled(),
     ]
 
     post_fix = "" if not params[0] else "_transparent"
-    # Add post_fix right before the file extension
     if file_path.endswith(".png"):
         file_path = file_path.replace(".png", f"{post_fix}.png")
     elif file_path.endswith(".svg"):
         file_path = file_path.replace(".svg", f"{post_fix}.svg")
 
     if save_all_individually_checkbox.isChecked():
-        params = [transparent_checkbox.isChecked(), False, False, False, False, False]
+        params = [
+            transparent_checkbox.isChecked(),
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+        ]
         save_grid_image(self, file_path, params)
-        for i in range(4):
-            # Set the parameters for each iteration
+        for i in range(len(params) - 1):
             params = [
                 transparent_checkbox.isChecked(),
+                False,
+                False,
                 False,
                 False,
                 False,
@@ -507,19 +539,28 @@ def save_grid(
             if file_path.endswith(".png"):
                 export_file_path = file_path.replace(
                     ".png",
-                    f"_{['paths', 'beginning_points', 'heat_map', 'seizure_beginnings', 'discharge_start_areas'][i]}.png",
+                    f"_{['paths', 'beginning_points', 'heat_map', 'seizure_beginnings', 'discharge_start_areas', 'current_state', 'channel_plots'][i]}.png",
                 )
             elif file_path.endswith(".svg"):
                 export_file_path = file_path.replace(
                     ".svg",
-                    f"_{['paths', 'beginning_points', 'heat_map', 'seizure_beginnings', 'discharge_start_areas'][i]}.svg",
+                    f"_{['paths', 'beginning_points', 'heat_map', 'seizure_beginnings', 'discharge_start_areas', 'current_state', 'channel_plots'][i]}.svg",
                 )
             save_grid_image(self, export_file_path, params)
     else:
         save_grid_image(self, file_path, params)
 
     if discharge_start_areas_checkbox.isChecked():
-        params = [transparent_checkbox.isChecked(), False, False, False, False, True]
+        params = [
+            transparent_checkbox.isChecked(),
+            False,
+            False,
+            False,
+            False,
+            True,
+            False,
+            False,
+        ]
         discharge_files = []
         for i in range(self.discharge_start_dialog.table.rowCount()):
             self.discharge_start_dialog.draw_bin(i)
@@ -604,9 +645,16 @@ def save_grid_image(self, file_path, params):
         )
         return
 
-    _, paths, beginning_points, heat_map, seizure_beginnings, discharge_start_areas = (
-        params
-    )
+    (
+        _,
+        paths,
+        beginning_points,
+        heat_map,
+        seizure_beginnings,
+        discharge_start_areas,
+        current_state,
+        channel_plots,
+    ) = params
     cell_width = self.grid_widget.cells[0][0].rect().width()
     cell_height = self.grid_widget.cells[0][0].rect().height()
     temp_scene = QGraphicsScene()
@@ -637,9 +685,38 @@ def save_grid_image(self, file_path, params):
         print("Drawing discharge start areas")
         self.discharge_start_dialog.draw_discharge_starts_on_image(painter)
 
+    if current_state:
+        circle_items = self.cluster_tracker.centroid_items
+        line_items = self.cluster_tracker.cluster_lines
+        for item in line_items:
+            item: QGraphicsPathItem = item
+            painter.setPen(item.pen())
+            painter.setBrush(item.brush())
+            path = item.path()
+            transform = QTransform()
+            transform.translate(item.pos().x(), item.pos().y())
+            translated_path = transform.map(path)
+            painter.drawPath(translated_path)
+        for item in circle_items:
+            item: QGraphicsEllipseItem = item
+            painter.setBrush(item.brush())
+            painter.setPen(Qt.NoPen)  # Ensure no outline is drawn
+            translated_rect = item.rect().translated(item.pos())
+            painter.drawEllipse(translated_rect)
+
+    if channel_plots:
+        print("Drawing channel plots")
+        for i, plot_widget in enumerate(self.graph_widget.plot_widgets):
+            if self.plotted_channels[i] is not None:
+                plot_pixmap = plot_widget.grab()
+                painter.drawPixmap(
+                    self.grid_widget.width(),
+                    i * plot_widget.height(),
+                    plot_pixmap.width(),
+                    plot_pixmap.height(),
+                    plot_pixmap,
+                )
+
     if file_path.endswith(".png"):
         pixmap.save(file_path, "PNG")
     painter.end()
-
-    def save_each_bin():
-        pass

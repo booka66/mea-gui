@@ -68,8 +68,8 @@ class AnalysisThread(QThread):
     def process_cpp_results(self, results):
         for result in results:
             signal = np.array(result.signal, dtype=np.float32).squeeze()
-            SzTimes = np.array(result.result.SzTimes)
-            SETimes = np.array(result.result.SETimes)
+            SzTimes = np.array([(t[0], t[1], 1) for t in result.result.SzTimes])
+            SETimes = np.array([(t[0], t[1], 1) for t in result.result.SETimes])
             DischargeTimes = np.array(result.result.DischargeTimes)
 
             self.data[result.Row - 1, result.Col - 1] = {

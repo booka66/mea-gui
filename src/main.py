@@ -2059,7 +2059,11 @@ class MainWindow(QMainWindow):
             )
             if np.any(se_mask):
                 se_index = np.where(se_mask)[0][0]
-                strength = self.normalize_strength(se_times[se_index, 2])
+                strength = (
+                    self.normalize_strength(se_times[se_index, 2])
+                    if not self.use_cpp
+                    else 1
+                )
                 if self.do_show_false_color_map:
                     se_color = self.blend_colors(colors[i], SE, strength)
                 else:
@@ -2087,7 +2091,11 @@ class MainWindow(QMainWindow):
             )
             if np.any(seizure_mask):
                 seizure_index = np.where(seizure_mask)[0][0]
-                strength = self.normalize_strength(seizure_times[seizure_index, 2])
+                strength = (
+                    self.normalize_strength(seizure_times[seizure_index, 2])
+                    if not self.use_cpp
+                    else 1
+                )
                 if self.do_show_false_color_map:
                     seizure_color = self.blend_colors(colors[i], SEIZURE, strength)
                 else:

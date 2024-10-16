@@ -7,6 +7,7 @@ from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import QFileDialog, QGraphicsDropShadowEffect, QMessageBox
 from scipy.signal import find_peaks
 import os
+from helpers.Constants import SE, SEIZURE
 from widgets.CustomViewBox import RasterViewBoxMenu
 from widgets.GroupSelectionDialog import Group
 
@@ -364,11 +365,11 @@ class RasterPlot:
 
         for start, stop, _ in channel_data["SETimes"]:
             mask = (start <= spike_times) & (spike_times <= stop)
-            colors[mask] = pg.mkBrush(255, 165, 0)  # Orange for SE
+            colors[mask] = pg.mkBrush(SE)
 
         for start, stop, _ in channel_data["SzTimes"]:
             mask = (start <= spike_times) & (spike_times <= stop)
-            colors[mask] = pg.mkBrush(0, 0, 255)  # Blue for seizure
+            colors[mask] = pg.mkBrush(SEIZURE)
 
         return colors
 
@@ -410,13 +411,13 @@ class RasterPlot:
             )
             self.legend.addItem(
                 pg.ScatterPlotItem(
-                    symbol=self.symbol, size=self.size, pen="b", brush="b"
+                    symbol=self.symbol, size=self.size, pen=SEIZURE, brush=SEIZURE
                 ),
                 "Seizure",
             )
             self.legend.addItem(
                 pg.ScatterPlotItem(
-                    symbol=self.symbol, size=self.size, pen="orange", brush="orange"
+                    symbol=self.symbol, size=self.size, pen=SE, brush=SE
                 ),
                 "SE",
             )

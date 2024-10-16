@@ -57,6 +57,7 @@ class ClusterTracker:
         self.seizures = []
         self.seizure_graphics_items = []
         self.last_seizure = None
+        self.colormap = cm.get_cmap("cool")
 
     def update(self, new_centroids, current_time):
         if current_time < self.current_time:
@@ -245,12 +246,14 @@ class ClusterTracker:
         for i, cluster in enumerate(self.get_consistent_clusters()):
             if cluster[-1][0] is not None:
                 centroid = cluster[-1][0]
-                color = self.cluster_colors[i]
-
-                centroid_item = QGraphicsEllipseItem(0, 0, 10, 10)
+                color = self.colormap(0.1)
+                color = QColor.fromRgbF(*color)
+                size = 25
+                centroid_item = QGraphicsEllipseItem(0, 0, size, size)
                 centroid_item.setBrush(color)
                 centroid_item.setPos(
-                    centroid[1] * cell_width - 5, centroid[0] * cell_height - 5
+                    centroid[1] * cell_width - (size // 2),
+                    centroid[0] * cell_height - (size // 2),
                 )
                 scene.addItem(centroid_item)
                 self.centroid_items.append(centroid_item)
@@ -259,6 +262,7 @@ class ClusterTracker:
         for item in self.cluster_lines:
             scene.removeItem(item)
         self.cluster_lines.clear()
+        color = QColor(0xF5, 0x58, 0x4E)
 
         for i, cluster in enumerate(self.get_consistent_clusters()):
             points = [
@@ -273,44 +277,19 @@ class ClusterTracker:
                 for point in points[1:]:
                     path.lineTo(QPointF(point[1] * cell_width, point[0] * cell_height))
                 line_item = QGraphicsPathItem(path)
-                line_item.setPen(QPen(QColor(0, 0, 0), 3, Qt.SolidLine))
+                line_item.setPen(
+                    QPen(
+                        color,
+                        8,
+                        Qt.SolidLine,
+                        Qt.RoundCap,
+                        Qt.RoundJoin,
+                    )
+                )
                 scene.addItem(line_item)
                 self.cluster_lines.append(line_item)
 
         self.draw_cluster_points(scene, cell_width, cell_height)
-
-    def get_cluster_stats(self):
-        stats = []
-        for i, cluster in enumerate(self.get_consistent_clusters()):
-            valid_points = [
-                (point, time)
-                for point, count, time in cluster
-                if point is not None and time <= self.current_time
-            ]
-
-            if len(valid_points) > 1:
-                points, times = zip(*valid_points)
-
-                duration_s = times[-1] - times[0]
-                duration_ms = duration_s * 1000
-
-                length = sum(
-                    np.linalg.norm(np.array(points[j + 1]) - np.array(points[j]))
-                    for j in range(len(points) - 1)
-                )
-                length_mm = length * CELL_SIZE / 1000
-
-                avg_speed = length_mm / duration_s if duration_s > 0 else 0
-
-                stats.append(
-                    {
-                        "color": self.cluster_colors[i],
-                        "duration": duration_ms,
-                        "length": length_mm,
-                        "avg_speed": avg_speed,
-                    }
-                )
-        return stats
 
     def get_seizures(self):
         return self.seizures
@@ -438,8 +417,6 @@ class ClusterTracker:
         earliest_start = min(start_times)
         latest_start = max(start_times)
 
-        colormap = cm.get_cmap("cool")
-
         for i, seizure in enumerate(self.seizures):
             points = seizure["points"]
             if len(points) < 1:
@@ -453,7 +430,7 @@ class ClusterTracker:
             )
 
             # Use the colormap to get the color
-            color_rgba = colormap(time_fraction)
+            color_rgba = self.colormap(time_fraction)
             color = QColor.fromRgbF(color_rgba[0], color_rgba[1], color_rgba[2])
 
             start_marker = QGraphicsEllipseItem(0, 0, 10, 10)
@@ -474,9 +451,8 @@ class ClusterTracker:
         if reset_scene:
             self.reset_graphics_items(scene)
 
-        colormap = cm.get_cmap("cool")
-        start_color = colormap(0.1)  # First color in the colormap
-        end_color = colormap(0.9)  # Last color in the colormap
+        start_color = self.colormap(0.1)  # First color in the colormap
+        end_color = self.colormap(0.9)  # Last color in the colormap
 
         for seizure in self.seizures:
             points = seizure["points"]
