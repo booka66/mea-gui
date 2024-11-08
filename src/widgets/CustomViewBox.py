@@ -116,12 +116,15 @@ class TraceViewBoxMenu(QMenu):
 class RasterViewBoxMenu(QMenu):
     save_raster = pyqtSignal()
     order = pyqtSignal(str)
+    toggle_color_mode = pyqtSignal()
 
     def __init__(self, view, parent=None):
         super().__init__()
         self.view = view
         self.parent = parent
         self.setTitle("ViewBox options")
+
+        toggle_color_mode_action = QAction("Toggle color mode", self)
 
         save_raster_action = QAction("Save raster", self)
 
@@ -131,6 +134,7 @@ class RasterViewBoxMenu(QMenu):
         se_entrance_order_action = QAction("SE Entrance", self)
         sz_entrance_order_action = QAction("Seizure Entrance", self)
 
+        toggle_color_mode_action.triggered.connect(self.toggle_color_mode.emit)
         save_raster_action.triggered.connect(self.save_raster.emit)
 
         default_order_action.triggered.connect(lambda: self.order.emit("default"))
@@ -138,6 +142,7 @@ class RasterViewBoxMenu(QMenu):
         se_entrance_order_action.triggered.connect(lambda: self.order.emit("SE"))
         sz_entrance_order_action.triggered.connect(lambda: self.order.emit("seizure"))
 
+        self.addAction(toggle_color_mode_action)
         self.addAction(save_raster_action)
         row_order_menu.addAction(default_order_action)
         row_order_menu.addAction(cluster_order_action)

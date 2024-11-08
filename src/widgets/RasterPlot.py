@@ -38,6 +38,13 @@ class RasterPlot:
         self.symbol = "o"
         self.size = 5
         self.color_index = 0
+        self.melissa = [
+            "#390099",
+            "#9e0059",
+            "#ff0054",
+            "#ff5400",
+            "#ffbd00",
+        ]
         self.predefined_colors = [
             (211, 31, 17),
             (98, 200, 211),
@@ -256,6 +263,7 @@ class RasterPlot:
         view_box = self.plot_widget.getPlotItem().getViewBox()
         custom_menu = RasterViewBoxMenu(view_box, self)
         custom_menu.save_raster.connect(self.save_raster_plot)
+        custom_menu.toggle_color_mode.connect(self.toggle_color_mode)
         # custom_menu.cluster.connect(self.cluster_channels_by_se_onset)
         custom_menu.order.connect(self.set_raster_order)
         view_box.menu = custom_menu
@@ -522,7 +530,7 @@ class RasterPlot:
                 return group
         return None
 
-    def cluster_channels_by_se_onset(self, time_window=30):
+    def cluster_channels_by_se_onset(self, time_window=60 * 4):
         se_onset_times = {}
         channels_without_se = []
 
@@ -556,15 +564,17 @@ class RasterPlot:
         if current_cluster:
             clusters.append(current_cluster)
 
-        if channels_without_se:
-            clusters.append(channels_without_se)
-
-        self.active_channels = [channel for cluster in clusters for channel in cluster]
-
         self.groups = []
         for i, cluster in enumerate(clusters):
             color = self.get_next_color()
             self.groups.append(Group(cluster, None, color, i + 1))
+
+        if channels_without_se:
+            self.groups.append(
+                Group(channels_without_se, None, [0, 0, 0], len(self.groups) + 1)
+            )
+            clusters.append(channels_without_se)
+        self.active_channels = [channel for cluster in clusters for channel in cluster]
 
         self.generate_raster()
         self.update_raster_plot_data()
@@ -573,9 +583,10 @@ class RasterPlot:
 
     def get_next_color(self):
         if self.color_index < len(self.predefined_colors):
-            color = self.predefined_colors[self.color_index]
+            hex_color = self.melissa[self.color_index]
+            rgb_color = pg.mkColor(hex_color).getRgb()
             # Normalize the rgb values to be between 0 and 1
-            color = tuple([val / 255 for val in color])
+            color = tuple([val / 255 for val in rgb_color])
             self.color_index += 1
         else:
             color = self.generate_random_color()
