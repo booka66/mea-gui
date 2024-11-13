@@ -80,8 +80,46 @@ class ClusterTracker:
         self.clusters = new_clusters
 
     def _check_and_store_seizure(self, cluster):
-        valid_points = [point for point, count, time in cluster if point is not None]
-        if len(valid_points) > 1:
+        valid_points_with_times = [
+            (point, time) for point, count, time in cluster if point is not None
+        ]
+        if len(valid_points_with_times) > 1:
+            # Remove consecutive duplicates while preserving order
+            deduped_points_with_times = []
+            for i, (point, time) in enumerate(valid_points_with_times):
+                if i == 0 or not np.array_equal(
+                    point, valid_points_with_times[i - 1][0]
+                ):
+                    deduped_points_with_times.append((point, time))
+
+            valid_points = [point for point, _ in deduped_points_with_times]
+            timestamps = [time for _, time in deduped_points_with_times]
+
+            # Calculate instantaneous speeds
+            instant_speeds = []
+            for i in range(len(valid_points) - 1):
+                # Calculate distance in mm
+                distance = (
+                    np.linalg.norm(
+                        np.array(valid_points[i + 1]) - np.array(valid_points[i])
+                    )
+                    * CELL_SIZE
+                    / 1000
+                )  # Convert to mm
+
+                # Calculate time difference in seconds
+                time_diff = timestamps[i + 1] - timestamps[i]
+
+                # Calculate speed in mm/s
+                if time_diff > 0:
+                    speed = distance / time_diff
+                else:
+                    speed = 0
+                instant_speeds.append(speed)
+
+            # Add final speed (using last real speed or 0 if only one point)
+            instant_speeds.append(instant_speeds[-1] if instant_speeds else 0)
+
             length = sum(
                 np.linalg.norm(
                     np.array(valid_points[j + 1]) - np.array(valid_points[j])
@@ -91,8 +129,8 @@ class ClusterTracker:
             length_mm = length * CELL_SIZE / 1000
 
             if length_mm >= self.min_seizure_length:
-                start_time = cluster[0][2]
-                end_time = cluster[-1][2]
+                start_time = timestamps[0]
+                end_time = timestamps[-1]
                 duration_s = end_time - start_time
                 avg_speed = length_mm / duration_s if duration_s > 0 else 0
 
@@ -103,6 +141,8 @@ class ClusterTracker:
                     "length": length_mm,
                     "avg_speed": avg_speed,
                     "points": valid_points,
+                    "timestamps": timestamps,
+                    "instant_speeds": instant_speeds,
                     "start_point": valid_points[0],
                     "end_point": valid_points[-1],
                     "time_since_last_discharge": (
@@ -122,7 +162,6 @@ class ClusterTracker:
                     f.create_group("tracked_discharges")
                 discharges_group = f["tracked_discharges"]
 
-                # Keep the timeframe grouping
                 timeframe_group_name = f"{start:.2f}_{stop:.2f}_test"
                 if timeframe_group_name not in discharges_group:
                     timeframe_group = discharges_group.create_group(
@@ -134,7 +173,6 @@ class ClusterTracker:
                 for i, seizure in enumerate(self.seizures):
                     seizure_id = f"discharge_{i}"
 
-                    # Remove existing dataset if it exists
                     if seizure_id in timeframe_group:
                         del timeframe_group[seizure_id]
 
@@ -151,6 +189,10 @@ class ClusterTracker:
                         seizure_dataset.attrs["length"] = seizure["length"]
                         seizure_dataset.attrs["avg_speed"] = seizure["avg_speed"]
                         seizure_dataset.attrs["points"] = seizure["points"]
+                        seizure_dataset.attrs["timestamps"] = seizure["timestamps"]
+                        seizure_dataset.attrs["instant_speeds"] = seizure[
+                            "instant_speeds"
+                        ]  # Added instantaneous speeds
                         seizure_dataset.attrs["start_point"] = seizure["start_point"]
                         seizure_dataset.attrs["end_point"] = seizure["end_point"]
                         seizure_dataset.attrs["time_since_last_discharge"] = seizure[

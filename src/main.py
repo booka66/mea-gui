@@ -63,6 +63,7 @@ from sklearn.cluster import DBSCAN
 from helpers.Constants import (
     ACTIVE,
     BACKGROUND,
+    CELL_SIZE,
     MAC,
     SE,
     SEIZURE,
@@ -79,6 +80,7 @@ from widgets.DischargeStartDialog import DischargeStartDialog
 from widgets.GraphWidget import GraphWidget
 from widgets.GridWidget import GridWidget
 from widgets.GroupSelectionDialog import Group, GroupSelectionDialog
+from widgets.HDFViewer import HDF5Viewer
 from widgets.LegendWidget import LegendWidget
 from widgets.LoadingDialog import LoadingDialog
 from widgets.Media import (
@@ -247,6 +249,9 @@ class MainWindow(QMainWindow):
         self.openAction = QAction("Open File", self)
         self.openAction.triggered.connect(self.openFile)
         self.fileMenu.addAction(self.openAction)
+        self.viewHDF5Action = QAction("View HDF5 File", self)
+        self.viewHDF5Action.triggered.connect(self.viewHDF5)
+        self.fileMenu.addAction(self.viewHDF5Action)
         self.downsampleExportAction = QAction("Downsample and Export", self)
         self.downsampleExportAction.triggered.connect(
             self.open_downsample_export_dialog
@@ -1564,7 +1569,7 @@ class MainWindow(QMainWindow):
                         discharge_dataset = timerange_group[discharge_key]
                         attrs = discharge_dataset.attrs
 
-                        # Extract data from attributes instead of datasets
+                        # Extract data from attributes including timestamps and instant speeds
                         start_point = attrs["start_point"]
                         end_point = attrs["end_point"]
                         start_time = float(attrs["start_time"])
@@ -1573,6 +1578,38 @@ class MainWindow(QMainWindow):
                         length_mm = float(attrs["length"])
                         avg_speed = float(attrs["avg_speed"])
                         points = attrs["points"]
+                        timestamps = attrs["timestamps"]
+
+                        # Load instant speeds if available, otherwise calculate them
+                        if "instant_speeds" in attrs:
+                            instant_speeds = attrs["instant_speeds"]
+                        else:
+                            # Calculate instantaneous speeds for backward compatibility
+                            points_list = (
+                                points.tolist() if hasattr(points, "tolist") else points
+                            )
+                            timestamps_list = (
+                                timestamps.tolist()
+                                if hasattr(timestamps, "tolist")
+                                else timestamps
+                            )
+                            instant_speeds = []
+                            for i in range(len(points_list) - 1):
+                                distance = (
+                                    np.linalg.norm(
+                                        np.array(points_list[i + 1])
+                                        - np.array(points_list[i])
+                                    )
+                                    * CELL_SIZE
+                                    / 1000
+                                )
+                                time_diff = timestamps_list[i + 1] - timestamps_list[i]
+                                speed = distance / time_diff if time_diff > 0 else 0
+                                instant_speeds.append(speed)
+                            instant_speeds.append(
+                                instant_speeds[-1] if instant_speeds else 0
+                            )
+
                         time_since_last_discharge = float(
                             attrs["time_since_last_discharge"]
                         )
@@ -1586,6 +1623,12 @@ class MainWindow(QMainWindow):
                             "points": points.tolist()
                             if hasattr(points, "tolist")
                             else points,
+                            "timestamps": timestamps.tolist()
+                            if hasattr(timestamps, "tolist")
+                            else timestamps,
+                            "instant_speeds": instant_speeds.tolist()  # Convert speeds to list if needed
+                            if hasattr(instant_speeds, "tolist")
+                            else instant_speeds,
                             "start_point": start_point.tolist()
                             if hasattr(start_point, "tolist")
                             else start_point,
@@ -1595,14 +1638,6 @@ class MainWindow(QMainWindow):
                             "time_since_last_discharge": time_since_last_discharge,
                         }
 
-                        # Add a green line to the channel plots
-                        # for i in range(4):
-                        #     if self.plotted_channels[i] is not None:
-                        #         self.graph_widget.plot_widgets[i].addItem(
-                        #             pg.InfiniteLine(
-                        #                 pos=start_time, angle=90, pen=pg.mkPen("g", width=2)
-                        #             )
-                        #         )
                         self.cluster_tracker.seizures.append(seizure)
         except Exception as e:
             print(f"Error loading discharges: {e}")
@@ -1845,6 +1880,19 @@ class MainWindow(QMainWindow):
                 print(f"Error: {e}")
 
         self.set_widgets_enabled()
+
+    def viewHDF5(self):
+        if self.file_path is not None:
+            if hasattr(self, "hdf5_viewer") and self.hdf5_viewer is not None:
+                self.hdf5_viewer.raise_()
+                self.hdf5_viewer.activateWindow()
+            else:
+                self.hdf5_viewer = HDF5Viewer(self.file_path)
+                # Clear reference when closed
+                self.hdf5_viewer.destroyed.connect(
+                    lambda: setattr(self, "hdf5_viewer", None)
+                )
+                self.hdf5_viewer.show()
 
     def get_channels(self):
         with h5py.File(self.file_path, "r") as f:
