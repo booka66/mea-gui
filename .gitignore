@@ -24,3 +24,4 @@ compile_commands.json
 ./docs/sphinx_env/*
 sphinx_env
 _build
+*.lock
