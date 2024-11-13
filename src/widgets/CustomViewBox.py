@@ -20,6 +20,7 @@ class TraceViewBoxMenu(QMenu):
         clear_discharges_action = QAction("Clear discharges", self)
         clear_tracked_discharges_action = QAction("Clear tracked discharges", self)
         save_tracked_discharges_action = QAction("Save tracked discharges", self)
+        export_discharge_stats_action = QAction("Export discharge stats", self)
         save_single_plot_action = QAction("Save this plot", self)
         save_all_plots_action = QAction("Save all plots", self)
         toggle_regions_action = QAction("Toggle regions", self)
@@ -39,6 +40,9 @@ class TraceViewBoxMenu(QMenu):
         )
         clear_tracked_discharges_action.triggered.connect(self.clear_tracked_discharges)
         save_tracked_discharges_action.triggered.connect(self.save_tracked_discharges)
+        export_discharge_stats_action.triggered.connect(
+            self.parent.main_window.export_discharge_stats
+        )
 
         save_single_plot_action.triggered.connect(self.save_single_plot.emit)
         save_all_plots_action.triggered.connect(self.save_all_plots.emit)
@@ -54,6 +58,7 @@ class TraceViewBoxMenu(QMenu):
         self.addAction(clear_discharges_action)
         self.addAction(clear_tracked_discharges_action)
         self.addAction(save_tracked_discharges_action)
+        self.addAction(export_discharge_stats_action)
         self.addSeparator()
         self.addAction(save_single_plot_action)
         self.addAction(save_all_plots_action)
@@ -110,7 +115,7 @@ class TraceViewBoxMenu(QMenu):
             msg.exec_()
             return
 
-        cluster_tracker.save_seizures_to_hdf(file_path, *custom_region)
+        cluster_tracker.save_discharges_to_hdf5(file_path, *custom_region)
 
 
 class RasterViewBoxMenu(QMenu):

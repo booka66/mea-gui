@@ -604,6 +604,12 @@ class MainWindow(QMainWindow):
         channel_extract_dialog = ChannelExtract(self)
         channel_extract_dialog.exec_()
 
+    def collect_discharge_stats(self):
+        print("TODO: Implement this function")
+
+    def export_discharge_stats(self):
+        print("TODO: Implement this function")
+
     def open_docs(self):
         cwd = Path(__file__).resolve().parent
         print(f"Current working directory: {cwd}")
@@ -1535,65 +1541,129 @@ class MainWindow(QMainWindow):
         self.is_auto_analyzing = False
 
     def load_discharges(self):
+        try:
+            with h5py.File(self.file_path, "r") as f:
+                tracked_discharges_group = f["tracked_discharges"]
+                timeranges = list(tracked_discharges_group.keys())
+                time_range, ok = QInputDialog.getItem(
+                    self,
+                    "Select Time Range",
+                    "Time Range:",
+                    timeranges,
+                    0,
+                    False,
+                )
+                if ok:
+                    timerange_group = tracked_discharges_group[time_range]
+                    discharge_datasets = [
+                        key
+                        for key in timerange_group.keys()
+                        if key.startswith("discharge_")
+                    ]
+                    for discharge_key in discharge_datasets:
+                        discharge_dataset = timerange_group[discharge_key]
+                        attrs = discharge_dataset.attrs
+
+                        # Extract data from attributes instead of datasets
+                        start_point = attrs["start_point"]
+                        end_point = attrs["end_point"]
+                        start_time = float(attrs["start_time"])
+                        end_time = float(attrs["end_time"])
+                        duration_s = float(attrs["duration"])
+                        length_mm = float(attrs["length"])
+                        avg_speed = float(attrs["avg_speed"])
+                        points = attrs["points"]
+                        time_since_last_discharge = float(
+                            attrs["time_since_last_discharge"]
+                        )
+
+                        seizure = {
+                            "start_time": start_time,
+                            "end_time": end_time,
+                            "duration": duration_s,
+                            "length": length_mm,
+                            "avg_speed": avg_speed,
+                            "points": points.tolist()
+                            if hasattr(points, "tolist")
+                            else points,
+                            "start_point": start_point.tolist()
+                            if hasattr(start_point, "tolist")
+                            else start_point,
+                            "end_point": end_point.tolist()
+                            if hasattr(end_point, "tolist")
+                            else end_point,
+                            "time_since_last_discharge": time_since_last_discharge,
+                        }
+
+                        # Add a green line to the channel plots
+                        # for i in range(4):
+                        #     if self.plotted_channels[i] is not None:
+                        #         self.graph_widget.plot_widgets[i].addItem(
+                        #             pg.InfiniteLine(
+                        #                 pos=start_time, angle=90, pen=pg.mkPen("g", width=2)
+                        #             )
+                        #         )
+                        self.cluster_tracker.seizures.append(seizure)
+        except Exception as e:
+            print(f"Error loading discharges: {e}")
+            print("Attempting to load deprecated discharges")
+            try:
+                self.load_discharges_deprecated(time_range)
+            except Exception as e:
+                print(f"Error loading deprecated discharges: {e}")
+
+    def load_discharges_deprecated(self, time_range):
         with h5py.File(self.file_path, "r") as f:
             tracked_discharges_group = f["tracked_discharges"]
-            timeranges = list(tracked_discharges_group.keys())
+            timerange_group = tracked_discharges_group[time_range]
 
-            time_range, ok = QInputDialog.getItem(
-                self,
-                "Select Time Range",
-                "Time Range:",
-                timeranges,
-                0,
-                False,
-            )
+            discharge_groups = [
+                key for key in timerange_group.keys() if key.startswith("discharge_")
+            ]
 
-            if ok:
-                timerange_group = tracked_discharges_group[time_range]
+            for discharge_key in discharge_groups:
+                discharge_group = timerange_group[discharge_key]
 
-                discharge_groups = [
-                    key
-                    for key in timerange_group.keys()
-                    if key.startswith("discharge_")
-                ]
+                start_point = discharge_group["start_point"][:]
+                end_point = discharge_group["end_point"][:]
+                start_time = float(discharge_group["start_time"][()])
+                end_time = float(discharge_group["end_time"][()])
+                duration_s = float(discharge_group["duration"][()])
+                length_mm = float(discharge_group["length"][()])
+                avg_speed = float(discharge_group["avg_speed"][()])
+                points = discharge_group["points"][:]
+                time_since_last_discharge = float(
+                    discharge_group["time_since_last_discharge"][()]
+                )
 
-                for discharge_key in discharge_groups:
-                    discharge_group = timerange_group[discharge_key]
+                seizure = {
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "duration": duration_s,
+                    "length": length_mm,
+                    "avg_speed": avg_speed,
+                    "points": points.tolist(),
+                    "start_point": start_point.tolist(),
+                    "end_point": end_point.tolist(),
+                    "time_since_last_discharge": time_since_last_discharge,
+                }
 
-                    start_point = discharge_group["start_point"][:]
-                    end_point = discharge_group["end_point"][:]
-                    start_time = float(discharge_group["start_time"][()])
-                    end_time = float(discharge_group["end_time"][()])
-                    duration_s = float(discharge_group["duration"][()])
-                    length_mm = float(discharge_group["length"][()])
-                    avg_speed = float(discharge_group["avg_speed"][()])
-                    points = discharge_group["points"][:]
-                    time_since_last_discharge = float(
-                        discharge_group["time_since_last_discharge"][()]
-                    )
+                # Add a green line to the channel plots
+                # for i in range(4):
+                #     if self.plotted_channels[i] is not None:
+                #         self.graph_widget.plot_widgets[i].addItem(
+                #             pg.InfiniteLine(
+                #                 pos=start_time, angle=90, pen=pg.mkPen("g", width=2)
+                #             )
+                #         )
 
-                    seizure = {
-                        "start_time": start_time,
-                        "end_time": end_time,
-                        "duration": duration_s,
-                        "length": length_mm,
-                        "avg_speed": avg_speed,
-                        "points": points.tolist(),
-                        "start_point": start_point.tolist(),
-                        "end_point": end_point.tolist(),
-                        "time_since_last_discharge": time_since_last_discharge,
-                    }
+                self.cluster_tracker.seizures.append(seizure)
 
-                    # Add a green line to the channel plots
-                    # for i in range(4):
-                    #     if self.plotted_channels[i] is not None:
-                    #         self.graph_widget.plot_widgets[i].addItem(
-                    #             pg.InfiniteLine(
-                    #                 pos=start_time, angle=90, pen=pg.mkPen("g", width=2)
-                    #             )
-                    #         )
-
-                    self.cluster_tracker.seizures.append(seizure)
+            start, end = time_range.split("_")
+        print(f"Attempting to save discharges to new format: {start} - {end}")
+        self.cluster_tracker.save_discharges_to_hdf5(
+            self.file_path, float(start), float(end)
+        )
 
     def auto_analyze(self):
         if self.custom_region is None or self.plotted_channels[0] is None:
@@ -1626,7 +1696,7 @@ class MainWindow(QMainWindow):
             if self.is_auto_analyzing:
                 print("Auto-analysis complete")
 
-                self.cluster_tracker.save_seizures_to_hdf(
+                self.cluster_tracker.save_discharges_to_hdf5(
                     self.file_path, *self.custom_region
                 )
             self.is_auto_analyzing = False
@@ -1834,35 +1904,35 @@ class MainWindow(QMainWindow):
         )
 
     # TODO: Find a way to store all the discharge events times for each channel
-    def save_discharges_to_hdf5(self, row, col, start_time, stop_time):
-        with h5py.File(self.file_path, "a") as f:
-            if len(self.discharges[(row, col)][0]) == 0:
-                return
-            if "Discharges" not in f:
-                f.create_group("Discharges")
-            discharge_group = f["Discharges"]
-
-            timeframe_group_name = f"Timeframe_{start_time:.2f}_{stop_time:.2f}"
-            if timeframe_group_name not in discharge_group:
-                timeframe_group = discharge_group.create_group(timeframe_group_name)
-            else:
-                timeframe_group = discharge_group[timeframe_group_name]
-
-            channel_group_name = f"{row}_{col}"
-            if channel_group_name not in timeframe_group:
-                channel_group = timeframe_group.create_group(channel_group_name)
-            else:
-                channel_group = timeframe_group[channel_group_name]
-
-            channel_group.create_dataset(
-                "DischargeTimes", data=self.discharges[(row, col)][0]
-            )
-            channel_group.create_dataset(
-                "DischargeStrengths", data=self.discharges[(row, col)][1]
-            )
-
-            channel_group.attrs["start_time"] = start_time
-            channel_group.attrs["stop_time"] = stop_time
+    # def save_discharges_to_hdf5(self, row, col, start_time, stop_time):
+    #     with h5py.File(self.file_path, "a") as f:
+    #         if len(self.discharges[(row, col)][0]) == 0:
+    #             return
+    #         if "Discharges" not in f:
+    #             f.create_group("Discharges")
+    #         discharge_group = f["Discharges"]
+    #
+    #         timeframe_group_name = f"Timeframe_{start_time:.2f}_{stop_time:.2f}"
+    #         if timeframe_group_name not in discharge_group:
+    #             timeframe_group = discharge_group.create_group(timeframe_group_name)
+    #         else:
+    #             timeframe_group = discharge_group[timeframe_group_name]
+    #
+    #         channel_group_name = f"{row}_{col}"
+    #         if channel_group_name not in timeframe_group:
+    #             channel_group = timeframe_group.create_group(channel_group_name)
+    #         else:
+    #             channel_group = timeframe_group[channel_group_name]
+    #
+    #         channel_group.create_dataset(
+    #             "DischargeTimes", data=self.discharges[(row, col)][0]
+    #         )
+    #         channel_group.create_dataset(
+    #             "DischargeStrengths", data=self.discharges[(row, col)][1]
+    #         )
+    #
+    #         channel_group.attrs["start_time"] = start_time
+    #         channel_group.attrs["stop_time"] = stop_time
 
     def clear_found_discharges(self):
         self.discharges = {}
@@ -2788,7 +2858,7 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
 
-font_name = "GeistMono Nerd Font"
+font_name = "GeistMono Nerd Font Mono"
 font_url = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/Hack.zip"
 
 if sys.platform == MAC:

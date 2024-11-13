@@ -115,45 +115,51 @@ class ClusterTracker:
                 self.seizures.append(seizure)
                 self.last_seizure = seizure
 
-    def save_seizures_to_hdf(self, file_path, start, stop):
+    def save_discharges_to_hdf5(self, file_path, start, stop):
         try:
             with h5py.File(file_path, "a") as f:
                 if "tracked_discharges" not in f:
                     f.create_group("tracked_discharges")
-
                 discharges_group = f["tracked_discharges"]
 
-                timeframe_group_name = f"{start:.2f}_{stop:.2f}"
+                # Keep the timeframe grouping
+                timeframe_group_name = f"{start:.2f}_{stop:.2f}_test"
                 if timeframe_group_name not in discharges_group:
                     timeframe_group = discharges_group.create_group(
                         timeframe_group_name
                     )
                 else:
                     timeframe_group = discharges_group[timeframe_group_name]
+
                 for i, seizure in enumerate(self.seizures):
-                    if f"discharge_{i}" in timeframe_group:
-                        del timeframe_group[f"discharge_{i}"]
-                    discharge_group = timeframe_group.create_group(f"discharge_{i}")
-                    discharge_group.create_dataset(
-                        "start_time", data=seizure["start_time"]
+                    seizure_id = f"discharge_{i}"
+
+                    # Remove existing dataset if it exists
+                    if seizure_id in timeframe_group:
+                        del timeframe_group[seizure_id]
+
+                    # Create dataset with minimal shape
+                    seizure_dataset = timeframe_group.create_dataset(
+                        seizure_id, data=[0], shape=(1,)
                     )
-                    discharge_group.create_dataset("end_time", data=seizure["end_time"])
-                    discharge_group.create_dataset("duration", data=seizure["duration"])
-                    discharge_group.create_dataset("length", data=seizure["length"])
-                    discharge_group.create_dataset(
-                        "avg_speed", data=seizure["avg_speed"]
-                    )
-                    discharge_group.create_dataset("points", data=seizure["points"])
-                    discharge_group.create_dataset(
-                        "start_point", data=seizure["start_point"]
-                    )
-                    discharge_group.create_dataset(
-                        "end_point", data=seizure["end_point"]
-                    )
-                    discharge_group.create_dataset(
-                        "time_since_last_discharge",
-                        data=seizure["time_since_last_discharge"],
-                    )
+
+                    try:
+                        # Store seizure data as attributes
+                        seizure_dataset.attrs["start_time"] = seizure["start_time"]
+                        seizure_dataset.attrs["end_time"] = seizure["end_time"]
+                        seizure_dataset.attrs["duration"] = seizure["duration"]
+                        seizure_dataset.attrs["length"] = seizure["length"]
+                        seizure_dataset.attrs["avg_speed"] = seizure["avg_speed"]
+                        seizure_dataset.attrs["points"] = seizure["points"]
+                        seizure_dataset.attrs["start_point"] = seizure["start_point"]
+                        seizure_dataset.attrs["end_point"] = seizure["end_point"]
+                        seizure_dataset.attrs["time_since_last_discharge"] = seizure[
+                            "time_since_last_discharge"
+                        ]
+                    except Exception as e:
+                        del timeframe_group[seizure_id]
+                        print(f"Error saving seizure data: {e}")
+                        continue
         except Exception as e:
             print(f"Error saving seizures to HDF: {e}")
             msg = QMessageBox()
