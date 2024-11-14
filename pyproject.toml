@@ -25,6 +25,7 @@ opencv-python = "^4.10.0.84"
 pybind11 = "^2.13.6"
 tqdm = "^4.67.0"
 lttbc = "^0.3.0"
+pandas = "^2.2.3"
 
 
 [build-system]
