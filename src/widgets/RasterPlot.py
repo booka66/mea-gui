@@ -72,7 +72,8 @@ class RasterPlot:
                 if self.selected_channel_dot:
                     self.plot_widget.removeItem(self.selected_channel_dot)
 
-                nearest_point = self.find_nearest_point(view_pos.x(), view_pos.y())
+                nearest_point = self.find_nearest_point(
+                    view_pos.x(), view_pos.y())
 
                 if nearest_point is not None:
                     x, y, row, col, time = nearest_point
@@ -110,7 +111,8 @@ class RasterPlot:
         print(self.plotted_channels)
 
         for row, col in self.plotted_channels:
-            y = len(self.active_channels) - self.active_channels.index((row, col)) - 1
+            y = len(self.active_channels) - \
+                self.active_channels.index((row, col)) - 1
             region = pg.LinearRegionItem(
                 [y - 0.5, y + 0.5],
                 orientation=pg.LinearRegionItem.Horizontal,
@@ -147,7 +149,8 @@ class RasterPlot:
 
     def generate_raster(self):
         self.spike_data = [
-            self.detect_spikes(self.data[row - 1, col - 1]) / self.sampling_rate
+            self.detect_spikes(
+                self.data[row - 1, col - 1]) / self.sampling_rate
             for row, col in self.active_channels
         ]
 
@@ -288,7 +291,8 @@ class RasterPlot:
         self.plot_widget.getAxis("bottom").setTextPen(
             pg.mkPen(color=(0, 0, 0), width=2)
         )
-        self.plot_widget.getAxis("left").setTextPen(pg.mkPen(color=(0, 0, 0), width=2))
+        self.plot_widget.getAxis("left").setTextPen(
+            pg.mkPen(color=(0, 0, 0), width=2))
 
         self.raster_red_line = pg.InfiniteLine(
             angle=90, movable=False, pen=pg.mkPen(color=(255, 0, 0), width=2)
@@ -369,7 +373,8 @@ class RasterPlot:
         # )
 
     def get_event_colors(self, channel_data, spike_times):
-        colors = np.full(len(spike_times), pg.mkBrush(0, 0, 0))  # Default color (black)
+        colors = np.full(len(spike_times), pg.mkBrush(
+            0, 0, 0))  # Default color (black)
 
         for start, stop, _ in channel_data["SETimes"]:
             mask = (start <= spike_times) & (spike_times <= stop)
@@ -398,8 +403,10 @@ class RasterPlot:
         ax.setLabel("Time (s)")
 
         ay = self.plot_widget.getAxis("left")
-        channel_positions = np.linspace(0, num_channels - 1, min(num_channels, 10))
-        channel_labels = [f"{num_channels - int(pos)}" for pos in channel_positions]
+        channel_positions = np.linspace(
+            0, num_channels - 1, min(num_channels, 10))
+        channel_labels = [
+            f"{num_channels - int(pos)}" for pos in channel_positions]
         ay.setTicks([list(zip(channel_positions, channel_labels))])
         ay.setLabel("Channel")
 
@@ -448,11 +455,13 @@ class RasterPlot:
             self.active_channels.sort(key=lambda x: (x[0], x[1]))
         elif order == "seizure":
             self.active_channels.sort(
-                key=lambda x: self.get_first_event_time(x[0] - 1, x[1] - 1, "SzTimes")
+                key=lambda x: self.get_first_event_time(
+                    x[0] - 1, x[1] - 1, "SzTimes")
             )
         elif order == "SE":
             self.active_channels.sort(
-                key=lambda x: self.get_first_event_time(x[0] - 1, x[1] - 1, "SETimes")
+                key=lambda x: self.get_first_event_time(
+                    x[0] - 1, x[1] - 1, "SETimes")
             )
         elif order == "cluster":
             self.cluster_channels_by_se_onset()
@@ -461,7 +470,8 @@ class RasterPlot:
 
     def save_raster_plot(self):
         file_dialog = QFileDialog()
-        default_file = os.path.join(os.path.expanduser("~/Downloads"), "raster_plot")
+        default_file = os.path.join(
+            os.path.expanduser("~/Downloads"), "raster_plot")
         file_path, _ = file_dialog.getSaveFileName(
             self.main_window,
             "Save Raster Plot",
@@ -571,10 +581,12 @@ class RasterPlot:
 
         if channels_without_se:
             self.groups.append(
-                Group(channels_without_se, None, [0, 0, 0], len(self.groups) + 1)
+                Group(channels_without_se, None, [
+                      0, 0, 0], len(self.groups) + 1)
             )
             clusters.append(channels_without_se)
-        self.active_channels = [channel for cluster in clusters for channel in cluster]
+        self.active_channels = [
+            channel for cluster in clusters for channel in cluster]
 
         self.generate_raster()
         self.update_raster_plot_data()

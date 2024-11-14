@@ -236,7 +236,8 @@ class MainWindow(QMainWindow):
         self.analysis_thread.progress_updated.connect(
             self.loading_dialog.update_progress
         )
-        self.analysis_thread.analysis_completed.connect(self.on_analysis_completed)
+        self.analysis_thread.analysis_completed.connect(
+            self.on_analysis_completed)
 
         self.setWindowTitle(f"MEA GUI {VERSION}")
 
@@ -262,13 +263,16 @@ class MainWindow(QMainWindow):
         self.createVideoAction.triggered.connect(self.show_video_editor)
         self.fileMenu.addAction(self.createVideoAction)
         self.saveGridAction = QAction("Save MEA as PNG", self)
-        self.saveGridAction.triggered.connect(lambda: open_save_grid_dialog(self))
+        self.saveGridAction.triggered.connect(
+            lambda: open_save_grid_dialog(self))
         self.fileMenu.addAction(self.saveGridAction)
         self.saveChannelPlotsAction = QAction("Save Channel Plots", self)
         self.saveChannelPlotsAction.triggered.connect(self.save_channel_plots)
         self.fileMenu.addAction(self.saveChannelPlotsAction)
-        self.saveMeaWithPlotsAction = QAction("Save MEA with Channel Plots", self)
-        self.saveMeaWithPlotsAction.triggered.connect(lambda: save_mea_with_plots(self))
+        self.saveMeaWithPlotsAction = QAction(
+            "Save MEA with Channel Plots", self)
+        self.saveMeaWithPlotsAction.triggered.connect(
+            lambda: save_mea_with_plots(self))
         self.fileMenu.addAction(self.saveMeaWithPlotsAction)
 
         self.editMenu = QMenu("Edit", self)
@@ -282,7 +286,8 @@ class MainWindow(QMainWindow):
         )
 
         self.peak_settings_widget = PeakSettingsWidget(self)
-        self.settings_manager.add_widget("Set Peak Settings", self.peak_settings_widget)
+        self.settings_manager.add_widget(
+            "Set Peak Settings", self.peak_settings_widget)
 
         self.spectrogram_settings_widget = SpectrogramSettingsWidget(self)
         self.settings_manager.add_widget(
@@ -304,7 +309,8 @@ class MainWindow(QMainWindow):
             "Detected Events Overlay", self, checkable=True
         )
         self.toggleEventsOverlayAction.setChecked(False)
-        self.toggleEventsOverlayAction.triggered.connect(self.toggle_events_overlay)
+        self.toggleEventsOverlayAction.triggered.connect(
+            self.toggle_events_overlay)
         self.viewMenu.addAction(self.toggleEventsOverlayAction)
 
         self.toggleLegendAction = QAction("Legend", self, checkable=True)
@@ -317,19 +323,23 @@ class MainWindow(QMainWindow):
         self.toggleLinesAction.triggered.connect(self.toggle_lines)
         self.viewMenu.addAction(self.toggleLinesAction)
 
-        self.togglePropLinesAction = QAction("Discharge Paths", self, checkable=True)
+        self.togglePropLinesAction = QAction(
+            "Discharge Paths", self, checkable=True)
         self.togglePropLinesAction.setChecked(False)
         self.togglePropLinesAction.triggered.connect(self.toggle_prop_lines)
         self.viewMenu.addAction(self.togglePropLinesAction)
 
-        self.toggleEventsAction = QAction("Detected Events", self, checkable=True)
+        self.toggleEventsAction = QAction(
+            "Detected Events", self, checkable=True)
         self.toggleEventsAction.setChecked(True)
         self.toggleEventsAction.triggered.connect(self.toggle_events)
         self.viewMenu.addAction(self.toggleEventsAction)
 
-        self.toggleColorMappingAction = QAction("False Color Map", self, checkable=True)
+        self.toggleColorMappingAction = QAction(
+            "False Color Map", self, checkable=True)
         self.toggleColorMappingAction.setChecked(True)
-        self.toggleColorMappingAction.triggered.connect(self.toggle_false_color_map)
+        self.toggleColorMappingAction.triggered.connect(
+            self.toggle_false_color_map)
         self.viewMenu.addAction(self.toggleColorMappingAction)
 
         self.viewMenu.addSeparator()
@@ -339,7 +349,8 @@ class MainWindow(QMainWindow):
         self.toggleMiniMapAction.triggered.connect(self.toggle_mini_map)
         self.viewMenu.addAction(self.toggleMiniMapAction)
 
-        self.togglePlayheadsActions = QAction("Playheads", self, checkable=True)
+        self.togglePlayheadsActions = QAction(
+            "Playheads", self, checkable=True)
         self.togglePlayheadsActions.setChecked(True)
         self.togglePlayheadsActions.triggered.connect(self.toggle_playheads)
         self.viewMenu.addAction(self.togglePlayheadsActions)
@@ -349,12 +360,14 @@ class MainWindow(QMainWindow):
         self.antiAliasAction.triggered.connect(self.toggle_antialiasing)
         self.viewMenu.addAction(self.antiAliasAction)
 
-        self.toggleRegionsAction = QAction("Seizure Regions", self, checkable=True)
+        self.toggleRegionsAction = QAction(
+            "Seizure Regions", self, checkable=True)
         self.toggleRegionsAction.setChecked(True)
         self.toggleRegionsAction.triggered.connect(self.toggle_regions)
         self.viewMenu.addAction(self.toggleRegionsAction)
 
-        self.toggleSpectrogramAction = QAction("Spectrograms", self, checkable=True)
+        self.toggleSpectrogramAction = QAction(
+            "Spectrograms", self, checkable=True)
         self.toggleSpectrogramAction.setChecked(False)
         self.toggleSpectrogramAction.triggered.connect(self.toggle_spectrogram)
         self.viewMenu.addAction(self.toggleSpectrogramAction)
@@ -406,7 +419,8 @@ class MainWindow(QMainWindow):
         self.grid_widget: QGraphicsView = GridWidget(64, 64, self)
         self.grid_widget.setMinimumHeight(self.grid_widget.height() + 100)
         self.grid_widget.cell_clicked.connect(self.on_cell_clicked)
-        self.grid_widget.save_as_video_requested.connect(self.show_video_editor)
+        self.grid_widget.save_as_video_requested.connect(
+            self.show_video_editor)
         self.grid_widget.save_as_image_requested.connect(
             lambda: open_save_grid_dialog(self)
         )
@@ -451,7 +465,8 @@ class MainWindow(QMainWindow):
 
         self.edit_raster_settings_button = QPushButton("Edit Raster Settings")
         self.raster_settings_layout.addWidget(self.edit_raster_settings_button)
-        self.edit_raster_settings_button.clicked.connect(self.edit_raster_settings)
+        self.edit_raster_settings_button.clicked.connect(
+            self.edit_raster_settings)
 
         self.create_groups_button = QPushButton("Create Groups")
         self.raster_settings_layout.addWidget(self.create_groups_button)
@@ -459,7 +474,8 @@ class MainWindow(QMainWindow):
 
         self.toggle_color_mode_button = QPushButton("Toggle Color Mode")
         self.raster_settings_layout.addWidget(self.toggle_color_mode_button)
-        self.toggle_color_mode_button.clicked.connect(self.toggle_raster_color_mode)
+        self.toggle_color_mode_button.clicked.connect(
+            self.toggle_raster_color_mode)
 
         self.tab_widget.currentChanged.connect(self.update_tab_layout)
 
@@ -509,7 +525,8 @@ class MainWindow(QMainWindow):
         self.show_order_checkbox.stateChanged.connect(self.toggle_order)
 
         self.order_combo = QComboBox()
-        self.order_combo.addItems(["Default", "Order by Seizure", "Order by SE"])
+        self.order_combo.addItems(
+            ["Default", "Order by Seizure", "Order by SE"])
         self.settings_top_layout.addWidget(self.order_combo)
         self.order_combo.currentIndexChanged.connect(self.set_raster_order)
 
@@ -609,11 +626,17 @@ class MainWindow(QMainWindow):
         channel_extract_dialog = ChannelExtract(self)
         channel_extract_dialog.exec_()
 
-    def collect_discharge_stats(self):
-        print("TODO: Implement this function")
-
     def export_discharge_stats(self):
-        print("TODO: Implement this function")
+        if self.cluster_tracker is None or self.file_path is None:
+            return
+
+        output_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        self.cluster_tracker.export_discharges_to_zip(
+            self.file_path, output_dir)
 
     def open_docs(self):
         cwd = Path(__file__).resolve().parent
@@ -646,7 +669,8 @@ class MainWindow(QMainWindow):
             self.download_msg.show()
 
             self.update_thread = UpdateThread(self.latest_release)
-            self.update_thread.update_completed.connect(self.on_update_completed)
+            self.update_thread.update_completed.connect(
+                self.on_update_completed)
             self.update_thread.start()
 
     def on_update_completed(self, success):
@@ -666,7 +690,8 @@ class MainWindow(QMainWindow):
         if update_available:
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Information)
-            msg.setText("An update is available. Would you like to update now?")
+            msg.setText(
+                "An update is available. Would you like to update now?")
             msg.setWindowTitle("Update")
             msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
             msg.buttonClicked.connect(self.handle_update_button)
@@ -744,7 +769,8 @@ class MainWindow(QMainWindow):
         for i in range(4):
             if self.plotted_channels[i] is not None:
                 self.graph_widget.plot_widgets[i].setXRange(start, stop)
-                self.progress_bar.setValue(math.floor(start * self.sampling_rate))
+                self.progress_bar.setValue(
+                    math.floor(start * self.sampling_rate))
                 self.last_skip_time = start
         self.current_region = (start, stop)
 
@@ -923,7 +949,8 @@ class MainWindow(QMainWindow):
             try:
                 chunk_size = int(chunk_input.text())
                 overlap = int(overlap_input.text())
-                fs_range = (float(fs_min_input.text()), float(fs_max_input.text()))
+                fs_range = (float(fs_min_input.text()),
+                            float(fs_max_input.text()))
 
                 self.chunk_size = chunk_size
                 self.overlap = overlap
@@ -1011,7 +1038,8 @@ class MainWindow(QMainWindow):
                 curve = self.graph_widget.plot_widgets[i].plot(
                     pen=pg.mkPen("k", width=3)
                 )
-                curve.setData(self.graph_widget.x_data[i], self.graph_widget.y_data[i])
+                curve.setData(
+                    self.graph_widget.x_data[i], self.graph_widget.y_data[i])
                 curve.setDownsampling(auto=True, method="peak", ds=100)
                 curve.setClipToView(True)
 
@@ -1075,7 +1103,8 @@ class MainWindow(QMainWindow):
             image_label = QLabel()
             pixmap = QPixmap(group.image)
             image_label.setPixmap(
-                pixmap.scaled(300, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                pixmap.scaled(300, 300, Qt.KeepAspectRatio,
+                              Qt.SmoothTransformation)
             )
             image_raster_layout.addWidget(image_label)
 
@@ -1105,7 +1134,8 @@ class MainWindow(QMainWindow):
             group_name_label = QLabel(f"Group: {group.number}")
             stats_layout.addWidget(group_name_label)
 
-            channel_count_label = QLabel(f"Number of Channels: {len(group.channels)}")
+            channel_count_label = QLabel(
+                f"Number of Channels: {len(group.channels)}")
             stats_layout.addWidget(channel_count_label)
 
             seizure_count = 0
@@ -1144,7 +1174,8 @@ class MainWindow(QMainWindow):
                 average_se_duration = 0
                 average_se_strength = 0
 
-            seizure_count_label = QLabel(f"Number of Seizures: {seizure_count}")
+            seizure_count_label = QLabel(
+                f"Number of Seizures: {seizure_count}")
             stats_layout.addWidget(seizure_count_label)
 
             average_seizure_count = seizure_count / len(group.channels)
@@ -1229,7 +1260,8 @@ class MainWindow(QMainWindow):
             self.graph_widget.plot_widgets[i].setLabel("left", "mV")
             for item in self.graph_widget.plot_widgets[i].items():
                 if isinstance(
-                    item, (pg.LinearRegionItem, pg.ScatterPlotItem, pg.ImageItem)
+                    item, (pg.LinearRegionItem,
+                           pg.ScatterPlotItem, pg.ImageItem)
                 ):
                     self.graph_widget.plot_widgets[i].removeItem(item)
 
@@ -1392,7 +1424,8 @@ class MainWindow(QMainWindow):
                                     self.plotted_channels[i].col + 1,
                                 )
                                 raster_plotted_channels.append((r_row, r_col))
-                        self.raster_plot.set_plotted_channels(raster_plotted_channels)
+                        self.raster_plot.set_plotted_channels(
+                            raster_plotted_channels)
 
                 ignore = int(10 * self.sampling_rate)
 
@@ -1460,7 +1493,8 @@ class MainWindow(QMainWindow):
 
                         seek_pos = view_pos.x()
 
-                        self.progress_bar.setValue(int(seek_pos * self.sampling_rate))
+                        self.progress_bar.setValue(
+                            int(seek_pos * self.sampling_rate))
 
                         self.update_grid()
                         if self.lock_to_playhead:
@@ -1473,7 +1507,8 @@ class MainWindow(QMainWindow):
                         if self.plotted_channels[i] is not None:
                             for item in self.graph_widget.plot_widgets[i].items():
                                 if isinstance(item, pg.ScatterPlotItem):
-                                    self.graph_widget.plot_widgets[i].removeItem(item)
+                                    self.graph_widget.plot_widgets[i].removeItem(
+                                        item)
                 else:
                     self.graph_widget.plot_peaks()
 
@@ -1603,7 +1638,8 @@ class MainWindow(QMainWindow):
                                     * CELL_SIZE
                                     / 1000
                                 )
-                                time_diff = timestamps_list[i + 1] - timestamps_list[i]
+                                time_diff = timestamps_list[i +
+                                                            1] - timestamps_list[i]
                                 speed = distance / time_diff if time_diff > 0 else 0
                                 instant_speeds.append(speed)
                             instant_speeds.append(
@@ -1626,7 +1662,7 @@ class MainWindow(QMainWindow):
                             "timestamps": timestamps.tolist()
                             if hasattr(timestamps, "tolist")
                             else timestamps,
-                            "instant_speeds": instant_speeds.tolist()  # Convert speeds to list if needed
+                            "instant_speeds": instant_speeds.tolist()
                             if hasattr(instant_speeds, "tolist")
                             else instant_speeds,
                             "start_point": start_point.tolist()
@@ -1715,7 +1751,8 @@ class MainWindow(QMainWindow):
         discharges_x, _ = self.discharges[row, col]
 
         self.current_discharge_index = 0
-        self.discharges_to_analyze = [x for x in discharges_x if start <= x <= stop]
+        self.discharges_to_analyze = [
+            x for x in discharges_x if start <= x <= stop]
 
         if not self.discharges_to_analyze:
             print("No discharges to analyze in the selected region")
@@ -1742,7 +1779,8 @@ class MainWindow(QMainWindow):
         discharge_index = int(discharge_x * self.sampling_rate)
         start_index = max(0, discharge_index - int(0.1 * self.sampling_rate))
         end_index = min(
-            len(self.time_vector) - 1, discharge_index + int(0.15 * self.sampling_rate)
+            len(self.time_vector) - 1, discharge_index +
+            int(0.15 * self.sampling_rate)
         )
 
         self.progress_bar.setValue(start_index)
@@ -1859,7 +1897,8 @@ class MainWindow(QMainWindow):
                 else:
                     msg = QMessageBox()
                     msg.setIcon(QMessageBox.Information)
-                    msg.setText(f"No image found, manually select image for {baseName}")
+                    msg.setText(
+                        f"No image found, manually select image for {baseName}")
                     msg.setWindowTitle("Image Not Found")
                     msg.exec_()
 
@@ -1887,7 +1926,7 @@ class MainWindow(QMainWindow):
                 self.hdf5_viewer.raise_()
                 self.hdf5_viewer.activateWindow()
             else:
-                self.hdf5_viewer = HDF5Viewer(self.file_path)
+                self.hdf5_viewer = HDF5Viewer(self.file_path, parent=self)
                 # Clear reference when closed
                 self.hdf5_viewer.destroyed.connect(
                     lambda: setattr(self, "hdf5_viewer", None)
@@ -1906,7 +1945,8 @@ class MainWindow(QMainWindow):
             for cell in row:
                 cell.setColor(BACKGROUND, 1, self.opacity)
         for row, col in self.active_channels:
-            self.grid_widget.cells[row - 1][col - 1].setColor(ACTIVE, 1, self.opacity)
+            self.grid_widget.cells[row - 1][col -
+                                            1].setColor(ACTIVE, 1, self.opacity)
 
     def get_min_max_strengths(self):
         self.min_strength = None
@@ -1948,7 +1988,8 @@ class MainWindow(QMainWindow):
     def normalize_strength(self, strength):
         strength = float(strength)
         return math.sqrt(
-            (strength - self.min_strength) / (self.max_strength - self.min_strength)
+            (strength - self.min_strength) /
+            (self.max_strength - self.min_strength)
         )
 
     # TODO: Find a way to store all the discharge events times for each channel
@@ -2004,7 +2045,8 @@ class MainWindow(QMainWindow):
             self.discharge_finder = DischargeFinder(
                 self.data, self.active_channels, self.signal_analyzer, start, stop
             )
-        self.discharge_finder.finished.connect(self.on_discharge_finder_finished)
+        self.discharge_finder.finished.connect(
+            self.on_discharge_finder_finished)
         self.discharge_finder.start()
 
     def on_discharge_finder_finished(self, discharges):
@@ -2023,7 +2065,8 @@ class MainWindow(QMainWindow):
             for row, col in self.active_channels
         ]
         self.signals = np.array(
-            [self.data[row - 1, col - 1]["signal"] for row, col in self.active_channels]
+            [self.data[row - 1, col - 1]["signal"]
+                for row, col in self.active_channels]
         )
         self.se_times_list = [
             self.data[row - 1, col - 1]["SETimes"] for row, col in self.active_channels
@@ -2067,8 +2110,10 @@ class MainWindow(QMainWindow):
                     centroid_item = QGraphicsEllipseItem(0, 0, 10, 10)
                     centroid_item.setBrush(Qt.red)
                     centroid_item.setPos(
-                        centroid_col * self.grid_widget.cells[0][0].rect().width() - 5,
-                        centroid_row * self.grid_widget.cells[0][0].rect().height() - 5,
+                        centroid_col *
+                        self.grid_widget.cells[0][0].rect().width() - 5,
+                        centroid_row *
+                        self.grid_widget.cells[0][0].rect().height() - 5,
                     )
                     self.grid_widget.scene.addItem(centroid_item)
                     self.centroids.append(centroid_item)
@@ -2215,7 +2260,8 @@ class MainWindow(QMainWindow):
                     else 1
                 )
                 if self.do_show_false_color_map:
-                    seizure_color = self.blend_colors(colors[i], SEIZURE, strength)
+                    seizure_color = self.blend_colors(
+                        colors[i], SEIZURE, strength)
                 else:
                     seizure_color = SEIZURE
                 self.cells[i].setColor(seizure_color, strength, self.opacity)
@@ -2285,13 +2331,15 @@ class MainWindow(QMainWindow):
                         )
                         # Get the index of the high luminance cells within the active channels
                         high_luminance_indices = [
-                            self.active_channels.index((cell.row + 1, cell.col + 1))
+                            self.active_channels.index(
+                                (cell.row + 1, cell.col + 1))
                             for cell in high_luminance_cells
                         ]
                         if red:
                             for index in high_luminance_indices:
                                 colors[index] = self.blend_colors(
-                                    colors[index], QColor(255, 0, 0, int(255 * 0.3)), 1
+                                    colors[index], QColor(
+                                        255, 0, 0, int(255 * 0.3)), 1
                                 )
 
                         if len(high_luminance_cells) > 0:
@@ -2416,9 +2464,11 @@ class MainWindow(QMainWindow):
             max_strength = 0
             closest_cell = None
             for seized_row, seized_col in self.seized_cells[:-1]:
-                distance = math.sqrt((row - seized_row) ** 2 + (col - seized_col) ** 2)
+                distance = math.sqrt((row - seized_row) **
+                                     2 + (col - seized_col) ** 2)
 
-                current_strength = self.get_seizure_strength(seized_row, seized_col)
+                current_strength = self.get_seizure_strength(
+                    seized_row, seized_col)
 
                 if distance < min_distance or (
                     distance == min_distance and current_strength > max_strength
@@ -2428,7 +2478,8 @@ class MainWindow(QMainWindow):
                     closest_cell = (seized_row, seized_col)
 
             if closest_cell and min_distance <= 15:
-                start_cell = self.grid_widget.cells[closest_cell[0]][closest_cell[1]]
+                start_cell = self.grid_widget.cells[closest_cell[0]
+                                                    ][closest_cell[1]]
                 end_cell = self.grid_widget.cells[row][col]
 
                 cell_width = start_cell.rect().width()
@@ -2454,7 +2505,8 @@ class MainWindow(QMainWindow):
                     TEST = QColor("#fb6f92")
                     arrow_color = TEST
                 arrow.setPen(
-                    QPen(arrow_color, 2, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+                    QPen(arrow_color, 2, Qt.SolidLine,
+                         Qt.RoundCap, Qt.RoundJoin)
                 )
 
                 arrow_head = QPolygonF()
@@ -2617,7 +2669,8 @@ class MainWindow(QMainWindow):
             drive_path = f"{drive}:"
             if os.path.exists(drive_path):
                 try:
-                    temp_file_path = os.path.join(drive_path, "temp_write_test.txt")
+                    temp_file_path = os.path.join(
+                        drive_path, "temp_write_test.txt")
                     with open(temp_file_path, "w") as f:
                         f.write("test")
                     os.remove(temp_file_path)
@@ -2638,7 +2691,8 @@ class MainWindow(QMainWindow):
         self.recording_length = self.analysis_thread.recording_length
         self.sampling_rate = self.analysis_thread.sampling_rate
         self.distance = int(self.sampling_rate / 10) + 20
-        self.db_scan_settings_widget.set_bin_size_range(1 / self.sampling_rate, 0.5)
+        self.db_scan_settings_widget.set_bin_size_range(
+            1 / self.sampling_rate, 0.5)
         self.cluster_tracker.sampling_rate = self.sampling_rate
         self.fs_range = (0.5, self.sampling_rate / 2)
         self.time_vector = self.analysis_thread.time_vector
@@ -2676,7 +2730,8 @@ class MainWindow(QMainWindow):
             self.grid_widget.update_cursor()
 
         self.progress_bar.setSamplingRate(self.sampling_rate)
-        self.progress_bar.setRange(0, int(self.recording_length * self.sampling_rate))
+        self.progress_bar.setRange(
+            0, int(self.recording_length * self.sampling_rate))
 
         self.create_grid()
         self.update_grid(first=True)
