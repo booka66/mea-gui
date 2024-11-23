@@ -1,0 +1,69 @@
+#!/bin/zsh
+#
+# Secure self-decrypting archive
+# This script is designed to safely decrypt its own contents
+# 
+# Usage: ./filename.senc
+#
+
+# Verify we're running on macOS or Linux
+if [[ "$(uname)" != "Darwin" && "$(uname)" != "Linux" ]]; then
+    echo "This script requires macOS or Linux"
+    exit 1
+fi
+
+# Verify openssl is available
+if ! command -v openssl > /dev/null; then
+    echo "Error: openssl command not found"
+    exit 1
+fi
+
+# Find the line number where the encrypted data begins
+SCRIPT_END=$(awk '/^__ENCRYPTED_DATA_BELOW__/ { print NR; exit 0; }' "$0")
+
+if [[ -z "$SCRIPT_END" ]]; then
+    echo "Error: Invalid archive format"
+    exit 1
+fi
+
+# Create a secure temporary directory
+if command -v mktemp > /dev/null; then
+    TEMP_DIR=$(mktemp -d)
+else
+    echo "Error: mktemp command not found"
+    exit 1
+fi
+
+cleanup() {
+    rm -rf "$TEMP_DIR"
+}
+trap cleanup EXIT
+
+# Extract the encrypted data
+tail -n +$((SCRIPT_END + 1)) "$0" > "$TEMP_DIR/data.enc"
+
+# Decrypt all content at once to a temporary file
+DECRYPTED_FILE="$TEMP_DIR/decrypted_data"
+if ! openssl enc -d -aes-256-cbc -pbkdf2 -in "$TEMP_DIR/data.enc" -out "$DECRYPTED_FILE"; then
+    echo "Error: Decryption failed - incorrect password?"
+    exit 1
+fi
+
+# Get the original filename from the first line
+ORIGINAL_NAME=$(head -n 1 "$DECRYPTED_FILE")
+echo "Decrypting to: $ORIGINAL_NAME"
+
+# Extract the actual content (everything after the first line)
+tail -n +2 "$DECRYPTED_FILE" > "$ORIGINAL_NAME"
+
+if [[ $? -eq 0 && -s "$ORIGINAL_NAME" ]]; then
+    echo "File successfully decrypted"
+    exit 0
+else
+    echo "Error: Decryption failed"
+    [[ -f "$ORIGINAL_NAME" ]] && rm "$ORIGINAL_NAME"
+    exit 1
+fi
+
+__ENCRYPTED_DATA_BELOW__
+Salted__0ÃKF’{Tuú³å]PKv¢G‰Bc]€ýóqe”×EæÉ'xÃ4+¬'3>ˆÕûÄY|Ÿ¯¬¨úJ‹´/¼ÒÅ˜h «¹<„Û¬XG_PØl±Æ)™]PñµDnKO”ñn—])òXÖöÛ!.åõ¨öíc»æ;¥^iAãG
