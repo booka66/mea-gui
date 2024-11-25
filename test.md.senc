@@ -49,21 +49,22 @@ if ! openssl enc -d -aes-256-cbc -pbkdf2 -in "$TEMP_DIR/data.enc" -out "$DECRYPT
     exit 1
 fi
 
-# Get the original filename from the first line
+# Get the original filename from the first line and combine with current directory
 ORIGINAL_NAME=$(head -n 1 "$DECRYPTED_FILE")
-echo "Decrypting to: $ORIGINAL_NAME"
+OUTPUT_PATH="$(dirname "$0")/$ORIGINAL_NAME"
+echo "Decrypting to: $OUTPUT_PATH"
 
 # Extract the actual content (everything after the first line)
-tail -n +2 "$DECRYPTED_FILE" > "$ORIGINAL_NAME"
+tail -n +2 "$DECRYPTED_FILE" > "$OUTPUT_PATH"
 
-if [[ $? -eq 0 && -s "$ORIGINAL_NAME" ]]; then
+if [[ $? -eq 0 && -s "$OUTPUT_PATH" ]]; then
     echo "File successfully decrypted"
     exit 0
 else
     echo "Error: Decryption failed"
-    [[ -f "$ORIGINAL_NAME" ]] && rm "$ORIGINAL_NAME"
+    [[ -f "$OUTPUT_PATH" ]] && rm "$OUTPUT_PATH"
     exit 1
 fi
 
 __ENCRYPTED_DATA_BELOW__
-Salted__0ÃKF’{Tuú³å]PKv¢G‰Bc]€ýóqe”×EæÉ'xÃ4+¬'3>ˆÕûÄY|Ÿ¯¬¨úJ‹´/¼ÒÅ˜h «¹<„Û¬XG_PØl±Æ)™]PñµDnKO”ñn—])òXÖöÛ!.åõ¨öíc»æ;¥^iAãG
+Salted__E‰Œ+C”ƒö·óæóÌ`Æ`Gµýžd§¦xy+Š©+g_Û&X.K
