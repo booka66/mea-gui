@@ -627,6 +627,12 @@ std::string expandTilde(const std::string &path) {
   return std::string(home) + path.substr(1);
 }
 
+std::string createFilePath(const std::string &temp_data_path,
+                           const ChannelDetectionResult &channelResult) {
+  return temp_data_path + "/" + "channel_" + std::to_string(channelResult.Row) +
+         "_" + std::to_string(channelResult.Col) + ".txt";
+}
+
 std::vector<ChannelDetectionResult>
 processAllChannels(const std::string &filename, bool do_analysis,
                    const std::string &temp_data_path) {
@@ -683,11 +689,8 @@ processAllChannels(const std::string &filename, bool do_analysis,
         }
 
         // Create a blank .txt file in temp_data_path
-        std::filesystem::path filePath =
-            std::filesystem::path(temp_data_path) /
-            ("channel_" + std::to_string(channelResult.Row) + "_" +
-             std::to_string(channelResult.Col) + ".mat");
-        std::ofstream outFile(filePath);
+        std::string filePath = createFilePath(temp_data_path, channelResult);
+        std::ofstream outFile(filePath.c_str());
         outFile.close();
       }
     };
