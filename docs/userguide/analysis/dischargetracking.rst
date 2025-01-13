@@ -73,4 +73,17 @@ With that brief explanation of the parameters, here is a step-by-step guide to t
     :align: center
     :alt: Poor Found Discharges
 
-  5. **Fine Tune Peak Finding Parameters**:
+  5. **Fine Tune Peak Finding Parameters**: This is arguably one of the most difficult part of the discharge propagation tracking algorithm. The user must adjust the peak finding parameters to get the best results. The user should also consider the following:
+
+     * **Peak Threshold**: If the orange markers miss lower amplitude discharges, try lowering this value to capture more peaks. If the orange markers are too close together, try increasing this value to filter out smaller peaks.
+     * **Min Distance Between Peaks**: If the orange markers are too close together, try increasing the min distance between peaks. If the orange markers are too far apart, try decreasing the min distance between peaks.
+     * **SNR Threshold**: If the red/orange markers are not appearing for a channel, try lowering this value. If you want to filter out noisy channels that may skew discharge tracking, try increasing this value.
+
+     .. note::
+        If only orange markers are appearing and now red markers, the discharges are already "found". The user must right click on a trace plot and select ``Clear discharges`` to reset the markers and see the effect of the peak finding parameters.
+
+  6. **Repeat Steps 4 and 5**: The user should repeat steps 4 and 5 until the orange markers are placed at the beginning of discharge events. This may take some time to get right.
+
+At this point, the user should have a good set of orange markers placed at the beginning of discharge events. The next step is to cluster these markers to form a discharge event. This is done by the DBSCAN algorithm. Fine-tuning these parameters is even more difficult than above, so be patient with the tedious process.
+
+  1. **Test Initial DBSCAN Parameters**: The default DBSCAN parameters are a good starting point, but may need to be adjusted depending on the data. To test the DBSCAN parameters, zoom in on a single discharge peak and place the playhead just before the discharge event.
