@@ -95,7 +95,18 @@ At this point, the user should have a good set of orange markers placed at the b
 
   2. **Fine Tune DBSCAN Parameters**: The user should adjust the DBSCAN parameters to get the best results. The user should consider the following:
 
-     * **Epsilon**: The maximum distance between two samples for one to be considered as in the neighborhood of the other. If the centroids are not following the path of the seizure, try increasing this value. If the centroids are following the path of the seizure too closely, try decreasing this value.
+     * **Epsilon**: The maximum distance between two samples for one to be considered as in the neighborhood of the other. If the centroids are not following the path of the seizure, try increasing this value. If the centroids are following the path of the seizure too closely, try decreasing this value. For example:
+
+        .. video:: ../../_static/adjust_epsilon.mp4
+            :width: 100%
+            :align: center
+            :alt: Adjust Epsilon
+
      * **Min Samples**: The number of samples in a neighborhood for a point to be considered as a core point. If the centroids are not following the path of the seizure, try increasing this value. If the centroids are following the path of the seizure too closely, try decreasing this value.
      * **Max Distance**: The maximum distance a discharge centroid can travel between consecutive frames. This is useful for tracking the propagation of the discharges.
      * **Bin Size**: The bin size for calculating the false color map on the MEA grid. This is useful for tracking the propagation of the discharges because the centroids are calculated from electrodes that currently have a discharge event marker within the bin window. The default value is good for most cases.
+
+.. video:: ../../_static/test.mp4
+    :width: 50%
+    :align: center
+    :alt: Test
