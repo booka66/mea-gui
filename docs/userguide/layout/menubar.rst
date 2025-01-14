@@ -108,6 +108,8 @@ Hovering over this action displays a window containing parameters used for the D
 
    These settings are used in the :ref:`discharge_propagation_tracking` feature.
 
+.. _view:
+
 View
 ====
 Contains actions for toggling the visibility of elements on the MEA grid and trace plots.
@@ -121,9 +123,17 @@ Spread Lines
 Spread lines highlight the propagation of the detected events. 
 Pink lines are dedicated to the spread of seizures, while darker orange lines display the spread of SE events.
 
+.. _discharge_paths:
+
 Discharge Paths
 ---------------
 Discharge paths are the paths of the centroids of the clusters detected by the DBSCAN algorithm.
+
+.. image:: ../../_static/discharge_path.png
+  :width: 600px
+  :align: center
+  :alt: Discharge Path
+
 
 Detected Events
 ---------------
