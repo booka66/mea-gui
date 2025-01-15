@@ -10,6 +10,9 @@ There are two ways to install the application:
     - `Download <https://github.com/booka66/mea-gui-public/releases/latest/download/MEA_GUI_Windows.exe>`__ for Windows
     - `Download <https://github.com/booka66/mea-gui-public/releases/latest/download/MEA_GUI_MacOS.pkg>`__ for MacOS
 
+    .. note::
+      The installers are not signed, so you may need to allow the installation in the system settings. On Windows, it may be flagged as a potential threat, but choose to keep it anyway.
+
 
 2. Manually from the source code:
 
