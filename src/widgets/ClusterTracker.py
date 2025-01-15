@@ -100,18 +100,15 @@ class ClusterTracker:
             valid_points = [point for point, _ in deduped_points_with_times]
             timestamps = [time for _, time in deduped_points_with_times]
 
-            # Calculate instantaneous speeds
             instant_speeds = []
             for i in range(len(valid_points) - 1):
-                # Calculate distance in mm
                 distance = (
                     np.linalg.norm(
-                        np.array(valid_points[i + 1]) -
-                        np.array(valid_points[i])
+                        np.array(valid_points[i + 1]) - np.array(valid_points[i])
                     )
                     * CELL_SIZE
                     / 1000
-                )  # Convert to mm
+                )
 
                 # Calculate time difference in seconds
                 time_diff = timestamps[i + 1] - timestamps[i]
@@ -189,13 +186,13 @@ class ClusterTracker:
                 # Collect data from all discharges
                 for discharge_id in timeframe_group.keys():
                     discharge = timeframe_group[discharge_id]
-                    avg_speeds.append(discharge.attrs['avg_speed'])
-                    instant_speeds_all.extend(
-                        discharge.attrs['instant_speeds'])
-                    durations.append(discharge.attrs['duration'])
-                    lengths.append(discharge.attrs['length'])
+                    avg_speeds.append(discharge.attrs["avg_speed"])
+                    instant_speeds_all.extend(discharge.attrs["instant_speeds"])
+                    durations.append(discharge.attrs["duration"])
+                    lengths.append(discharge.attrs["length"])
                     time_between_discharges.append(
-                        discharge.attrs['time_since_last_discharge'])
+                        discharge.attrs["time_since_last_discharge"]
+                    )
 
                 # Convert to numpy arrays
                 avg_speeds = np.array(avg_speeds)
@@ -206,74 +203,82 @@ class ClusterTracker:
 
                 # Calculate basic statistics for average speeds
                 avg_speed_stats = {
-                    'mean': np.mean(avg_speeds),
-                    'median': np.median(avg_speeds),
-                    'std': np.std(avg_speeds),
-                    'min': np.min(avg_speeds),
-                    'max': np.max(avg_speeds),
-                    'q1': np.percentile(avg_speeds, 25),
-                    'q3': np.percentile(avg_speeds, 75),
-                    'iqr': stats.iqr(avg_speeds),
-                    'skewness': stats.skew(avg_speeds),
-                    'kurtosis': stats.kurtosis(avg_speeds)
+                    "mean": np.mean(avg_speeds),
+                    "median": np.median(avg_speeds),
+                    "std": np.std(avg_speeds),
+                    "min": np.min(avg_speeds),
+                    "max": np.max(avg_speeds),
+                    "q1": np.percentile(avg_speeds, 25),
+                    "q3": np.percentile(avg_speeds, 75),
+                    "iqr": stats.iqr(avg_speeds),
+                    "skewness": stats.skew(avg_speeds),
+                    "kurtosis": stats.kurtosis(avg_speeds),
                 }
 
                 # Calculate basic statistics for instantaneous speeds
                 instant_speed_stats = {
-                    'mean': np.mean(instant_speeds_all),
-                    'median': np.median(instant_speeds_all),
-                    'std': np.std(instant_speeds_all),
-                    'min': np.min(instant_speeds_all),
-                    'max': np.max(instant_speeds_all),
-                    'q1': np.percentile(instant_speeds_all, 25),
-                    'q3': np.percentile(instant_speeds_all, 75),
-                    'iqr': stats.iqr(instant_speeds_all),
-                    'skewness': stats.skew(instant_speeds_all),
-                    'kurtosis': stats.kurtosis(instant_speeds_all)
+                    "mean": np.mean(instant_speeds_all),
+                    "median": np.median(instant_speeds_all),
+                    "std": np.std(instant_speeds_all),
+                    "min": np.min(instant_speeds_all),
+                    "max": np.max(instant_speeds_all),
+                    "q1": np.percentile(instant_speeds_all, 25),
+                    "q3": np.percentile(instant_speeds_all, 75),
+                    "iqr": stats.iqr(instant_speeds_all),
+                    "skewness": stats.skew(instant_speeds_all),
+                    "kurtosis": stats.kurtosis(instant_speeds_all),
                 }
 
                 # Additional analyses
                 correlation_stats = {
-                    'speed_duration_corr': np.corrcoef(avg_speeds, durations)[0, 1],
-                    'speed_length_corr': np.corrcoef(avg_speeds, lengths)[0, 1],
-                    'speed_time_between_corr': np.corrcoef(avg_speeds[1:], time_between_discharges[1:])[0, 1]
+                    "speed_duration_corr": np.corrcoef(avg_speeds, durations)[0, 1],
+                    "speed_length_corr": np.corrcoef(avg_speeds, lengths)[0, 1],
+                    "speed_time_between_corr": np.corrcoef(
+                        avg_speeds[1:], time_between_discharges[1:]
+                    )[0, 1],
                 }
 
                 # Create a stats dataset in the timeframe group
-                if 'analysis_stats' in timeframe_group:
-                    del timeframe_group['analysis_stats']
+                if "analysis_stats" in timeframe_group:
+                    del timeframe_group["analysis_stats"]
 
                 stats_dataset = timeframe_group.create_dataset(
-                    'analysis_stats', data=[0])
+                    "analysis_stats", data=[0]
+                )
 
                 # Store all statistics as attributes
                 for key, value in avg_speed_stats.items():
-                    stats_dataset.attrs[f'avg_speed_{key}'] = value
+                    stats_dataset.attrs[f"avg_speed_{key}"] = value
 
                 for key, value in instant_speed_stats.items():
-                    stats_dataset.attrs[f'instant_speed_{key}'] = value
+                    stats_dataset.attrs[f"instant_speed_{key}"] = value
 
                 for key, value in correlation_stats.items():
                     stats_dataset.attrs[key] = value
 
                 # Additional summary statistics
-                stats_dataset.attrs['total_discharges'] = len(avg_speeds)
-                stats_dataset.attrs['avg_duration'] = np.mean(durations)
-                stats_dataset.attrs['avg_length'] = np.mean(lengths)
-                stats_dataset.attrs['avg_time_between_discharges'] = np.mean(
-                    time_between_discharges[1:])
+                stats_dataset.attrs["total_discharges"] = len(avg_speeds)
+                stats_dataset.attrs["avg_duration"] = np.mean(durations)
+                stats_dataset.attrs["avg_length"] = np.mean(lengths)
+                stats_dataset.attrs["avg_time_between_discharges"] = np.mean(
+                    time_between_discharges[1:]
+                )
 
                 # Calculate speed variability metrics
-                stats_dataset.attrs['avg_speed_coefficient_of_variation'] = stats_dataset.attrs['avg_speed_std'] / \
-                    stats_dataset.attrs['avg_speed_mean']
-                stats_dataset.attrs['instant_speed_coefficient_of_variation'] = stats_dataset.attrs['instant_speed_std'] / \
-                    stats_dataset.attrs['instant_speed_mean']
+                stats_dataset.attrs["avg_speed_coefficient_of_variation"] = (
+                    stats_dataset.attrs["avg_speed_std"]
+                    / stats_dataset.attrs["avg_speed_mean"]
+                )
+                stats_dataset.attrs["instant_speed_coefficient_of_variation"] = (
+                    stats_dataset.attrs["instant_speed_std"]
+                    / stats_dataset.attrs["instant_speed_mean"]
+                )
 
                 return {
-                    'avg_speed_stats': avg_speed_stats,
-                    'instant_speed_stats': instant_speed_stats,
-                    'correlation_stats': correlation_stats,
-                    'total_discharges': len(avg_speeds)
+                    "avg_speed_stats": avg_speed_stats,
+                    "instant_speed_stats": instant_speed_stats,
+                    "correlation_stats": correlation_stats,
+                    "total_discharges": len(avg_speeds),
                 }
 
         except Exception as e:
@@ -297,74 +302,79 @@ class ClusterTracker:
         created_files = []
 
         try:
-            with h5py.File(hdf5_file_path, 'r') as f:
-                if 'tracked_discharges' not in f:
-                    raise ValueError(
-                        "No tracked discharges found in HDF5 file")
+            with h5py.File(hdf5_file_path, "r") as f:
+                if "tracked_discharges" not in f:
+                    raise ValueError("No tracked discharges found in HDF5 file")
 
-                discharges_group = f['tracked_discharges']
+                discharges_group = f["tracked_discharges"]
 
                 # Process each timeframe
                 for timeframe_name in discharges_group.keys():
                     timeframe_group = discharges_group[timeframe_name]
                     zip_path = output_path / f"discharges_{timeframe_name}.zip"
 
-                    with zipfile.ZipFile(zip_path, 'w') as zf:
+                    with zipfile.ZipFile(zip_path, "w") as zf:
                         # Export speed statistics
-                        if 'analysis_stats' in timeframe_group:
-                            stats_data = {}
-                            stats_dataset = timeframe_group['analysis_stats']
+                        if "analysis_stats" in timeframe_group:
+                            stats_dataset = timeframe_group["analysis_stats"]
 
                             # Group statistics by category
                             categories = {
-                                'avg_speed': {},
-                                'instant_speed': {},
-                                'correlation': {},
-                                'other': {}
+                                "avg_speed": {},
+                                "instant_speed": {},
+                                "correlation": {},
+                                "other": {},
                             }
 
                             for key, value in stats_dataset.attrs.items():
-                                if key.startswith('avg_speed_'):
-                                    categories['avg_speed'][key.replace(
-                                        'avg_speed_', '')] = value
-                                elif key.startswith('instant_speed_'):
-                                    categories['instant_speed'][key.replace(
-                                        'instant_speed_', '')] = value
-                                elif 'corr' in key:
-                                    categories['correlation'][key] = value
+                                if key.startswith("avg_speed_"):
+                                    categories["avg_speed"][
+                                        key.replace("avg_speed_", "")
+                                    ] = value
+                                elif key.startswith("instant_speed_"):
+                                    categories["instant_speed"][
+                                        key.replace("instant_speed_", "")
+                                    ] = value
+                                elif "corr" in key:
+                                    categories["correlation"][key] = value
                                 else:
-                                    categories['other'][key] = value
+                                    categories["other"][key] = value
 
                             # Create separate DataFrames for each category
                             for category, stats in categories.items():
                                 if stats:
                                     df = pd.DataFrame([stats]).T
-                                    df.columns = ['value']
+                                    df.columns = ["value"]
                                     csv_buffer = io.StringIO()
                                     df.to_csv(csv_buffer)
                                     zf.writestr(
-                                        f"{category}_stats.csv", csv_buffer.getvalue())
+                                        f"{category}_stats.csv", csv_buffer.getvalue()
+                                    )
 
                         # Export individual discharge data
                         all_discharges = []
                         for discharge_id in timeframe_group.keys():
-                            if discharge_id == 'analysis_stats':
+                            if discharge_id == "analysis_stats":
                                 continue
 
                             discharge = timeframe_group[discharge_id]
                             discharge_data = {
-                                'discharge_id': discharge_id,
-                                'start_time': discharge.attrs['start_time'],
-                                'end_time': discharge.attrs['end_time'],
-                                'duration': discharge.attrs['duration'],
-                                'length': discharge.attrs['length'],
-                                'avg_speed': discharge.attrs['avg_speed'],
-                                'time_since_last_discharge': discharge.attrs['time_since_last_discharge'],
-                                'points': discharge.attrs['points'].tolist(),
-                                'timestamps': discharge.attrs['timestamps'].tolist(),
-                                'instant_speeds': discharge.attrs['instant_speeds'].tolist(),
-                                'start_point': discharge.attrs['start_point'].tolist(),
-                                'end_point': discharge.attrs['end_point'].tolist()
+                                "discharge_id": discharge_id,
+                                "start_time": discharge.attrs["start_time"],
+                                "end_time": discharge.attrs["end_time"],
+                                "duration": discharge.attrs["duration"],
+                                "length": discharge.attrs["length"],
+                                "avg_speed": discharge.attrs["avg_speed"],
+                                "time_since_last_discharge": discharge.attrs[
+                                    "time_since_last_discharge"
+                                ],
+                                "points": discharge.attrs["points"].tolist(),
+                                "timestamps": discharge.attrs["timestamps"].tolist(),
+                                "instant_speeds": discharge.attrs[
+                                    "instant_speeds"
+                                ].tolist(),
+                                "start_point": discharge.attrs["start_point"].tolist(),
+                                "end_point": discharge.attrs["end_point"].tolist(),
                             }
                             all_discharges.append(discharge_data)
 
@@ -373,22 +383,23 @@ class ClusterTracker:
                             discharges_df = pd.DataFrame(all_discharges)
                             csv_buffer = io.StringIO()
                             discharges_df.to_csv(csv_buffer, index=False)
-                            zf.writestr("all_discharges.csv",
-                                        csv_buffer.getvalue())
+                            zf.writestr("all_discharges.csv", csv_buffer.getvalue())
 
                             # Also save detailed time series data for each discharge
                             for discharge in all_discharges:
                                 time_series_data = {
-                                    'timestamp': discharge['timestamps'],
-                                    'instant_speed': discharge['instant_speeds'],
-                                    'point_x': [p[0] for p in discharge['points']],
-                                    'point_y': [p[1] for p in discharge['points']]
+                                    "timestamp": discharge["timestamps"],
+                                    "instant_speed": discharge["instant_speeds"],
+                                    "point_x": [p[0] for p in discharge["points"]],
+                                    "point_y": [p[1] for p in discharge["points"]],
                                 }
                                 ts_df = pd.DataFrame(time_series_data)
                                 csv_buffer = io.StringIO()
                                 ts_df.to_csv(csv_buffer, index=False)
-                                zf.writestr(f"discharge_{discharge['discharge_id']}_timeseries.csv",
-                                            csv_buffer.getvalue())
+                                zf.writestr(
+                                    f"discharge_{discharge['discharge_id']}_timeseries.csv",
+                                    csv_buffer.getvalue(),
+                                )
 
                     created_files.append(zip_path)
 
@@ -447,8 +458,7 @@ class ClusterTracker:
                         continue
 
                 results = self.analyze_discharge_speeds(file_path, start, stop)
-                print(
-                    f"Saved {results['total_discharges']} discharges to HDF5 file.")
+                print(f"Saved {results['total_discharges']} discharges to HDF5 file.")
         except Exception as e:
             print(f"Error saving seizures to HDF: {e}")
             msg = QMessageBox()
@@ -567,12 +577,10 @@ class ClusterTracker:
             ]
             if len(points) > 1:
                 path = QPainterPath(
-                    QPointF(points[0][1] * cell_width,
-                            points[0][0] * cell_height)
+                    QPointF(points[0][1] * cell_width, points[0][0] * cell_height)
                 )
                 for point in points[1:]:
-                    path.lineTo(
-                        QPointF(point[1] * cell_width, point[0] * cell_height))
+                    path.lineTo(QPointF(point[1] * cell_width, point[0] * cell_height))
                 line_item = QGraphicsPathItem(path)
                 line_item.setPen(
                     QPen(
@@ -622,8 +630,7 @@ class ClusterTracker:
                 for x in range(int(cell_width)):
                     for y in range(int(cell_height)):
                         image.setPixelColor(
-                            int(col * cell_width + x), int(row *
-                                                           cell_height + y), color
+                            int(col * cell_width + x), int(row * cell_height + y), color
                         )
 
         pixmap = QPixmap.fromImage(image)
@@ -729,22 +736,19 @@ class ClusterTracker:
 
             # Use the colormap to get the color
             color_rgba = self.colormap(time_fraction)
-            color = QColor.fromRgbF(
-                color_rgba[0], color_rgba[1], color_rgba[2])
+            color = QColor.fromRgbF(color_rgba[0], color_rgba[1], color_rgba[2])
 
             start_marker = QGraphicsEllipseItem(0, 0, 10, 10)
             start_marker.setBrush(color)
             start_marker.setPos(
-                start_point[1] * cell_width -
-                5, start_point[0] * cell_height - 5
+                start_point[1] * cell_width - 5, start_point[0] * cell_height - 5
             )
             scene.addItem(start_marker)
             self.seizure_graphics_items.append(start_marker)
             if painter:
                 painter.setBrush(start_marker.brush())
                 painter.setPen(Qt.NoPen)
-                painter.drawEllipse(
-                    start_marker.rect().translated(start_marker.pos()))
+                painter.drawEllipse(start_marker.rect().translated(start_marker.pos()))
 
     def draw_seizures(
         self, scene, cell_width, cell_height, painter=None, reset_scene=True
@@ -765,11 +769,9 @@ class ClusterTracker:
                 QPointF(points[0][1] * cell_width, points[0][0] * cell_height)
             )
             for point in points[1:]:
-                path.lineTo(
-                    QPointF(point[1] * cell_width, point[0] * cell_height))
+                path.lineTo(QPointF(point[1] * cell_width, point[0] * cell_height))
             path_item = QGraphicsPathItem(path)
-            path_item.setPen(
-                QPen(QColor(0, 0, 0, int(255 * 0.1)), 2, Qt.DashLine))
+            path_item.setPen(QPen(QColor(0, 0, 0, int(255 * 0.1)), 2, Qt.DashLine))
             scene.addItem(path_item)
             self.seizure_graphics_items.append(path_item)
 
@@ -790,8 +792,7 @@ class ClusterTracker:
             if painter:
                 painter.setBrush(start_point.brush())
                 painter.setPen(Qt.NoPen)
-                painter.drawEllipse(
-                    start_point.rect().translated(start_point.pos()))
+                painter.drawEllipse(start_point.rect().translated(start_point.pos()))
 
             # Draw end point
             end_point = QGraphicsEllipseItem(0, 0, 10, 10)
@@ -805,8 +806,7 @@ class ClusterTracker:
             if painter:
                 painter.setBrush(end_point.brush())
                 painter.setPen(Qt.NoPen)
-                painter.drawEllipse(
-                    end_point.rect().translated(end_point.pos()))
+                painter.drawEllipse(end_point.rect().translated(end_point.pos()))
 
     def clear(self):
         self.clusters.clear()

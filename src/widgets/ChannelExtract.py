@@ -64,7 +64,7 @@ class ScatterPlot(QWidget):
         layout.addWidget(self.canvas)
 
         self.ax = fig.add_subplot(111)
-        self.ax.set_aspect("equal")  # Set the aspect ratio to be equal
+        self.ax.set_aspect("equal")
 
         self.x = np.arange(1, 65)
         self.y = np.arange(1, 65)
@@ -83,7 +83,7 @@ class ScatterPlot(QWidget):
 
         self.ax.set_xticks([])
         self.ax.set_yticks([])
-        self.ax.invert_yaxis()  # Invert the y-axis
+        self.ax.invert_yaxis()
 
         self.canvas.draw()
 
@@ -267,7 +267,6 @@ def extract_channel(args):
 
 
 def extBW5_WAV(chfileName, recfileName, chfileInfo, parameters):
-    # open the BRW file
     samplingRate = None
     nChannels = None
     coefsTotalLength = None
@@ -282,7 +281,6 @@ def extBW5_WAV(chfileName, recfileName, chfileInfo, parameters):
         file.close()
 
     with h5py.File(recfileName) as file:
-        # collect experiment information
         samplingRate = file.attrs["SamplingRate"]
         nChannels = len(file["Well_A1/StoredChIdxs"])
         coefsTotalLength = len(file["Well_A1/WaveletBasedEncodedRaw"])
@@ -304,7 +302,7 @@ def extBW5_WAV(chfileName, recfileName, chfileInfo, parameters):
     output_file_name = recfileName.split(".")[0] + "_resample_" + str(newSampling)
     output_path = output_file_name + ".brw"
     parameters["freq_ratio"] = parameters["samplingRate"] / chfileInfo["newSampling"]
-    fs = chfileInfo["newSampling"]  # desired sampling frequency
+    fs = chfileInfo["newSampling"]
 
     print("Downsampling File # ", output_path)
     dset = writeBrw(recfileName, output_path, parameters)
@@ -320,7 +318,6 @@ def extBW5_WAV(chfileName, recfileName, chfileInfo, parameters):
     newChs = newChs[ind]
     idx_a = ind_rec.copy()
     print(idx_a)
-    # data = BrwFile.Open(recfileName)
 
     s = time.time()
 
@@ -355,7 +352,7 @@ def extBW5_WAV(chfileName, recfileName, chfileInfo, parameters):
     print(f"Mine: {new_sampling_rate}")
     print(f"Original: {fs}")
 
-    chunk_size = 100000  # Adjust the chunk size as needed
+    chunk_size = 100000
     nrecFrame = len(results[0])
 
     for i in range(0, nrecFrame, chunk_size):
@@ -374,7 +371,6 @@ def extBW5_WAV(chfileName, recfileName, chfileInfo, parameters):
             dset.appendBrw(output_path, end, raw_chunk)
 
     dset.close()
-    # data.Close()
 
     return time.time() - s, output_path
 
@@ -385,11 +381,8 @@ def get_chfile_properties(path):
     fileInfo["recFrames"] = h5["/3BRecInfo/3BRecVars/NRecFrames"][0]
     fileInfo["recSampling"] = h5["/3BRecInfo/3BRecVars/SamplingRate"][0]
     fileInfo["newSampling"] = h5["/3BRecInfo/3BRecVars/NewSampling"][0]
-    # fileInfo['newSampling'] = 1024
     fileInfo["recLength"] = fileInfo["recFrames"] / fileInfo["recSampling"]
-    fileInfo["recElectrodeList"] = h5["/3BRecInfo/3BMeaStreams/Raw/Chs"][
-        :
-    ]  # list of the recorded channels
+    fileInfo["recElectrodeList"] = h5["/3BRecInfo/3BMeaStreams/Raw/Chs"][:]
     fileInfo["numRecElectrodes"] = len(fileInfo["recElectrodeList"])
     fileInfo["Ver"] = h5["/3BRecInfo/3BRecVars/Ver"][0]
     fileInfo["Typ"] = h5["/3BRecInfo/3BRecVars/Typ"][0]
@@ -412,9 +405,7 @@ def get_recFile_properties(path, typ):
         parameters["recordingLength"] = (
             parameters["nRecFrames"] / parameters["samplingRate"]
         )
-        parameters["signalInversion"] = h5["/3BRecInfo/3BRecVars/SignalInversion"][
-            0
-        ]  # depending on the acq version it can be 1 or -1
+        parameters["signalInversion"] = h5["/3BRecInfo/3BRecVars/SignalInversion"][0]
         parameters["maxUVolt"] = h5["/3BRecInfo/3BRecVars/MaxVolt"][0]  # in uVolt
         parameters["minUVolt"] = h5["/3BRecInfo/3BRecVars/MinVolt"][0]  # in uVolt
         parameters["bitDepth"] = h5["/3BRecInfo/3BRecVars/BitDepth"][
@@ -532,7 +523,6 @@ def getChMap():
 
 
 def file_check(path, filename):
-    #    chfileName = path+"\\"+filename
     chfilePath = os.path.join(path, filename)
     chfileInfo = get_chfile_properties(chfilePath)
 
@@ -611,7 +601,6 @@ class ChannelExtract(QDialog):
         self.setWindowTitle("Channel Selection GUI")
         self.resize(1200, 800)
 
-        # Create main widget and layout
         self.mainLayout = QVBoxLayout()
         self.setLayout(self.mainLayout)
 
@@ -620,7 +609,6 @@ class ChannelExtract(QDialog):
         self.createChannelSelectionSection()
         self.createSplitter()
 
-        # Initialize variables
         self.inputFileName = ""
         self.uploadedImage = None
         self.typ = None
@@ -652,13 +640,11 @@ class ChannelExtract(QDialog):
 
     def createHeader(self):
         headerLayout = QHBoxLayout()
-        # Add application title
         self.headerLabel = QLabel("Channel Selection GUI")
         self.headerLabel.setFont(QFont("Arial", 16, QFont.Bold))
         self.headerLabel.setAlignment(Qt.AlignCenter)
         headerLayout.addWidget(self.headerLabel)
 
-        # Add spacer to push title to the center
         headerLayout.addStretch()
 
         self.mainLayout.addLayout(headerLayout)
@@ -700,13 +686,11 @@ class ChannelExtract(QDialog):
 
         gridLayout = QGridLayout()
 
-        # Create input grid
         self.inputGridWidget = ScatterPlot(self)
         self.inputGridWidget.setMinimumSize(500, 500)
         self.inputGridWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         gridLayout.addWidget(self.inputGridWidget, 0, 0)
 
-        # Create channel settings section
         settingsWidget = QWidget()
         settingsLayout = QVBoxLayout()
         settingsWidget.setLayout(settingsLayout)
@@ -755,7 +739,6 @@ class ChannelExtract(QDialog):
         exportButton.clicked.connect(self.exportChannels)
         settingsLayout.addWidget(exportButton)
 
-        # Add "Restore selection" button
         restoreButton = QPushButton("Restore Selection")
         restoreButton.clicked.connect(self.restoreSelection)
         settingsLayout.addWidget(restoreButton)
@@ -768,7 +751,6 @@ class ChannelExtract(QDialog):
 
         gridLayout.addWidget(settingsWidget, 0, 1)
 
-        # Create output grid
         self.outputGridWidget = ScatterPlot()
         self.outputGridWidget.setMinimumSize(500, 500)
         self.outputGridWidget.setSizePolicy(
@@ -968,23 +950,17 @@ class ChannelExtract(QDialog):
             Xs, Ys, idx = self.getChMap(chsList)
 
             self.inputGridWidget.ax.clear()
-            self.inputGridWidget.uploadedImage = (
-                self.uploadedImage
-            )  # Pass the uploadedImage to the ScatterPlot instance
+            self.inputGridWidget.uploadedImage = self.uploadedImage
             if self.uploadedImage is not None:
-                # Calculate the aspect ratio based on the image dimensions
                 height, width, _ = self.uploadedImage.shape
                 aspect_ratio = width / height
 
-                # Set the aspect ratio of the grid to match the image aspect ratio
                 self.inputGridWidget.ax.set_aspect(aspect_ratio)
 
-                # Display the image and set the x and y limits based on the image dimensions
                 self.inputGridWidget.ax.imshow(
                     self.uploadedImage, extent=[0, width, height, 0]
                 )
 
-                # Scale the grid coordinates to match the image dimensions
                 Xs = [x * width / 64 for x in Xs]
                 Ys = [y * height / 64 for y in Ys]
 
@@ -1051,22 +1027,17 @@ class ChannelExtract(QDialog):
             h5.close()
 
             self.outputGridWidget.ax.clear()
-            self.outputGridWidget.uploadedImage = (
-                self.uploadedImage
-            )  # Pass the uploadedImage to the ScatterPlot instance
+            self.outputGridWidget.uploadedImage = self.uploadedImage
             if self.uploadedImage is not None:
                 height, width, _ = self.uploadedImage.shape
                 aspect_ratio = width / height
 
-                # Set the aspect ratio of the grid to match the image aspect ratio
                 self.outputGridWidget.ax.set_aspect(aspect_ratio)
 
-                # Display the image and set the x and y limits based on the image dimensions
                 self.outputGridWidget.ax.imshow(
                     self.uploadedImage, extent=[0, width, height, 0]
                 )
 
-                # Scale the grid coordinates to match the image dimensions
                 xs = [x * width / 64 for x in xs]
                 ys = [y * height / 64 for y in ys]
                 chX = [x * width / 64 for x in chX]
@@ -1079,12 +1050,10 @@ class ChannelExtract(QDialog):
                 self.outputGridWidget.ax.set_xlim(self.size[0], self.size[2])
                 self.outputGridWidget.ax.set_ylim(self.size[2], self.size[3])
 
-            # Plot the gray dots
             self.outputGridWidget.ax.scatter(
                 xs, ys, c="grey", s=SIZE, alpha=0.1, marker=MARKER
             )
 
-            # Plot the red dots on top with a higher zorder
             self.outputGridWidget.ax.scatter(
                 chX, chY, c="red", s=SIZE, alpha=0.8, zorder=10, marker=MARKER
             )
@@ -1245,7 +1214,6 @@ class ChannelExtract(QDialog):
         return parameters
 
     def getChMap(self, chsList=None):
-        # Get channel map coordinates
         newChs = np.zeros(4096, dtype=[("Row", "<i2"), ("Col", "<i2")])
         for idx in range(4096):
             column = (idx // 64) + 1
@@ -1277,7 +1245,6 @@ class writeBrw:
     def __init__(self, inputFilePath, outputFile, parameters):
         self.path = inputFilePath
         self.fileName = outputFile
-        # self.brw = h5py.File(self.path, 'r')
         self.description = parameters["Ver"]
         self.version = parameters["Typ"]
         self.samplingrate = parameters["samplingRate"]
@@ -1290,24 +1257,14 @@ class writeBrw:
         self.QLevel = np.power(2, parameters["bitDepth"])
         self.fromQLevelToUVolt = (self.maxVolt - self.minVolt) / self.QLevel
 
-        # self.signalInversion = self.brw['3BRecInfo/3BRecVars/SignalInversion']
-        # self.maxVolt = self.brw['3BRecInfo/3BRecVars/MaxVolt'][0]
-        # self.minVolt = self.brw['3BRecInfo/3BRecVars/MinVolt'][0]
-        # self.QLevel = np.power(2, self.brw['3BRecInfo/3BRecVars/BitDepth'][0])
-        # self.fromQLevelToUVolt = (self.maxVolt - self.minVolt) / self.QLevel
-
     def createNewBrw(self):
         newName = self.fileName
         new = h5py.File(newName, "w")
 
         new.attrs.__setitem__("Description", self.description)
-        # new.attrs.__setitem__('GUID', self.brw.attrs['GUID'])
         new.attrs.__setitem__("Version", self.version)
 
-        # new.copy(self.brw['3BRecInfo'], dest=new)
-        # new.copy(self.brw['3BUserInfo'], dest=new)
         new.create_dataset("/3BRecInfo/3BRecVars/SamplingRate", data=[np.float64(100)])
-        # new.create_dataset('/3BRecInfo/3BRecVars/NewSampling', data=[np.float64(self.samplingrate)])
         new.create_dataset(
             "/3BRecInfo/3BRecVars/NRecFrames", data=[np.float64(self.frames)]
         )
@@ -1326,13 +1283,6 @@ class writeBrw:
         )
         new.create_dataset("/3BRecInfo/3BMeaStreams/Raw/Chs", data=[self.chs])
 
-        # new.attrs.__setitem__('Description', self.brw.attrs['Description'])
-        # new.attrs.__setitem__('GUID', self.brw.attrs['GUID'])
-        # new.attrs.__setitem__('Version', self.brw.attrs['Version'])
-
-        # new.copy(self.brw['3BRecInfo'], dest=new)
-        # new.copy(self.brw['3BUserInfo'], dest=new)
-
         try:
             del new["/3BRecInfo/3BMeaStreams/Raw/Chs"]
         except:
@@ -1342,12 +1292,8 @@ class writeBrw:
         del new["/3BRecInfo/3BRecVars/SamplingRate"]
 
         self.newDataset = new
-        # self.brw.close()
 
     def writeRaw(self, rawToWrite, typeFlatten="F"):
-        # rawToWrite = rawToWrite / self.fromQLevelToUVolt
-        # rawToWrite = (rawToWrite + (self.QLevel / 2)) * self.signalInversion
-
         if rawToWrite.ndim == 1:
             newRaw = rawToWrite
         else:

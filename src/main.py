@@ -935,7 +935,6 @@ class MainWindow(QMainWindow):
                 if isinstance(item, pg.ImageItem):
                     self.graph_widget.plot_widgets[i].removeItem(item)
 
-            # Replot the trace plot
             self.graph_widget.plot_widgets[i].setLabels(left="mV")
             self.graph_widget.trace_curves[i].setVisible(True)
             self.graph_widget.plot_widgets[i].getViewBox().autoRange()
@@ -1507,7 +1506,6 @@ class MainWindow(QMainWindow):
                         discharge_dataset = timerange_group[discharge_key]
                         attrs = discharge_dataset.attrs
 
-                        # Extract data from attributes including timestamps and instant speeds
                         start_point = attrs["start_point"]
                         end_point = attrs["end_point"]
                         start_time = float(attrs["start_time"])
@@ -1518,11 +1516,9 @@ class MainWindow(QMainWindow):
                         points = attrs["points"]
                         timestamps = attrs["timestamps"]
 
-                        # Load instant speeds if available, otherwise calculate them
                         if "instant_speeds" in attrs:
                             instant_speeds = attrs["instant_speeds"]
                         else:
-                            # Calculate instantaneous speeds for backward compatibility
                             points_list = (
                                 points.tolist() if hasattr(points, "tolist") else points
                             )
@@ -1620,15 +1616,6 @@ class MainWindow(QMainWindow):
                     "end_point": end_point.tolist(),
                     "time_since_last_discharge": time_since_last_discharge,
                 }
-
-                # Add a green line to the channel plots
-                # for i in range(4):
-                #     if self.plotted_channels[i] is not None:
-                #         self.graph_widget.plot_widgets[i].addItem(
-                #             pg.InfiniteLine(
-                #                 pos=start_time, angle=90, pen=pg.mkPen("g", width=2)
-                #             )
-                #         )
 
                 self.cluster_tracker.seizures.append(seizure)
 
@@ -1826,7 +1813,6 @@ class MainWindow(QMainWindow):
                 self.hdf5_viewer.activateWindow()
             else:
                 self.hdf5_viewer = HDF5Viewer(self.file_path, parent=self)
-                # Clear reference when closed
                 self.hdf5_viewer.destroyed.connect(
                     lambda: setattr(self, "hdf5_viewer", None)
                 )
@@ -1888,37 +1874,6 @@ class MainWindow(QMainWindow):
         return math.sqrt(
             (strength - self.min_strength) / (self.max_strength - self.min_strength)
         )
-
-    # TODO: Find a way to store all the discharge events times for each channel
-    # def save_discharges_to_hdf5(self, row, col, start_time, stop_time):
-    #     with h5py.File(self.file_path, "a") as f:
-    #         if len(self.discharges[(row, col)][0]) == 0:
-    #             return
-    #         if "Discharges" not in f:
-    #             f.create_group("Discharges")
-    #         discharge_group = f["Discharges"]
-    #
-    #         timeframe_group_name = f"Timeframe_{start_time:.2f}_{stop_time:.2f}"
-    #         if timeframe_group_name not in discharge_group:
-    #             timeframe_group = discharge_group.create_group(timeframe_group_name)
-    #         else:
-    #             timeframe_group = discharge_group[timeframe_group_name]
-    #
-    #         channel_group_name = f"{row}_{col}"
-    #         if channel_group_name not in timeframe_group:
-    #             channel_group = timeframe_group.create_group(channel_group_name)
-    #         else:
-    #             channel_group = timeframe_group[channel_group_name]
-    #
-    #         channel_group.create_dataset(
-    #             "DischargeTimes", data=self.discharges[(row, col)][0]
-    #         )
-    #         channel_group.create_dataset(
-    #             "DischargeStrengths", data=self.discharges[(row, col)][1]
-    #         )
-    #
-    #         channel_group.attrs["start_time"] = start_time
-    #         channel_group.attrs["stop_time"] = stop_time
 
     def clear_found_discharges(self):
         self.discharges = {}
@@ -2094,7 +2049,6 @@ class MainWindow(QMainWindow):
     def voltage_range_to_color(self, log_range):
         if log_range is None:
             return ACTIVE
-        # Adjust this constant to control the sensitivity of the color scale
         sensitivity = 5
         hue = int((1 - np.tanh(sensitivity * log_range)) * 240)
         saturation = 255
@@ -2221,7 +2175,6 @@ class MainWindow(QMainWindow):
                         high_luminance_cells = self.get_high_luminance_cells(
                             luminance_threshold
                         )
-                        # Get the index of the high luminance cells within the active channels
                         high_luminance_indices = [
                             self.active_channels.index((cell.row + 1, cell.col + 1))
                             for cell in high_luminance_cells
