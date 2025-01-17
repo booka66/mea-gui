@@ -13,10 +13,10 @@ jobs:
         os: [macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: 3.9
 
@@ -63,42 +63,31 @@ jobs:
 
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q MEA_GUI_Installer.iss
 
-      - name: Upload macOS Package
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v2
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: MEA_GUI_MacOS
-          path: MEA_GUI_MacOS.pkg
-
-      - name: Upload Windows Package
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v2
-        with:
-          name: MEA_GUI_Windows
-          path: Output\MEA_GUI_Windows.exe
+          name: packages
+          path: |
+            MEA_GUI_MacOS.pkg
+            Output\MEA_GUI_Windows.exe
 
   release:
     needs: build
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - name: Download macOS Package
-        uses: actions/download-artifact@v2
+      - name: Download Artifact
+        uses: actions/download-artifact@v3
         with:
-          name: MEA_GUI_MacOS
-
-      - name: Download Windows Package
-        uses: actions/download-artifact@v2
-        with:
-          name: MEA_GUI_Windows
+          name: packages
 
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
@@ -108,7 +97,7 @@ jobs:
       - name: Upload macOS Package to Release
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: MEA_GUI_MacOS.pkg
@@ -118,7 +107,7 @@ jobs:
       - name: Upload Windows Package to Release
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: MEA_GUI_Windows.exe
