@@ -25,8 +25,14 @@ jobs:
             # Install x86_64 Homebrew in /usr/local
             arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
             
-            # Set up Homebrew environment
+            # Explicitly set up Homebrew environment
+            echo 'export HOMEBREW_PREFIX="/usr/local"' >> $HOME/.bash_profile
+            echo 'export HOMEBREW_CELLAR="/usr/local/Cellar"' >> $HOME/.bash_profile
+            echo 'export HOMEBREW_REPOSITORY="/usr/local/Homebrew"' >> $HOME/.bash_profile
+            echo 'export PATH="/usr/local/bin:/usr/local/sbin:$PATH"' >> $HOME/.bash_profile
             echo 'eval "$(/usr/local/bin/brew shellenv)"' >> $HOME/.bash_profile
+            
+            # Source the profile to set up environment
             source $HOME/.bash_profile
             
             # Install Python and set up virtual environment
@@ -122,6 +128,8 @@ jobs:
         with:
           name: macos-packages
           path: ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
+
+  # ... rest of the workflow remains the same
 
   build-windows:
     runs-on: windows-latest
