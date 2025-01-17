@@ -7,27 +7,27 @@ on:
 
 jobs:
   build-macos:
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     strategy:
       matrix:
         include:
-          - os: macos-latest
-            arch: x86_64
-          - os: macos-latest
-            arch: arm64
+          - arch: x86_64
+            python-version: 3.10.9
+          - arch: arm64
+            python-version: 3.10.9
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.10.9
-
-      - name: Install dependencies
+      - name: Set up Python for ${{ matrix.arch }}
         run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme
+          if [ "${{ matrix.arch }}" == "x86_64" ]; then
+            arch -x86_64 /bin/bash -c "brew install python@3.10"
+            arch -x86_64 /bin/bash -c "$(brew --prefix python@3.10)/bin/pip3 install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme"
+          else
+            brew install python@3.10
+            pip3 install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme
+          fi
 
       - name: Build documentation
         run: |
@@ -42,25 +42,47 @@ jobs:
         env:
           ARCHFLAGS: "-arch ${{ matrix.arch }}"
         run: |
-          HDF5_DIR="$(brew --prefix hdf5)" pyinstaller --noconfirm --onedir --windowed \
-            --target-architecture ${{ matrix.arch }} \
-            --exclude-module PIL \
-            --exclude-module Pillow \
-            --hidden-import h5py.defs \
-            --hidden-import h5py.utils \
-            --hidden-import h5py._proxy \
-            --collect-data h5py \
-            ${{ github.workspace }}/src/main.py \
-            --icon=${{ github.workspace }}/resources/icon.icns \
-            --add-data "${{ github.workspace }}/docs/_build/:." \
-            --add-data "${{ github.workspace }}/src/helpers/mat/SzDetectCat.m:." \
-            --add-data "${{ github.workspace }}/src/helpers/mat/save_channel_to_mat.m:." \
-            --add-data "${{ github.workspace }}/src/helpers/mat/getChs.m:." \
-            --add-data "${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:." \
-            --additional-hooks-dir "${{ github.workspace }}/hooks/" \
-            --add-data "${{ github.workspace }}/src/helpers/mat/*.m:." \
-            --add-binary "$(brew --prefix hdf5)/lib/libhdf5.dylib:." \
-            --add-binary "$(brew --prefix hdf5)/lib/libhdf5_hl.dylib:."
+          if [ "${{ matrix.arch }}" == "x86_64" ]; then
+            arch -x86_64 /bin/bash -c "HDF5_DIR='$(arch -x86_64 brew --prefix hdf5)' $(brew --prefix python@3.10)/bin/pyinstaller --noconfirm --onedir --windowed \
+              --target-architecture ${{ matrix.arch }} \
+              --exclude-module PIL \
+              --exclude-module Pillow \
+              --hidden-import h5py.defs \
+              --hidden-import h5py.utils \
+              --hidden-import h5py._proxy \
+              --collect-data h5py \
+              ${{ github.workspace }}/src/main.py \
+              --icon=${{ github.workspace }}/resources/icon.icns \
+              --add-data '${{ github.workspace }}/docs/_build/:.'\
+              --add-data '${{ github.workspace }}/src/helpers/mat/SzDetectCat.m:.'\
+              --add-data '${{ github.workspace }}/src/helpers/mat/save_channel_to_mat.m:.'\
+              --add-data '${{ github.workspace }}/src/helpers/mat/getChs.m:.'\
+              --add-data '${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:.'\
+              --additional-hooks-dir '${{ github.workspace }}/hooks/' \
+              --add-data '${{ github.workspace }}/src/helpers/mat/*.m:.'\
+              --add-binary '$(arch -x86_64 brew --prefix hdf5)/lib/libhdf5.dylib:.'\
+              --add-binary '$(arch -x86_64 brew --prefix hdf5)/lib/libhdf5_hl.dylib:.'"
+          else
+            HDF5_DIR="$(brew --prefix hdf5)" pyinstaller --noconfirm --onedir --windowed \
+              --target-architecture ${{ matrix.arch }} \
+              --exclude-module PIL \
+              --exclude-module Pillow \
+              --hidden-import h5py.defs \
+              --hidden-import h5py.utils \
+              --hidden-import h5py._proxy \
+              --collect-data h5py \
+              ${{ github.workspace }}/src/main.py \
+              --icon=${{ github.workspace }}/resources/icon.icns \
+              --add-data "${{ github.workspace }}/docs/_build/:." \
+              --add-data "${{ github.workspace }}/src/helpers/mat/SzDetectCat.m:." \
+              --add-data "${{ github.workspace }}/src/helpers/mat/save_channel_to_mat.m:." \
+              --add-data "${{ github.workspace }}/src/helpers/mat/getChs.m:." \
+              --add-data "${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:." \
+              --additional-hooks-dir "${{ github.workspace }}/hooks/" \
+              --add-data "${{ github.workspace }}/src/helpers/mat/*.m:." \
+              --add-binary "$(brew --prefix hdf5)/lib/libhdf5.dylib:." \
+              --add-binary "$(brew --prefix hdf5)/lib/libhdf5_hl.dylib:."
+          fi
 
       - name: Prepare Package
         run: |
