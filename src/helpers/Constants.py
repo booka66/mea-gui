@@ -1,6 +1,6 @@
 from PyQt5.QtGui import QColor
 
-VERSION = "v1.3.14"
+VERSION = "v1.3.15"
 
 BACKGROUND = QColor("#4a4e69")
 ACTIVE = QColor("#808080")
@@ -25,3 +25,5 @@ CELL_SIZE = 60  # micrometers
 
 MAC = "darwin"
 WIN = "win32"
+FONT_FILE = "GeistMonoNerdFontMono-Regular.otf"
+FONT_FAMILY = "GeistMono Nerd Font Mono"

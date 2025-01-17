@@ -61,6 +61,8 @@ from helpers.Constants import (
     ACTIVE,
     BACKGROUND,
     CELL_SIZE,
+    FONT_FAMILY,
+    FONT_FILE,
     MAC,
     SE,
     SEIZURE,
@@ -2793,8 +2795,18 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
 
-font_name = "GeistMono Nerd Font Mono"
-font_url = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/Hack.zip"
+def get_font_path():
+    if getattr(sys, "frozen", False):
+        if sys.platform == MAC:
+            base_path = os.path.join(os.path.dirname(sys.executable), "..", "Resources")
+        else:
+            base_path = os.path.dirname(sys.executable)
+        return os.path.join(base_path, FONT_FILE)
+    else:
+        return os.path.join(
+            os.path.dirname(__file__), "..", "resources", "fonts", FONT_FILE
+        )
+
 
 if sys.platform == MAC:
     font_dir = "/Library/Fonts/"
@@ -2807,19 +2819,35 @@ else:
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()
-    if not any(font_name in font for font in QFontDatabase().families()):
+
+    font_path = get_font_path()
+    font_id = QFontDatabase.addApplicationFont(font_path)
+
+    if font_id == -1:
         msg = QMessageBox()
-        msg.setIcon(QMessageBox.Information)
+        msg.setIcon(QMessageBox.Critical)
         msg.setText(
-            f"Please install the font: {font_name}. Go to the first release to download the font.\nhttps://github.com/booka66/mea-gui/releases/"
+            f"Failed to load required font: {FONT_FAMILY}\n"
+            f"Attempted to load from: {font_path}\n"
+            "The application may not display correctly."
         )
-        msg.setWindowTitle("Font Installation")
+        msg.setWindowTitle("Font Loading Error")
         msg.setStandardButtons(QMessageBox.Ok)
         msg.exec_()
     else:
-        print(f"Font already installed: {font_name}")
-        font = QFont(font_name, 13)
-        app.setFont(font)
+        print("Font loaded successfully")
+        # Get the exact font family name that was loaded
+        families = QFontDatabase.applicationFontFamilies(font_id)
+        if families:
+            loaded_family = families[0]  # Use the first family name returned
+            print(f"Font loaded successfully from: {font_path}")
+            print(f"Using font family: {loaded_family}")
+            font = QFont(loaded_family, 13)
+            app.setFont(font)
+        else:
+            print("Warning: Font file loaded but no family names found")
+            font = QFont(FONT_FAMILY, 13)  # Fallback to expected family name
+            app.setFont(font)
 
     window = MainWindow()
     window.showMaximized()
