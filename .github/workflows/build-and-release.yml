@@ -46,7 +46,7 @@ jobs:
             brew install python@3.10 cmake pybind11 hdf5
             python3 -m venv venv
             source venv/bin/activate
-            pip install pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy
+            pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy
           fi
 
       - name: Build C++ Extensions
