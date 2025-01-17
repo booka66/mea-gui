@@ -6,85 +6,7 @@ on:
       - "v*"
 
 jobs:
-  build-extensions:
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest]
-        arch:
-          - x86_64
-          - arm64
-        exclude:
-          - os: windows-latest
-            arch: arm64
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.10.9
-          architecture: ${{ matrix.arch == 'arm64' && 'arm64' || 'x64' }}
-
-      - name: Install dependencies
-        run: |
-          python -m venv venv
-
-          # Activate virtual environment
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            venv\Scripts\activate
-          else
-            source venv/bin/activate
-          fi
-
-          # Install build dependencies
-          pip install setuptools pybind11 wheel
-
-      - name: Build Extensions (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          source venv/bin/activate
-
-          # Handle x86_64 and arm64 separately
-          if [ "${{ matrix.arch }}" == "x86_64" ]; then
-            # Set up x86_64 Homebrew and Python
-            arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-            echo 'export PATH="/usr/local/bin:$PATH"' >> $HOME/.bash_profile
-            source $HOME/.bash_profile
-            
-            # Install HDF5 for x86_64
-            arch -x86_64 brew install hdf5
-            HDF5_DIR=$(arch -x86_64 brew --prefix hdf5)
-          else
-            # Use standard Homebrew for arm64
-            brew install hdf5
-            HDF5_DIR=$(brew --prefix hdf5)
-          fi
-
-          # Build extensions
-          ARCHFLAGS="-arch ${{ matrix.arch }}" \
-          HDF5_DIR="$HDF5_DIR" \
-          python setup.py build_ext --inplace
-
-      - name: Build Extensions (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          venv\Scripts\activate
-          python setup.py build_ext --inplace
-
-      - name: Upload Extension Artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: python-extensions-${{ matrix.os }}-${{ matrix.arch }}
-          path: |
-            *.pyd
-            *.so
-            *.dll
-
-  build-macos:
-    needs: [build-extensions]
+  build-extensions-macos:
     runs-on: macos-latest
     strategy:
       matrix:
@@ -97,10 +19,85 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Download Python Extensions
+      - name: Set up Python for ${{ matrix.arch }}
+        run: |
+          if [ "${{ matrix.arch }}" == "x86_64" ]; then
+            # Install x86_64 Homebrew in /usr/local
+            arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            
+            # Explicitly set up Homebrew environment
+            echo 'export HOMEBREW_PREFIX="/usr/local"' >> $HOME/.bash_profile
+            echo 'export HOMEBREW_CELLAR="/usr/local/Cellar"' >> $HOME/.bash_profile
+            echo 'export HOMEBREW_REPOSITORY="/usr/local/Homebrew"' >> $HOME/.bash_profile
+            echo 'export PATH="/usr/local/bin:/usr/local/sbin:$PATH"' >> $HOME/.bash_profile
+            echo 'eval "$(/usr/local/bin/brew shellenv)"' >> $HOME/.bash_profile
+            
+            # Source the profile to set up environment
+            source $HOME/.bash_profile
+            
+            # Install Python and dependencies
+            arch -x86_64 brew install python@3.10 cmake pybind11 hdf5
+            
+            # Use the full path to Python and create virtual environment
+            arch -x86_64 /bin/bash -c "/usr/local/bin/python3.10 -m venv venv"
+            source venv/bin/activate
+            pip install setuptools wheel numpy
+          else
+            brew install python@3.10 cmake pybind11 hdf5
+            python3 -m venv venv
+            source venv/bin/activate
+            pip install setuptools wheel numpy
+          fi
+
+      - name: Build C++ Extensions
+        run: |
+          source venv/bin/activate
+
+          # Dynamically find HDF5 installation paths
+          HDF5_DIR=$(brew --prefix hdf5)
+          HDF5_INCLUDE_DIR="$HDF5_DIR/include"
+          HDF5_LIB_DIR="$HDF5_DIR/lib"
+
+          # Change to the extensions directory
+          cd ${{ github.workspace }}/src/helpers/extensions
+
+          # Build and install the extensions
+          CXXFLAGS="-std=c++17 -O3 -arch ${{ matrix.arch }}" \
+          LDFLAGS="-arch ${{ matrix.arch }}" \
+          python setup.py build_ext --inplace
+
+          # Verify the built extensions
+          ls -l *.so
+
+      - name: Collect Extension Artifacts
+        run: |
+          mkdir -p ${{ github.workspace }}/extension_artifacts/${{ matrix.arch }}
+          cp ${{ github.workspace }}/src/helpers/extensions/*.so ${{ github.workspace }}/extension_artifacts/${{ matrix.arch }}/
+
+      - name: Upload Extension Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-extensions
+          path: ${{ github.workspace }}/extension_artifacts/${{ matrix.arch }}/
+
+  build-macos:
+    needs: build-extensions-macos
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            python-version: 3.10.9
+          - arch: arm64
+            python-version: 3.10.9
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download Extension Artifacts
         uses: actions/download-artifact@v3
         with:
-          name: python-extensions-macos-latest-${{ matrix.arch }}
+          name: macos-extensions
           path: ${{ github.workspace }}/src/helpers/extensions/
 
       - name: Set up Python for ${{ matrix.arch }}
@@ -216,17 +213,10 @@ jobs:
           path: ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
 
   build-windows:
-    needs: [build-extensions]
     runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: Download Python Extensions
-        uses: actions/download-artifact@v3
-        with:
-          name: python-extensions-windows-latest-x86_64
-          path: ${{ github.workspace }}/src/helpers/extensions/
 
       - name: Set up Python
         uses: actions/setup-python@v4

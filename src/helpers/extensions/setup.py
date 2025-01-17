@@ -3,62 +3,72 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 import pybind11
 import os
 import sys
-import platform
-
-# Determine the current architecture
-current_arch = platform.machine()
+import subprocess
 
 
-# HDF5 path configuration
 def get_hdf5_paths():
-    if sys.platform == "darwin":
-        # Try Homebrew paths for both Intel and Apple Silicon
-        homebrew_paths = [
-            "/usr/local/Cellar/hdf5",  # Intel Homebrew
-            "/opt/homebrew/Cellar/hdf5",  # Apple Silicon Homebrew
-        ]
+    """
+    Dynamically find HDF5 installation paths using brew.
+    Falls back to environment variables or common paths if brew fails.
+    """
+    try:
+        hdf5_dir = (
+            subprocess.check_output(["brew", "--prefix", "hdf5"]).decode().strip()
+        )
+        return {
+            "include_dir": os.path.join(hdf5_dir, "include"),
+            "lib_dir": os.path.join(hdf5_dir, "lib"),
+        }
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # Fallback paths
+        fallback_paths = {
+            "darwin": {
+                "include_dir": [
+                    "/opt/homebrew/include/hdf5",
+                    "/usr/local/include/hdf5",
+                    "/usr/include/hdf5",
+                ],
+                "lib_dir": ["/opt/homebrew/lib", "/usr/local/lib", "/usr/lib"],
+            },
+            "linux": {
+                "include_dir": [
+                    "/usr/include/hdf5/serial",
+                    "/usr/local/include/hdf5",
+                    "/usr/include/hdf5",
+                ],
+                "lib_dir": ["/usr/lib/x86_64-linux-gnu", "/usr/local/lib", "/usr/lib"],
+            },
+        }
 
-        for path in homebrew_paths:
-            if os.path.exists(path):
-                versions = sorted(os.listdir(path), reverse=True)
-                if versions:
-                    hdf5_dir = os.path.join(path, versions[0])
-                    return {
-                        "include_dir": os.path.join(hdf5_dir, "include"),
-                        "lib_dir": os.path.join(hdf5_dir, "lib"),
-                    }
+    # Detect platform-specific paths
+    platform_paths = fallback_paths.get(sys.platform, fallback_paths["linux"])
 
-    # Fallback for Windows or if Homebrew paths not found
-    return {
-        "include_dir": os.environ.get("HDF5_INCLUDE_DIR", ""),
-        "lib_dir": os.environ.get("HDF5_LIB_DIR", ""),
-    }
+    # Find first existing include directory
+    include_dir = next(
+        (path for path in platform_paths["include_dir"] if os.path.exists(path)), None
+    )
+    lib_dir = next(
+        (path for path in platform_paths["lib_dir"] if os.path.exists(path)), None
+    )
 
+    if not include_dir or not lib_dir:
+        raise RuntimeError("Could not find HDF5 installation paths")
+
+    return {"include_dir": include_dir, "lib_dir": lib_dir}
+
+
+# Determine compilation flags based on platform
+extra_compile_flags = ["-std=c++17", "-O3"]
+extra_link_flags = []
+
+# Universal binary for macOS
+if sys.platform == "darwin":
+    extra_compile_flags.extend(["-arch", "arm64", "-arch", "x86_64"])
+    extra_link_flags.extend(["-arch", "arm64", "-arch", "x86_64"])
 
 # Get HDF5 paths
 hdf5_paths = get_hdf5_paths()
 
-# Compilation flags
-extra_compile_flags = ["-std=c++17", "-O3"]
-extra_link_flags = []
-
-# Architecture-specific flags
-if sys.platform == "darwin":
-    # Check if running under Rosetta 2 (x86_64 on arm64)
-    is_rosetta = platform.machine() == "x86_64" and platform.processor() == "i386"
-
-    if current_arch == "x86_64" or is_rosetta:
-        extra_compile_flags.extend(["-arch", "x86_64"])
-        extra_link_flags.extend(["-arch", "x86_64"])
-    elif current_arch == "arm64":
-        extra_compile_flags.extend(["-arch", "arm64"])
-        extra_link_flags.extend(["-arch", "arm64"])
-    else:
-        # For universal binaries or other scenarios
-        extra_compile_flags.extend(["-arch", "arm64", "-arch", "x86_64"])
-        extra_link_flags.extend(["-arch", "arm64", "-arch", "x86_64"])
-
-# Extension modules
 ext_modules = [
     Pybind11Extension(
         "sz_se_detect",
@@ -90,5 +100,5 @@ setup(
     ext_modules=ext_modules,
     cmdclass={"build_ext": build_ext},
     zip_safe=False,
-    python_requires=">=3.10",
+    python_requires=">=3.6",
 )
