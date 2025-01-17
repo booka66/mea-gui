@@ -25,10 +25,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller
 
+      - name: Install HDF5 (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install hdf5
+
       - name: Build with PyInstaller (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          sudo ARCHFLAGS="-arch x86_64 -arch arm64" HDF5_DIR="/usr/local" pyinstaller --noconfirm --onedir --argv-emulation --windowed \
+          sudo ARCHFLAGS="-arch x86_64 -arch arm64" HDF5_DIR="$(brew --prefix hdf5)" pyinstaller --noconfirm --onedir --argv-emulation --windowed \
             --target-architecture universal2 \
             --exclude-module PIL \
             --exclude-module Pillow \
@@ -45,10 +50,8 @@ jobs:
             --add-data "${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:." \
             --additional-hooks-dir "${{ github.workspace }}/hooks/" \
             --add-data "${{ github.workspace }}/src/helpers/mat/*.m:." \
-            --add-binary "/usr/local/opt/hdf5/lib/libhdf5.dylib:." \
-            --add-binary "/usr/local/opt/hdf5/lib/libhdf5_hl.dylib:." \
-            --add-binary "/opt/homebrew/opt/hdf5/lib/libhdf5.dylib:." \
-            --add-binary "/opt/homebrew/opt/hdf5/lib/libhdf5_hl.dylib:."
+            --add-binary "$(brew --prefix hdf5)/lib/libhdf5.dylib:." \
+            --add-binary "$(brew --prefix hdf5)/lib/libhdf5_hl.dylib:."
 
           rm -rf ${{ github.workspace }}/package_root/MEA\\ GUI.app
           cp -R ${{ github.workspace }}/dist/main.app ${{ github.workspace }}/package_root/MEA\\ GUI.app
