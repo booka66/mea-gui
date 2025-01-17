@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video
+          pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme
 
       - name: Build documentation
         run: |
