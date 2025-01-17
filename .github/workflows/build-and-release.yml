@@ -22,8 +22,10 @@ jobs:
       - name: Set up Python for ${{ matrix.arch }}
         run: |
           if [ "${{ matrix.arch }}" == "x86_64" ]; then
-            arch -x86_64 /bin/bash -c "brew install python@3.10"
-            arch -x86_64 /bin/bash -c "$(brew --prefix python@3.10)/bin/python3 -m venv venv"
+            # Install x86_64 Homebrew in /usr/local
+            arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            arch -x86_64 /bin/bash -c "arch -x86_64 brew install python@3.10"
+            arch -x86_64 /bin/bash -c "$(arch -x86_64 brew --prefix python@3.10)/bin/python3 -m venv venv"
             arch -x86_64 /bin/bash -c "source venv/bin/activate && pip install --break-system-packages pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme"
           else
             brew install python@3.10
@@ -43,7 +45,11 @@ jobs:
 
       - name: Install HDF5
         run: |
-          brew install hdf5
+          if [ "${{ matrix.arch }}" == "x86_64" ]; then
+            arch -x86_64 /bin/bash -c "arch -x86_64 brew install hdf5"
+          else
+            brew install hdf5
+          fi
 
       - name: Build with PyInstaller
         env:
