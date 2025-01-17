@@ -36,40 +36,40 @@ jobs:
             --hidden-import h5py.utils \
             --hidden-import h5py._proxy \
             --collect-data h5py \
-            ../../main.py \
-            --icon=../../../resources/icon.icns \
-            --add-data "../../../docs/_build/:." \
-            --add-data "../../helpers/mat/SzDetectCat.m:." \
-            --add-data "../../helpers/mat/save_channel_to_mat.m:." \
-            --add-data "../../helpers/mat/getChs.m:." \
-            --add-data "../../helpers/mat/get_cat_envelop.m:." \
-            --additional-hooks-dir "../../../hooks/" \
-            --add-data "../../helpers/mat/*.m:." \
+            ${{ github.workspace }}/src/main.py \
+            --icon=${{ github.workspace }}/resources/icon.icns \
+            --add-data "${{ github.workspace }}/docs/_build/:." \
+            --add-data "${{ github.workspace }}/src/helpers/mat/SzDetectCat.m:." \
+            --add-data "${{ github.workspace }}/src/helpers/mat/save_channel_to_mat.m:." \
+            --add-data "${{ github.workspace }}/src/helpers/mat/getChs.m:." \
+            --add-data "${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:." \
+            --additional-hooks-dir "${{ github.workspace }}/hooks/" \
+            --add-data "${{ github.workspace }}/src/helpers/mat/*.m:." \
             --add-binary "/usr/local/opt/hdf5/lib/libhdf5.dylib:." \
             --add-binary "/usr/local/opt/hdf5/lib/libhdf5_hl.dylib:." \
             --add-binary "/opt/homebrew/opt/hdf5/lib/libhdf5.dylib:." \
             --add-binary "/opt/homebrew/opt/hdf5/lib/libhdf5_hl.dylib:."
 
-          rm -rf package_root/MEA\\ GUI.app
-          cp -R dist/main.app package_root/MEA\\ GUI.app
-          cp ../../../resources/fonts/GeistMonoNerdFontMono-Regular.otf package_root/MEA\\ GUI.app/Contents/Resources/
-          chmod -R 755 package_root/MEA\\ GUI.app
-          pkgbuild --root package_root --identifier com.booka66.meagui --install-location / MEA_GUI_MacOS.pkg
+          rm -rf ${{ github.workspace }}/package_root/MEA\\ GUI.app
+          cp -R ${{ github.workspace }}/dist/main.app ${{ github.workspace }}/package_root/MEA\\ GUI.app
+          cp ${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf ${{ github.workspace }}/package_root/MEA\\ GUI.app/Contents/Resources/
+          chmod -R 755 ${{ github.workspace }}/package_root/MEA\\ GUI.app
+          pkgbuild --root ${{ github.workspace }}/package_root --identifier com.booka66.meagui --install-location / ${{ github.workspace }}/MEA_GUI_MacOS.pkg
 
       - name: Build with PyInstaller (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          pyinstaller --collect-submodules=sz_se_detect --noconfirm  --onedir --windowed ../../main.py --icon=../../../resources/icon.ico --add-data "../../../docs/_build/:." --add-data "../../helpers/mat/SzDetectCat.m:." --add-data "../../helpers/mat/save_channel_to_mat.m:." --add-data "../../helpers/mat/getChs.m:." --add-data "../../helpers/mat/get_cat_envelop.m:." --additional-hooks-dir "../../../hooks/" --add-data "../../helpers/mat/*.m:." --add-data "../../../resources/fonts/GeistMonoNerdFontMono-Regular.otf"
+          pyinstaller --collect-submodules=sz_se_detect --noconfirm  --onedir --windowed ${{ github.workspace }}/src/main.py --icon=${{ github.workspace }}/resources/icon.ico --add-data "${{ github.workspace }}/docs/_build/:." --add-data "${{ github.workspace }}/src/helpers/mat/SzDetectCat.m:." --add-data "${{ github.workspace }}/src/helpers/mat/save_channel_to_mat.m:." --add-data "${{ github.workspace }}/src/helpers/mat/getChs.m:." --add-data "${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:." --additional-hooks-dir "${{ github.workspace }}/hooks/" --add-data "${{ github.workspace }}/src/helpers/mat/*.m:." --add-data "${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf"
 
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q MEA_GUI_Installer.iss
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q ${{ github.workspace }}\MEA_GUI_Installer.iss
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
           name: packages
           path: |
-            MEA_GUI_MacOS.pkg
-            Output\MEA_GUI_Windows.exe
+            ${{ github.workspace }}/MEA_GUI_MacOS.pkg
+            ${{ github.workspace }}/Output/MEA_GUI_Windows.exe
 
   release:
     needs: build
