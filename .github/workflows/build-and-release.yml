@@ -1,0 +1,126 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+
+      - name: Build with PyInstaller (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          sudo ARCHFLAGS="-arch x86_64 -arch arm64" HDF5_DIR="/usr/local" pyinstaller --noconfirm --onedir --argv-emulation --windowed \
+            --target-architecture universal2 \
+            --exclude-module PIL \
+            --exclude-module Pillow \
+            --hidden-import h5py.defs \
+            --hidden-import h5py.utils \
+            --hidden-import h5py._proxy \
+            --collect-data h5py \
+            ../../main.py \
+            --icon=../../../resources/icon.icns \
+            --add-data "../../../docs/_build/:." \
+            --add-data "../../helpers/mat/SzDetectCat.m:." \
+            --add-data "../../helpers/mat/save_channel_to_mat.m:." \
+            --add-data "../../helpers/mat/getChs.m:." \
+            --add-data "../../helpers/mat/get_cat_envelop.m:." \
+            --additional-hooks-dir "../../../hooks/" \
+            --add-data "../../helpers/mat/*.m:." \
+            --add-binary "/usr/local/opt/hdf5/lib/libhdf5.dylib:." \
+            --add-binary "/usr/local/opt/hdf5/lib/libhdf5_hl.dylib:." \
+            --add-binary "/opt/homebrew/opt/hdf5/lib/libhdf5.dylib:." \
+            --add-binary "/opt/homebrew/opt/hdf5/lib/libhdf5_hl.dylib:."
+
+          rm -rf package_root/MEA\\ GUI.app
+          cp -R dist/main.app package_root/MEA\\ GUI.app
+          cp ../../../resources/fonts/GeistMonoNerdFontMono-Regular.otf package_root/MEA\\ GUI.app/Contents/Resources/
+          chmod -R 755 package_root/MEA\\ GUI.app
+          pkgbuild --root package_root --identifier com.booka66.meagui --install-location / MEA_GUI_MacOS.pkg
+
+      - name: Build with PyInstaller (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          pyinstaller --collect-submodules=sz_se_detect --noconfirm  --onedir --windowed ../../main.py --icon=../../../resources/icon.ico --add-data "../../../docs/_build/:." --add-data "../../helpers/mat/SzDetectCat.m:." --add-data "../../helpers/mat/save_channel_to_mat.m:." --add-data "../../helpers/mat/getChs.m:." --add-data "../../helpers/mat/get_cat_envelop.m:." --additional-hooks-dir "../../../hooks/" --add-data "../../helpers/mat/*.m:." --add-data "../../../resources/fonts/GeistMonoNerdFontMono-Regular.otf"
+
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q MEA_GUI_Installer.iss
+
+      - name: Upload macOS Package
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v2
+        with:
+          name: MEA_GUI_MacOS
+          path: MEA_GUI_MacOS.pkg
+
+      - name: Upload Windows Package
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v2
+        with:
+          name: MEA_GUI_Windows
+          path: Output\MEA_GUI_Windows.exe
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Download macOS Package
+        uses: actions/download-artifact@v2
+        with:
+          name: MEA_GUI_MacOS
+
+      - name: Download Windows Package
+        uses: actions/download-artifact@v2
+        with:
+          name: MEA_GUI_Windows
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload macOS Package to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: MEA_GUI_MacOS.pkg
+          asset_name: MEA_GUI_MacOS.pkg
+          asset_content_type: application/octet-stream
+
+      - name: Upload Windows Package to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: MEA_GUI_Windows.exe
+          asset_name: MEA_GUI_Windows.exe
+          asset_content_type: application/octet-stream
