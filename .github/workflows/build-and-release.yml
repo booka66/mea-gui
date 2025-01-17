@@ -33,8 +33,13 @@ jobs:
 
       - name: Build documentation
         run: |
-          cd docs
-          make html
+          if [ "${{ matrix.arch }}" == "x86_64" ]; then
+            arch -x86_64 /bin/bash -c "source venv/bin/activate && cd docs && make html"
+          else
+            source venv/bin/activate
+            cd docs
+            make html
+          fi
 
       - name: Install HDF5
         run: |
