@@ -6,11 +6,15 @@ on:
       - "v*"
 
 jobs:
-  build:
+  build-macos:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, windows-latest]
+        include:
+          - os: macos-latest
+            arch: x86_64
+          - os: macos-latest
+            arch: arm64
 
     steps:
       - uses: actions/checkout@v3
@@ -23,7 +27,6 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install --no-binary markupsafe
           pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme
 
       - name: Build documentation
@@ -31,16 +34,16 @@ jobs:
           cd docs
           make html
 
-      - name: Install HDF5 (macOS)
-        if: matrix.os == 'macos-latest'
+      - name: Install HDF5
         run: |
           brew install hdf5
 
-      - name: Build with PyInstaller (macOS)
-        if: matrix.os == 'macos-latest'
+      - name: Build with PyInstaller
+        env:
+          ARCHFLAGS: "-arch ${{ matrix.arch }}"
         run: |
-          sudo ARCHFLAGS="-arch x86_64 -arch arm64" HDF5_DIR="$(brew --prefix hdf5)" pyinstaller --noconfirm --onedir --argv-emulation --windowed \
-            --target-architecture universal2 \
+          HDF5_DIR="$(brew --prefix hdf5)" pyinstaller --noconfirm --onedir --windowed \
+            --target-architecture ${{ matrix.arch }} \
             --exclude-module PIL \
             --exclude-module Pillow \
             --hidden-import h5py.defs \
@@ -59,14 +62,43 @@ jobs:
             --add-binary "$(brew --prefix hdf5)/lib/libhdf5.dylib:." \
             --add-binary "$(brew --prefix hdf5)/lib/libhdf5_hl.dylib:."
 
-          rm -rf ${{ github.workspace }}/package_root/MEA\\ GUI.app
-          cp -R ${{ github.workspace }}/dist/main.app ${{ github.workspace }}/package_root/MEA\\ GUI.app
-          cp ${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf ${{ github.workspace }}/package_root/MEA\\ GUI.app/Contents/Resources/
-          chmod -R 755 ${{ github.workspace }}/package_root/MEA\\ GUI.app
-          pkgbuild --root ${{ github.workspace }}/package_root --identifier com.booka66.meagui --install-location / ${{ github.workspace }}/MEA_GUI_MacOS.pkg
+      - name: Prepare Package
+        run: |
+          mkdir -p ${{ github.workspace }}/package_root/MEA\ GUI.app
+          rm -rf ${{ github.workspace }}/package_root/MEA\ GUI.app
+          cp -R ${{ github.workspace }}/dist/main.app ${{ github.workspace }}/package_root/MEA\ GUI.app
+          cp ${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf ${{ github.workspace }}/package_root/MEA\ GUI.app/Contents/Resources/
+          chmod -R 755 ${{ github.workspace }}/package_root/MEA\ GUI.app
+          pkgbuild --root ${{ github.workspace }}/package_root --identifier com.booka66.meagui --install-location / ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
 
-      - name: Build with PyInstaller (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-packages
+          path: ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10.9
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme
+
+      - name: Build documentation
+        run: |
+          cd docs
+          make html
+
+      - name: Build with PyInstaller
         run: |
           pyinstaller --collect-submodules=sz_se_detect --noconfirm  --onedir --windowed ${{ github.workspace }}/src/main.py --icon=${{ github.workspace }}/resources/icon.ico --add-data "${{ github.workspace }}/docs/_build/:." --add-data "${{ github.workspace }}/src/helpers/mat/SzDetectCat.m:." --add-data "${{ github.workspace }}/src/helpers/mat/save_channel_to_mat.m:." --add-data "${{ github.workspace }}/src/helpers/mat/getChs.m:." --add-data "${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:." --additional-hooks-dir "${{ github.workspace }}/hooks/" --add-data "${{ github.workspace }}/src/helpers/mat/*.m:." --add-data "${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf"
 
@@ -75,22 +107,25 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: packages
-          path: |
-            ${{ github.workspace }}/MEA_GUI_MacOS.pkg
-            ${{ github.workspace }}/Output/MEA_GUI_Windows.exe
+          name: windows-package
+          path: ${{ github.workspace }}/Output/MEA_GUI_Windows.exe
 
   release:
-    needs: build
+    needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Download Artifact
+      - name: Download MacOS Artifacts
         uses: actions/download-artifact@v3
         with:
-          name: packages
+          name: macos-packages
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: windows-package
 
       - name: Create Release
         id: create_release
@@ -103,14 +138,24 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload macOS Package to Release
+      - name: Upload macOS Intel Package to Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: MEA_GUI_MacOS.pkg
-          asset_name: MEA_GUI_MacOS.pkg
+          asset_path: MEA_GUI_MacOS_x86_64.pkg
+          asset_name: MEA_GUI_MacOS_Intel.pkg
+          asset_content_type: application/octet-stream
+
+      - name: Upload macOS Silicon Package to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: MEA_GUI_MacOS_arm64.pkg
+          asset_name: MEA_GUI_MacOS_Silicon.pkg
           asset_content_type: application/octet-stream
 
       - name: Upload Windows Package to Release
