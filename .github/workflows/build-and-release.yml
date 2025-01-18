@@ -194,10 +194,16 @@ jobs:
             --add-data "$workspace\src\helpers\mat\*.m;." `
             --add-data "$workspace\resources\fonts\GeistMonoNerdFontMono-Regular.otf;."
 
+      - name: List Files
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path ${{ github.workspace }} -Recurse -File -Name MEA_GUI_Installer.iss
+
       - name: Create Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
-          path: ${{ github.workspace }}/MEA_GUI_Installer.iss
+          path: MEA_GUI_Installer.iss
+          options: /DWorkspace="${{ github.workspace }}"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
