@@ -179,9 +179,43 @@ jobs:
         shell: pwsh
         run: |
           .\venv\Scripts\Activate.ps1
-          pyinstaller --collect-submodules=sz_se_detect --noconfirm  --onedir --windowed $PWD\src\main.py --icon=$PWD\resources\icon.ico --add-data "$PWD\docs\_build/;." --add-data "$PWD\src\helpers\mat\SzDetectCat.m;." --add-data "$PWD\src\helpers\mat\save_channel_to_mat.m;." --add-data "$PWD\src\helpers\mat\getChs.m;." --add-data "$PWD\src\helpers\mat\get_cat_envelop.m;." --additional-hooks-dir "$PWD\hooks\" --add-data "$PWD\src\helpers\mat\*.m;." --add-data "$PWD\resources\fonts\GeistMonoNerdFontMono-Regular.otf;."
 
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q $PWD\MEA_GUI_Installer.iss
+          # Ensure Output directory exists
+          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\Output"
+
+          # Build with PyInstaller using absolute paths
+          $workspace = "${{ github.workspace }}"
+          pyinstaller --collect-submodules=sz_se_detect --noconfirm --onedir --windowed `
+            "$workspace\src\main.py" `
+            --icon="$workspace\resources\icon.ico" `
+            --add-data "$workspace\docs\_build/;." `
+            --add-data "$workspace\src\helpers\mat\SzDetectCat.m;." `
+            --add-data "$workspace\src\helpers\mat\save_channel_to_mat.m;." `
+            --add-data "$workspace\src\helpers\mat\getChs.m;." `
+            --add-data "$workspace\src\helpers\mat\get_cat_envelop.m;." `
+            --additional-hooks-dir "$workspace\hooks\" `
+            --add-data "$workspace\src\helpers\mat\*.m;." `
+            --add-data "$workspace\resources\fonts\GeistMonoNerdFontMono-Regular.otf;."
+
+          # Verify the PyInstaller build succeeded and files exist
+          if (-not (Test-Path ".\dist\main")) {
+            Write-Error "PyInstaller build failed - dist directory not found"
+            exit 1
+          }
+
+          # Run Inno Setup with explicit error handling
+          $innoSetupPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (Test-Path $innoSetupPath) {
+            Write-Host "Running Inno Setup..."
+            & $innoSetupPath /Q "$workspace\MEA_GUI_Installer.iss"
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Inno Setup failed with exit code $LASTEXITCODE"
+              exit $LASTEXITCODE
+            }
+          } else {
+            Write-Error "Inno Setup not found at $innoSetupPath"
+            exit 1
+          }
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
