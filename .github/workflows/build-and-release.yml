@@ -159,6 +159,15 @@ jobs:
         with:
           python-version: 3.10.9
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          # Download Inno Setup
+          Invoke-WebRequest -Uri "https://files.jrsoftware.org/is/6/innosetup-6.2.2.exe" -OutFile "innosetup.exe"
+
+          # Install Inno Setup silently
+          Start-Process -FilePath "innosetup.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
+
       - name: Install dependencies
         shell: pwsh
         run: |
@@ -197,7 +206,7 @@ jobs:
             --add-data "$workspace\src\helpers\mat\*.m;." `
             --add-data "$workspace\resources\fonts\GeistMonoNerdFontMono-Regular.otf;."
 
-          # Verify the PyInstaller build succeeded and files exist
+          # Verify PyInstaller output
           if (-not (Test-Path ".\dist\main")) {
             Write-Error "PyInstaller build failed - dist directory not found"
             exit 1
