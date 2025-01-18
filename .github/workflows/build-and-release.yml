@@ -90,7 +90,7 @@ jobs:
           if [ "${{ matrix.arch }}" == "x86_64" ]; then
             source $HOME/.bash_profile
             source venv/bin/activate
-            arch -x86_64 /bin/bash -c "source venv/bin/activate && HDF5_DIR='$(arch -x86_64 brew --prefix hdf5)' pyinstaller --noconfirm --onedir --windowed \
+            arch -x86_64 /bin/bash -c 'source venv/bin/activate && HDF5_DIR="$(arch -x86_64 brew --prefix hdf5)" pyinstaller --noconfirm --onedir --windowed \
               --target-architecture ${{ matrix.arch }} \
               --exclude-module PIL \
               --exclude-module Pillow \
@@ -100,16 +100,16 @@ jobs:
               --collect-data h5py \
               ${{ github.workspace }}/src/main.py \
               --icon=${{ github.workspace }}/resources/icon.icns \
-              --add-data '${{ github.workspace }}/docs/_build/:.'\
-              --add-data '${{ github.workspace }}/src/helpers/mat/SzDetectCat.m:.'\
-              --add-data '${{ github.workspace }}/src/helpers/mat/save_channel_to_mat.m:.'\
-              --add-data '${{ github.workspace }}/src/helpers/mat/getChs.m:.'\
-              --add-data '${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:.'\
-              --additional-hooks-dir '${{ github.workspace }}/hooks/' \
-              --add-data '${{ github.workspace }}/src/helpers/mat/*.m:.'\
-              --add-binary '$(arch -x86_64 brew --prefix hdf5)/lib/libhdf5.dylib:.'\
-              --add-binary '$(arch -x86_64 brew --prefix hdf5)/lib/libhdf5_hl.dylib:.' \
-              --add-data '${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf:.'
+              --add-data "${{ github.workspace }}/docs/_build/:." \
+              --add-data "${{ github.workspace }}/src/helpers/mat/SzDetectCat.m:." \
+              --add-data "${{ github.workspace }}/src/helpers/mat/save_channel_to_mat.m:." \
+              --add-data "${{ github.workspace }}/src/helpers/mat/getChs.m:." \
+              --add-data "${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:." \
+              --additional-hooks-dir "${{ github.workspace }}/hooks/" \
+              --add-data "${{ github.workspace }}/src/helpers/mat/*.m:." \
+              --add-binary "$(arch -x86_64 brew --prefix hdf5)/lib/libhdf5.dylib:." \
+              --add-binary "$(arch -x86_64 brew --prefix hdf5)/lib/libhdf5_hl.dylib:." \
+              --add-data "${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf:."'
           else
             source venv/bin/activate
             HDF5_DIR="$(brew --prefix hdf5)" pyinstaller --noconfirm --onedir --windowed \
@@ -122,16 +122,16 @@ jobs:
               --collect-data h5py \
               ${{ github.workspace }}/src/main.py \
               --icon=${{ github.workspace }}/resources/icon.icns \
-              --add-data '${{ github.workspace }}/docs/_build/:.' \
-              --add-data '${{ github.workspace }}/src/helpers/mat/SzDetectCat.m:.' \
-              --add-data '${{ github.workspace }}/src/helpers/mat/save_channel_to_mat.m:.' \
-              --add-data '${{ github.workspace }}/src/helpers/mat/getChs.m:.' \
-              --add-data '${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:.' \
-              --additional-hooks-dir '${{ github.workspace }}/hooks/' \
-              --add-data '${{ github.workspace }}/src/helpers/mat/*.m:.' \
-              --add-binary '$(brew --prefix hdf5)/lib/libhdf5.dylib:.' \
-              --add-binary '$(brew --prefix hdf5)/lib/libhdf5_hl.dylib:.' \
-              --add-data '${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf:.'
+              --add-data "${{ github.workspace }}/docs/_build/:." \
+              --add-data "${{ github.workspace }}/src/helpers/mat/SzDetectCat.m:." \
+              --add-data "${{ github.workspace }}/src/helpers/mat/save_channel_to_mat.m:." \
+              --add-data "${{ github.workspace }}/src/helpers/mat/getChs.m:." \
+              --add-data "${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:." \
+              --additional-hooks-dir "${{ github.workspace }}/hooks/" \
+              --add-data "${{ github.workspace }}/src/helpers/mat/*.m:." \
+              --add-binary "$(brew --prefix hdf5)/lib/libhdf5.dylib:." \
+              --add-binary "$(brew --prefix hdf5)/lib/libhdf5_hl.dylib:." \
+              --add-data "${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf:."
           fi
 
       - name: Prepare Package
