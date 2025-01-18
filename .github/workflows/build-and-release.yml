@@ -160,27 +160,28 @@ jobs:
           python-version: 3.10.9
 
       - name: Install dependencies
+        shell: pwsh
         run: |
           python -m pip install --upgrade pip
           python -m venv venv
-          call venv\Scripts\activate.bat
+          .\venv\Scripts\Activate.ps1
           pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme
 
       - name: Build documentation
-        shell: cmd
+        shell: pwsh
         run: |
-          call venv\Scripts\activate.bat
+          .\venv\Scripts\Activate.ps1
           cd docs
-          set PYTHONPATH=%PYTHONPATH%;%CD%
+          $env:PYTHONPATH = "$env:PYTHONPATH;$PWD"
           sphinx-build -M html . _build
 
       - name: Build with PyInstaller
-        shell: cmd
+        shell: pwsh
         run: |
-          call venv\Scripts\activate.bat
-          pyinstaller --collect-submodules=sz_se_detect --noconfirm  --onedir --windowed %CD%\src\main.py --icon=%CD%\resources\icon.ico --add-data "%CD%\docs\_build/;." --add-data "%CD%\src\helpers\mat\SzDetectCat.m;." --add-data "%CD%\src\helpers\mat\save_channel_to_mat.m;." --add-data "%CD%\src\helpers\mat\getChs.m;." --add-data "%CD%\src\helpers\mat\get_cat_envelop.m;." --additional-hooks-dir "%CD%\hooks\" --add-data "%CD%\src\helpers\mat\*.m;." --add-data "%CD%\resources\fonts\GeistMonoNerdFontMono-Regular.otf;."
+          .\venv\Scripts\Activate.ps1
+          pyinstaller --collect-submodules=sz_se_detect --noconfirm  --onedir --windowed $PWD\src\main.py --icon=$PWD\resources\icon.ico --add-data "$PWD\docs\_build/;." --add-data "$PWD\src\helpers\mat\SzDetectCat.m;." --add-data "$PWD\src\helpers\mat\save_channel_to_mat.m;." --add-data "$PWD\src\helpers\mat\getChs.m;." --add-data "$PWD\src\helpers\mat\get_cat_envelop.m;." --additional-hooks-dir "$PWD\hooks\" --add-data "$PWD\src\helpers\mat\*.m;." --add-data "$PWD\resources\fonts\GeistMonoNerdFontMono-Regular.otf;."
 
-          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q %CD%\MEA_GUI_Installer.iss
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q $PWD\MEA_GUI_Installer.iss
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
