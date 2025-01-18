@@ -41,12 +41,12 @@ jobs:
             # Use the full path to Python and create virtual environment
             arch -x86_64 /bin/bash -c "/usr/local/bin/python3.10 -m venv venv"
             source venv/bin/activate
-            pip install --break-system-packages pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm Pillow
+            pip install --break-system-packages pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine
           else
             brew install python@3.10 cmake pybind11 hdf5
             python3 -m venv venv
             source venv/bin/activate
-            pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm Pillow
+            pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine
           fi
 
       - name: Build C++ Extensions
@@ -161,7 +161,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m venv venv
           .\venv\Scripts\Activate.ps1
-          pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme
+          pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine
 
       - name: Build documentation
         shell: pwsh
@@ -225,38 +225,38 @@ jobs:
         with:
           name: windows-package
 
-      - name: Get Release
-        id: get_release
-        uses: bruceadams/get-release@v1.3.2
+      - name: Get Release Info
+        id: release_info
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+        run: |
+          release_url=$(gh api \
+            --method GET \
+            /repos/${{ github.repository }}/releases/tags/${{ github.ref_name }} \
+            --jq .upload_url)
+          echo "UPLOAD_URL=$release_url" >> $GITHUB_ENV
 
       - name: Upload macOS Intel Package to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ steps.get_release.outputs.upload_url }}
-          asset_path: MEA_GUI_MacOS_x86_64.pkg
-          asset_name: MEA_GUI_MacOS_Intel.pkg
-          asset_content_type: application/octet-stream
+          token: ${{ secrets.GIT_TOKEN }}
+          files: MEA_GUI_MacOS_x86_64.pkg
+          name: MEA_GUI_MacOS_Intel.pkg
+          fail_on_unmatched_files: true
 
       - name: Upload macOS Silicon Package to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ steps.get_release.outputs.upload_url }}
-          asset_path: MEA_GUI_MacOS_arm64.pkg
-          asset_name: MEA_GUI_MacOS_Silicon.pkg
-          asset_content_type: application/octet-stream
+          token: ${{ secrets.GIT_TOKEN }}
+          files: MEA_GUI_MacOS_arm64.pkg
+          name: MEA_GUI_MacOS_Silicon.pkg
+          fail_on_unmatched_files: true
 
       - name: Upload Windows Package to Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ steps.get_release.outputs.upload_url }}
-          asset_path: MEA_GUI_Windows.exe
-          asset_name: MEA_GUI_Windows.exe
-          asset_content_type: application/octet-stream
+          token: ${{ secrets.GIT_TOKEN }}
+          files: MEA_GUI_Windows.exe
+          name: MEA_GUI_Windows.exe
+          fail_on_unmatched_files: true
