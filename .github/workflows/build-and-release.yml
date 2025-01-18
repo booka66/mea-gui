@@ -41,12 +41,12 @@ jobs:
             # Use the full path to Python and create virtual environment
             arch -x86_64 /bin/bash -c "/usr/local/bin/python3.10 -m venv venv"
             source venv/bin/activate
-            pip install --break-system-packages pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm
+            pip install --break-system-packages pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm Pillow
           else
             brew install python@3.10 cmake pybind11 hdf5
             python3 -m venv venv
             source venv/bin/activate
-            pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm
+            pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm Pillow
           fi
 
       - name: Build C++ Extensions
@@ -194,15 +194,10 @@ jobs:
             --add-data "$workspace\src\helpers\mat\*.m;." `
             --add-data "$workspace\resources\fonts\GeistMonoNerdFontMono-Regular.otf;."
 
-      - name: List Files
-        shell: pwsh
-        run: |
-          Get-ChildItem -Path ${{ github.workspace }} -Recurse -File -Name MEA_GUI_Installer.iss
-
       - name: Create Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
-          path: MEA_GUI_Installer.iss
+          path: src/helpers/update/MEA_GUI_Installer.iss
           options: /DWorkspace="${{ github.workspace }}"
 
       - name: Upload Artifact
