@@ -6,7 +6,7 @@ on:
       - "v*"
 
 jobs:
-  build-extensions-macos:
+  build-macos:
     runs-on: macos-latest
     strategy:
       matrix:
@@ -35,7 +35,7 @@ jobs:
             # Source the profile to set up environment
             source $HOME/.bash_profile
             
-            # Install Python and dependencies
+            # Install dependencies
             arch -x86_64 brew install python@3.10 cmake pybind11 hdf5
             
             # Use the full path to Python and create virtual environment
@@ -51,6 +51,9 @@ jobs:
 
       - name: Build C++ Extensions
         run: |
+          if [ "${{ matrix.arch }}" == "x86_64" ]; then
+            source $HOME/.bash_profile
+          fi
           source venv/bin/activate
 
           # Dynamically find HDF5 installation paths
@@ -69,67 +72,6 @@ jobs:
           # Verify the built extensions
           ls -l *.so
 
-      - name: Collect Extension Artifacts
-        run: |
-          mkdir -p ${{ github.workspace }}/extension_artifacts/${{ matrix.arch }}
-          cp ${{ github.workspace }}/src/helpers/extensions/*.so ${{ github.workspace }}/extension_artifacts/${{ matrix.arch }}/
-
-      - name: Upload Extension Artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: macos-extensions
-          path: ${{ github.workspace }}/extension_artifacts/${{ matrix.arch }}/
-
-  build-macos:
-    needs: build-extensions-macos
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        include:
-          - arch: x86_64
-            python-version: 3.10.9
-          - arch: arm64
-            python-version: 3.10.9
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Download Extension Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: macos-extensions
-          path: ${{ github.workspace }}/src/helpers/extensions/
-
-      - name: Set up Python for ${{ matrix.arch }}
-        run: |
-          if [ "${{ matrix.arch }}" == "x86_64" ]; then
-            # Install x86_64 Homebrew in /usr/local
-            arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-            
-            # Explicitly set up Homebrew environment
-            echo 'export HOMEBREW_PREFIX="/usr/local"' >> $HOME/.bash_profile
-            echo 'export HOMEBREW_CELLAR="/usr/local/Cellar"' >> $HOME/.bash_profile
-            echo 'export HOMEBREW_REPOSITORY="/usr/local/Homebrew"' >> $HOME/.bash_profile
-            echo 'export PATH="/usr/local/bin:/usr/local/sbin:$PATH"' >> $HOME/.bash_profile
-            echo 'eval "$(/usr/local/bin/brew shellenv)"' >> $HOME/.bash_profile
-            
-            # Source the profile to set up environment
-            source $HOME/.bash_profile
-            
-            # Install Python and set up virtual environment
-            arch -x86_64 brew install python@3.10
-            
-            # Use the full path to Python and create virtual environment
-            arch -x86_64 /bin/bash -c "/usr/local/bin/python3.10 -m venv venv"
-            source venv/bin/activate && pip install --break-system-packages pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme
-
-          else
-            brew install python@3.10
-            python3 -m venv venv
-            source venv/bin/activate && pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme
-            
-          fi
-
       - name: Build documentation
         run: |
           if [ "${{ matrix.arch }}" == "x86_64" ]; then
@@ -139,15 +81,6 @@ jobs:
             source venv/bin/activate
             cd docs
             make html
-          fi
-
-      - name: Install HDF5
-        run: |
-          if [ "${{ matrix.arch }}" == "x86_64" ]; then
-            source $HOME/.bash_profile
-            arch -x86_64 brew install hdf5
-          else
-            brew install hdf5
           fi
 
       - name: Build with PyInstaller
@@ -176,7 +109,7 @@ jobs:
               --add-data '${{ github.workspace }}/src/helpers/mat/*.m:.'\
               --add-binary '$(arch -x86_64 brew --prefix hdf5)/lib/libhdf5.dylib:.'\
               --add-binary '$(arch -x86_64 brew --prefix hdf5)/lib/libhdf5_hl.dylib:.' \
-              --add-data '${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf:.'"
+              --add-data '${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf:.'
           else
             source venv/bin/activate
             HDF5_DIR="$(brew --prefix hdf5)" pyinstaller --noconfirm --onedir --windowed \
@@ -189,16 +122,16 @@ jobs:
               --collect-data h5py \
               ${{ github.workspace }}/src/main.py \
               --icon=${{ github.workspace }}/resources/icon.icns \
-              --add-data "${{ github.workspace }}/docs/_build/:." \
-              --add-data "${{ github.workspace }}/src/helpers/mat/SzDetectCat.m:." \
-              --add-data "${{ github.workspace }}/src/helpers/mat/save_channel_to_mat.m:." \
-              --add-data "${{ github.workspace }}/src/helpers/mat/getChs.m:." \
-              --add-data "${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:." \
-              --additional-hooks-dir "${{ github.workspace }}/hooks/" \
-              --add-data "${{ github.workspace }}/src/helpers/mat/*.m:." \
-              --add-binary "$(brew --prefix hdf5)/lib/libhdf5.dylib:." \
-              --add-binary "$(brew --prefix hdf5)/lib/libhdf5_hl.dylib:. \
-              --add-data '${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf:.'"
+              --add-data '${{ github.workspace }}/docs/_build/:.' \
+              --add-data '${{ github.workspace }}/src/helpers/mat/SzDetectCat.m:.' \
+              --add-data '${{ github.workspace }}/src/helpers/mat/save_channel_to_mat.m:.' \
+              --add-data '${{ github.workspace }}/src/helpers/mat/getChs.m:.' \
+              --add-data '${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:.' \
+              --additional-hooks-dir '${{ github.workspace }}/hooks/' \
+              --add-data '${{ github.workspace }}/src/helpers/mat/*.m:.' \
+              --add-binary '$(brew --prefix hdf5)/lib/libhdf5.dylib:.' \
+              --add-binary '$(brew --prefix hdf5)/lib/libhdf5_hl.dylib:.' \
+              --add-data '${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf:.'
           fi
 
       - name: Prepare Package
@@ -251,7 +184,7 @@ jobs:
           path: ${{ github.workspace }}/Output/MEA_GUI_Windows.exe
 
   release:
-    needs: [build-macos] #, build-windows]
+    needs: [build-macos, build-windows]
     runs-on: ubuntu-latest
 
     steps:
@@ -262,10 +195,10 @@ jobs:
         with:
           name: macos-packages
 
-      # - name: Download Windows Artifact
-      #   uses: actions/download-artifact@v3
-      #   with:
-      #     name: windows-package
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: windows-package
 
       - name: Get Release
         id: get_release
@@ -293,12 +226,12 @@ jobs:
           asset_name: MEA_GUI_MacOS_Silicon.pkg
           asset_content_type: application/octet-stream
 
-      # - name: Upload Windows Package to Release
-      #   uses: actions/upload-release-asset@v1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
-      #   with:
-      #     upload_url: ${{ steps.get_release.outputs.upload_url }}
-      #     asset_path: MEA_GUI_Windows.exe
-      #     asset_name: MEA_GUI_Windows.exe
-      #     asset_content_type: application/octet-stream
+      - name: Upload Windows Package to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: MEA_GUI_Windows.exe
+          asset_name: MEA_GUI_Windows.exe
+          asset_content_type: application/octet-stream
