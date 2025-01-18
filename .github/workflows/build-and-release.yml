@@ -145,7 +145,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macos-packages
+          name: macos-package-${{ matrix.arch }}
           path: ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
 
   build-windows:
@@ -190,10 +190,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Download MacOS Artifacts
+      - name: Download MacOS Intel Artifact
         uses: actions/download-artifact@v4
         with:
-          name: macos-packages
+          name: macos-package-x86_64
+
+      - name: Download MacOS Silicon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-package-arm64
 
       - name: Download Windows Artifact
         uses: actions/download-artifact@v4
