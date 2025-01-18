@@ -92,8 +92,6 @@ jobs:
             source venv/bin/activate
             arch -x86_64 /bin/bash -c 'source venv/bin/activate && HDF5_DIR="$(arch -x86_64 brew --prefix hdf5)" pyinstaller --noconfirm --onedir --windowed \
               --target-architecture ${{ matrix.arch }} \
-              --exclude-module PIL \
-              --exclude-module Pillow \
               --hidden-import h5py.defs \
               --hidden-import h5py.utils \
               --hidden-import h5py._proxy \
@@ -114,8 +112,6 @@ jobs:
             source venv/bin/activate
             HDF5_DIR="$(brew --prefix hdf5)" pyinstaller --noconfirm --onedir --windowed \
               --target-architecture ${{ matrix.arch }} \
-              --exclude-module PIL \
-              --exclude-module Pillow \
               --hidden-import h5py.defs \
               --hidden-import h5py.utils \
               --hidden-import h5py._proxy \
@@ -196,17 +192,10 @@ jobs:
             --add-data "$workspace\src\helpers\mat\*.m;." `
             --add-data "$workspace\resources\fonts\GeistMonoNerdFontMono-Regular.otf;."
 
-      - name: List Files
-        shell: pwsh
-        run: |
-          Write-Host "Current directory structure:"
-          Get-ChildItem -Path "${{ github.workspace }}" -Recurse -Depth 3
-
       - name: Create Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
           path: src/helpers/update/MEA_GUI_Installer.iss
-          options: /DAppExePath="${{ github.workspace }}/src/helpers/update/dist/main"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

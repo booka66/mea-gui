@@ -2,7 +2,7 @@
 #define MyAppVersion "1.0"
 #define MyAppPublisher "Booka66"
 #define MyAppExeName "MEA GUI.exe"
-#define MyAppIconName "../../../resources/icon.ico"
+#define MyAppIconName "icon.ico"
 
 [Setup]
 AppId={{COM.BOOKA66.MEAGUI}
@@ -17,7 +17,7 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-SetupIconFile={#MyAppIconName}
+SetupIconFile="..\..\..\resources\{#MyAppIconName}"
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -26,9 +26,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "D:\Users\booka66\mea-gui\src\helpers\update\dist\main\main.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
-Source: "D:\Users\booka66\mea-gui\src\helpers\update\dist\main\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "main.exe"
-Source: "{#MyAppIconName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\main\main.exe"; DestDir: "{app}"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
+Source: "dist\main\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "main.exe"
+Source: "..\..\..\resources\{#MyAppIconName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppIconName}"
