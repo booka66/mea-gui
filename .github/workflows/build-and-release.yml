@@ -174,11 +174,13 @@ jobs:
           cd docs
           $env:PYTHONPATH = "$env:PYTHONPATH;$PWD"
           sphinx-build -M html . _build
+          cd ..
 
       - name: Build with PyInstaller
         shell: pwsh
         run: |
           .\venv\Scripts\Activate.ps1
+          cd src\helpers\update
 
           # Build with PyInstaller using absolute paths
           $workspace = "${{ github.workspace }}"
@@ -194,17 +196,23 @@ jobs:
             --add-data "$workspace\src\helpers\mat\*.m;." `
             --add-data "$workspace\resources\fonts\GeistMonoNerdFontMono-Regular.otf;."
 
+      - name: List Files
+        shell: pwsh
+        run: |
+          Write-Host "Current directory structure:"
+          Get-ChildItem -Path "${{ github.workspace }}" -Recurse -Depth 3
+
       - name: Create Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
           path: src/helpers/update/MEA_GUI_Installer.iss
-          options: /DWorkspace="${{ github.workspace }}"
+          options: /DAppExePath="${{ github.workspace }}/src/helpers/update/dist/main"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-package
-          path: ${{ github.workspace }}/Output/MEA_GUI_Windows.exe
+          path: ${{ github.workspace }}/src/helpers/update/Output/MEA_GUI_Windows.exe
 
   release:
     needs: [build-macos, build-windows]
