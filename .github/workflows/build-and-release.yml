@@ -41,12 +41,12 @@ jobs:
             # Use the full path to Python and create virtual environment
             arch -x86_64 /bin/bash -c "/usr/local/bin/python3.10 -m venv venv"
             source venv/bin/activate
-            pip install --break-system-packages pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine pandas
+            pip install --break-system-packages pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme==2.1.0 h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine pandas
           else
             brew install python@3.10 cmake pybind11 hdf5
             python3 -m venv venv
             source venv/bin/activate
-            pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine pandas
+            pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme==2.1.0 h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine pandas
           fi
 
       - name: Build C++ Extensions
@@ -161,7 +161,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m venv venv
           .\venv\Scripts\Activate.ps1
-          pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine pandas
+          pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme==2.1.0 h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine pandas
 
       - name: Build documentation
         shell: pwsh
