@@ -121,11 +121,13 @@ jobs:
             
             # Use the full path to Python and create virtual environment
             arch -x86_64 /bin/bash -c "/usr/local/bin/python3.10 -m venv venv"
-            source venv/bin/activate && pip install --break-system-packages pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme
+            source venv/bin/activate && pip install --break-system-packages pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme
+
           else
             brew install python@3.10
             python3 -m venv venv
-            source venv/bin/activate && pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme
+            source venv/bin/activate && pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme
+            
           fi
 
       - name: Build documentation
@@ -173,7 +175,8 @@ jobs:
               --additional-hooks-dir '${{ github.workspace }}/hooks/' \
               --add-data '${{ github.workspace }}/src/helpers/mat/*.m:.'\
               --add-binary '$(arch -x86_64 brew --prefix hdf5)/lib/libhdf5.dylib:.'\
-              --add-binary '$(arch -x86_64 brew --prefix hdf5)/lib/libhdf5_hl.dylib:.'"
+              --add-binary '$(arch -x86_64 brew --prefix hdf5)/lib/libhdf5_hl.dylib:.' \
+              --add-data '${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf:.'"
           else
             source venv/bin/activate
             HDF5_DIR="$(brew --prefix hdf5)" pyinstaller --noconfirm --onedir --windowed \
@@ -194,7 +197,8 @@ jobs:
               --additional-hooks-dir "${{ github.workspace }}/hooks/" \
               --add-data "${{ github.workspace }}/src/helpers/mat/*.m:." \
               --add-binary "$(brew --prefix hdf5)/lib/libhdf5.dylib:." \
-              --add-binary "$(brew --prefix hdf5)/lib/libhdf5_hl.dylib:."
+              --add-binary "$(brew --prefix hdf5)/lib/libhdf5_hl.dylib:. \
+              --add-data '${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf:.'"
           fi
 
       - name: Prepare Package
@@ -202,9 +206,8 @@ jobs:
           mkdir -p ${{ github.workspace }}/package_root/MEA\ GUI.app
           rm -rf ${{ github.workspace }}/package_root/MEA\ GUI.app
           cp -R ${{ github.workspace }}/dist/main.app ${{ github.workspace }}/package_root/MEA\ GUI.app
-          cp ${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf ${{ github.workspace }}/package_root/MEA\ GUI.app/Contents/Resources/
           chmod -R 755 ${{ github.workspace }}/package_root/MEA\ GUI.app
-          pkgbuild --root ${{ github.workspace }}/package_root --identifier com.booka66.meagui --install-location / ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
+          pkgbuild --root ${{ github.workspace }}/package_root --identifier com.booka66.meagui --install-location /Applications --scripts scripts --version 1.0 ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
@@ -264,23 +267,18 @@ jobs:
       #   with:
       #     name: windows-package
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Get Release
+        id: get_release
+        uses: bruceadams/get-release@v1.3.2
         env:
           GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
 
       - name: Upload macOS Intel Package to Release
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_path: MEA_GUI_MacOS_x86_64.pkg
           asset_name: MEA_GUI_MacOS_Intel.pkg
           asset_content_type: application/octet-stream
@@ -290,7 +288,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
           asset_path: MEA_GUI_MacOS_arm64.pkg
           asset_name: MEA_GUI_MacOS_Silicon.pkg
           asset_content_type: application/octet-stream
@@ -300,7 +298,7 @@ jobs:
       #   env:
       #     GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
       #   with:
-      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+      #     upload_url: ${{ steps.get_release.outputs.upload_url }}
       #     asset_path: MEA_GUI_Windows.exe
       #     asset_name: MEA_GUI_Windows.exe
       #     asset_content_type: application/octet-stream

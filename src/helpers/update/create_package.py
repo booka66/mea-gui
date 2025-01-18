@@ -131,18 +131,35 @@ async def main(tag=None, no_package=False):
     print(f"Creating {'package' if not no_package else 'application'}...")
 
     if sys.platform == "darwin":
-        pyinstaller_command = """sudo pyinstaller --noconfirm --onedir --argv-emulation --windowed ../../main.py --icon=../../../resources/icon.ico --add-data "../../../docs/_build/:." --add-data "../../helpers/mat/SzDetectCat.m:." --add-data "../../helpers/mat/save_channel_to_mat.m:." --add-data "../../helpers/mat/getChs.m:." --add-data "../../helpers/mat/get_cat_envelop.m:." --additional-hooks-dir "../../../hooks/" --add-data "../../helpers/mat/*.m:."
+        pyinstaller_command = """sudo pyinstaller --noconfirm --onedir --argv-emulation --windowed \
+        ../../main.py \
+        --icon=../../../resources/icon.icns \
+        --add-data "../../../docs/_build/:." \
+        --add-data "../../helpers/mat/SzDetectCat.m:." \
+        --add-data "../../helpers/mat/save_channel_to_mat.m:."\
+        --add-data "../../helpers/mat/getChs.m:." \
+        --add-data "../../helpers/mat/get_cat_envelop.m:." \
+        --additional-hooks-dir "../../../hooks/" \
+        --add-data "../../helpers/mat/*.m:." \
+        --add-data "../../../resources/fonts/GeistMonoNerdFontMono-Regular.otf:."
         """
+        if os.path.exists("package_root"):
+            subprocess.run("rm -rf package_root", shell=True)
+        subprocess.run("mkdir package_root", shell=True)
         package_commands = [
-            "rm -rf package_root/MEA\\ GUI.app",
-            "cp -R dist/main.app package_root/MEA\\ GUI.app",
-            "cp ../../../resources/fonts/HackNerdFontMono-Regular.ttf package_root/MEA\\ GUI.app/Contents/Resources/",
-            "chmod -R 755 package_root/MEA\\ GUI.app",
-            "pkgbuild --root package_root --identifier com.booka66.meagui --install-location /Applications MEA_GUI_MacOS.pkg",
+            "rm -rf 'package_root/MEA GUI.app'",
+            "cp -R dist/main.app 'package_root/MEA GUI.app'",
+            "chmod -R 755 'package_root/MEA GUI.app'",
+            "pkgbuild --root package_root \
+                    --identifier com.booka66.meagui \
+                    --install-location /Applications \
+                    --scripts scripts \
+                    --version 1.0 \
+                    MEA_GUI_MacOS.pkg",
         ]
         package_file = "MEA_GUI_MacOS.pkg"
     else:
-        pyinstaller_command = """pyinstaller --collect-submodules=sz_se_detect --noconfirm  --onedir --windowed ../../main.py --icon=../../../resources/icon.ico --add-data "../../../docs/_build/:." --add-data "../../helpers/mat/SzDetectCat.m:." --add-data "../../helpers/mat/save_channel_to_mat.m:." --add-data "../../helpers/mat/getChs.m:." --add-data "../../helpers/mat/get_cat_envelop.m:." --additional-hooks-dir "../../../hooks/" --add-data "../../helpers/mat/*.m:."
+        pyinstaller_command = """pyinstaller --collect-submodules=sz_se_detect --noconfirm  --onedir --windowed ../../main.py --icon=../../../resources/icon.ico --add-data "../../../docs/_build/:." --add-data "../../helpers/mat/SzDetectCat.m:." --add-data "../../helpers/mat/save_channel_to_mat.m:." --add-data "../../helpers/mat/getChs.m:." --add-data "../../helpers/mat/get_cat_envelop.m:." --additional-hooks-dir "../../../hooks/" --add-data "../../helpers/mat/*.m:." --add-data "../../../resources/fonts/GeistMonoNerdFontMono-Regular.otf"
             """
         package_commands = [
             r'"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q MEA_GUI_Installer.iss'
@@ -151,15 +168,17 @@ async def main(tag=None, no_package=False):
 
     pyinstaller_process = subprocess.Popen(pyinstaller_command, shell=True)
     pyinstaller_process.wait()
-
     if no_package:
         print("Application created successfully! 🎉🎉🎉")
         return
 
+    # Create scripts directory for pre/post install scripts if needed
+    if sys.platform == "darwin":
+        os.makedirs("scripts", exist_ok=True)
+
     for command in package_commands:
         package_process = subprocess.Popen(command, shell=True)
         package_process.wait()
-
     print("Package created successfully! 🎉🎉🎉")
 
     if tag:
