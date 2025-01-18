@@ -41,12 +41,12 @@ jobs:
             # Use the full path to Python and create virtual environment
             arch -x86_64 /bin/bash -c "/usr/local/bin/python3.10 -m venv venv"
             source venv/bin/activate
-            pip install --break-system-packages pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py
+            pip install --break-system-packages pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm
           else
             brew install python@3.10 cmake pybind11 hdf5
             python3 -m venv venv
             source venv/bin/activate
-            pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py
+            pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme h5py scikit-learn tqdm
           fi
 
       - name: Build C++ Extensions
@@ -159,15 +159,6 @@ jobs:
         with:
           python-version: 3.10.9
 
-      - name: Install Inno Setup
-        shell: pwsh
-        run: |
-          # Download Inno Setup
-          Invoke-WebRequest -Uri "https://files.jrsoftware.org/is/6/innosetup-6.2.2.exe" -OutFile "innosetup.exe"
-
-          # Install Inno Setup silently
-          Start-Process -FilePath "innosetup.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
-
       - name: Install dependencies
         shell: pwsh
         run: |
@@ -189,9 +180,6 @@ jobs:
         run: |
           .\venv\Scripts\Activate.ps1
 
-          # Ensure Output directory exists
-          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\Output"
-
           # Build with PyInstaller using absolute paths
           $workspace = "${{ github.workspace }}"
           pyinstaller --collect-submodules=sz_se_detect --noconfirm --onedir --windowed `
@@ -206,25 +194,10 @@ jobs:
             --add-data "$workspace\src\helpers\mat\*.m;." `
             --add-data "$workspace\resources\fonts\GeistMonoNerdFontMono-Regular.otf;."
 
-          # Verify PyInstaller output
-          if (-not (Test-Path ".\dist\main")) {
-            Write-Error "PyInstaller build failed - dist directory not found"
-            exit 1
-          }
-
-          # Run Inno Setup with explicit error handling
-          $innoSetupPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          if (Test-Path $innoSetupPath) {
-            Write-Host "Running Inno Setup..."
-            & $innoSetupPath /Q "$workspace\MEA_GUI_Installer.iss"
-            if ($LASTEXITCODE -ne 0) {
-              Write-Error "Inno Setup failed with exit code $LASTEXITCODE"
-              exit $LASTEXITCODE
-            }
-          } else {
-            Write-Error "Inno Setup not found at $innoSetupPath"
-            exit 1
-          }
+      - name: Create Installer
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        with:
+          path: ${{ github.workspace }}/MEA_GUI_Installer.iss
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
