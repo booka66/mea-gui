@@ -1,16 +1,13 @@
-# TODO: I'm pretty sure this code is useless at this point. I'm keeping it here for reference. This is where I was trying to reconstruct the raw signal from the wavelet coefficients to fix an issue with BW5.
+# NOTE: I'm pretty sure this code is useless at this point. I'm keeping it here for reference. This is where I was trying to reconstruct the raw signal from the wavelet coefficients to fix an issue with BW5.
 import numpy as np
 import math
 import h5py
 import pywt
-import tkinter as tk
-from tkinter import filedialog
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
     QVBoxLayout,
     QWidget,
-    QInputDialog,
 )
 from PyQt5.QtCore import Qt
 import pyqtgraph as pg
@@ -56,7 +53,6 @@ class MainWindow(QMainWindow):
         self.graphWidget = pg.PlotWidget()
         time_axis = TimeAxisItem(orientation="bottom")
         self.graphWidget.setAxisItems({"bottom": time_axis})
-        view_box = self.graphWidget.getPlotItem().getViewBox()
         self.curve = self.graphWidget.plot(pen=pg.mkPen("w", width=3))
         self.graphWidget.setTitle(
             f"Frames {self.frame_indices[0]}-{self.frame_indices[-1]} - Accumulating Data"
@@ -138,7 +134,7 @@ class MainWindow(QMainWindow):
                     length *= 2
                 reconstructed_data.append(frames[1:-2])
 
-            print(f"Reconstructed 4 sub-frames for frame")
+            print("Reconstructed 4 sub-frames for frame")
             return reconstructed_data
         except Exception as e:
             print(f"Error reconstructing chunk: {e}")

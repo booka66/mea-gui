@@ -1,4 +1,4 @@
-# TODO: I'm pretty sure this code is useless at this point. I'm keeping it here for reference. This is where I was trying to reconstruct the raw signal from the wavelet coefficients to fix an issue with BW5.
+# NOTE: I'm pretty sure this code is useless at this point. I'm keeping it here for reference. This is where I was trying to reconstruct the raw signal from the wavelet coefficients to fix an issue with BW5.
 import numpy as np
 import math
 import h5py
@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import filedialog
 from PyQt5.QtWidgets import QApplication, QMainWindow
 import pyqtgraph as pg
-from datetime import datetime, timedelta
+from datetime import timedelta
 import sys
 from time import perf_counter
 
@@ -25,8 +25,6 @@ class MainWindow(QMainWindow):
 
         time_axis = TimeAxisItem(orientation="bottom")
         self.graphWidget.setAxisItems({"bottom": time_axis})
-
-        view_box = self.graphWidget.getPlotItem().getViewBox()
 
         curve = self.graphWidget.plot(pen=pg.mkPen("w", width=3))
         print(f"Ayyo I'm about to plot {len(x)} points")
