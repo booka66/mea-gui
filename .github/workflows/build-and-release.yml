@@ -166,10 +166,10 @@ jobs:
         shell: pwsh
         run: |
           # Create installation directory
-          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/HDF5-1.14.4-win64"
+          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/HDF5-1.14.5-win64"
 
           # Download and extract HDF5
-          $HDF5_URL = "https://www.hdfgroup.org/package/windows-10-64-vs2019-static-shared-mtdll/?wpdmdl=17225"
+          $HDF5_URL = "https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.14/hdf5-1.14.5/bin/windows/hdf5-1.14.5-win-vs2022_cl.zip"
 
           Write-Host "Downloading HDF5..."
           Invoke-WebRequest -Uri $HDF5_URL -OutFile "${{ github.workspace }}/hdf5.zip"
@@ -178,7 +178,7 @@ jobs:
           Expand-Archive -Path "${{ github.workspace }}/hdf5.zip" -DestinationPath "${{ github.workspace }}"
 
           # Verify HDF5 installation
-          $HDF5_DIR = "${{ github.workspace }}/HDF5-1.14.4-win64"
+          $HDF5_DIR = "${{ github.workspace }}/HDF5-1.14.5-win64"
           if (!(Test-Path "$HDF5_DIR/include/hdf5.h")) {
               Write-Error "HDF5 headers not found!"
               exit 1
@@ -218,7 +218,7 @@ jobs:
           Write-Host "Directory contents:"
           Get-ChildItem
           Write-Host "HDF5 Directory contents:"
-          Get-ChildItem "${{ github.workspace }}/HDF5-1.14.4-win64"
+          Get-ChildItem "${{ github.workspace }}/HDF5-1.14.5-win64"
 
           # Build extensions
           python win_setup.py build_ext --inplace -v
@@ -242,7 +242,7 @@ jobs:
           cd src\helpers\update
 
           $workspace = "${{ github.workspace }}"
-          $HDF5_DIR = "$workspace/HDF5-1.14.4-win64"
+          $HDF5_DIR = "$workspace/HDF5-1.14.5-win64"
 
           pyinstaller --collect-submodules=sz_se_detect --noconfirm --onedir --windowed `
             --hidden-import zstandard `
