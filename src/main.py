@@ -222,7 +222,7 @@ class MainWindow(QMainWindow):
         self.fileMenu.addAction(self.viewHDF5Action)
         self.downsampleExportAction = QAction("Downsample and Export", self)
         self.downsampleExportAction.triggered.connect(
-            self.open_downsample_export_dialog
+            lambda: ChannelExtract(self).exec_()
         )
         self.fileMenu.addAction(self.downsampleExportAction)
         self.fileMenu.addSeparator()
@@ -622,10 +622,6 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         self.redraw_arrows()
 
-    def open_downsample_export_dialog(self):
-        channel_extract_dialog = ChannelExtract(self)
-        channel_extract_dialog.exec_()
-
     def export_discharge_stats(self):
         if self.cluster_tracker is None or self.file_path is None:
             return
@@ -657,44 +653,6 @@ class MainWindow(QMainWindow):
         url = f"file://{pathname2url(str(file_path.absolute()))}"
         self.doc_viewer = DocumentationViewer(url)
         self.doc_viewer.show()
-
-    def handle_update_button(self, button):
-        if button.text() == "&Yes":
-            self.download_msg = QMessageBox(self)
-            self.download_msg.setIcon(QMessageBox.Information)
-            self.download_msg.setText("Downloading update...")
-            self.download_msg.setWindowTitle("Update in Progress")
-            self.download_msg.setStandardButtons(QMessageBox.NoButton)
-            self.download_msg.show()
-
-            self.update_thread = UpdateThread(self.latest_release)
-            self.update_thread.update_completed.connect(self.on_update_completed)
-            self.update_thread.start()
-
-    def on_update_completed(self, success):
-        self.download_msg.close()
-
-        if success:
-            sys.exit()
-        else:
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Warning)
-            msg.setText("Update process failed.")
-            msg.setWindowTitle("Update")
-            msg.exec_()
-
-    def confirm_latest_version(self):
-        update_available, self.latest_release = check_for_update()
-        if update_available:
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Information)
-            msg.setText("An update is available. Would you like to update now?")
-            msg.setWindowTitle("Update")
-            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            msg.buttonClicked.connect(self.handle_update_button)
-            msg.exec_()
-        else:
-            print("No update available.")
 
     def handle_checkable_action(self):
         QTimer.singleShot(0, self.viewMenu.show)
@@ -2884,9 +2842,47 @@ if __name__ == "__main__":
             font = QFont(FONT_FAMILY, 13)  # Fallback to expected family name
             app.setFont(font)
 
+    def confirm_latest_version(self):
+        def handle_update_button(button):
+            def on_update_completed(success):
+                self.download_msg.close()
+
+                if success:
+                    sys.exit()
+                else:
+                    msg = QMessageBox()
+                    msg.setIcon(QMessageBox.Warning)
+                    msg.setText("Update process failed.")
+                    msg.setWindowTitle("Update")
+                    msg.exec_()
+
+            if button.text() == "&Yes":
+                self.download_msg = QMessageBox(self)
+                self.download_msg.setIcon(QMessageBox.Information)
+                self.download_msg.setText("Downloading update...")
+                self.download_msg.setWindowTitle("Update in Progress")
+                self.download_msg.setStandardButtons(QMessageBox.NoButton)
+                self.download_msg.show()
+
+                self.update_thread = UpdateThread(self.latest_release)
+                self.update_thread.update_completed.connect(on_update_completed)
+                self.update_thread.start()
+
+        update_available, self.latest_release = check_for_update()
+        if update_available:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Information)
+            msg.setText("An update is available. Would you like to update now?")
+            msg.setWindowTitle("Update")
+            msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            msg.buttonClicked.connect(handle_update_button)
+            msg.exec_()
+        else:
+            print("No update available.")
+
     window = MainWindow()
     window.showMaximized()
-    window.confirm_latest_version()
+    confirm_latest_version(window)
     try:
         if sys.argv[1]:
             window.file_path = sys.argv[1]
