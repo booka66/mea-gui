@@ -22,23 +22,18 @@ jobs:
       - name: Set up Python for ${{ matrix.arch }}
         run: |
           if [ "${{ matrix.arch }}" == "x86_64" ]; then
-            # Install x86_64 Homebrew in /usr/local
             arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
             
-            # Explicitly set up Homebrew environment
             echo 'export HOMEBREW_PREFIX="/usr/local"' >> $HOME/.bash_profile
             echo 'export HOMEBREW_CELLAR="/usr/local/Cellar"' >> $HOME/.bash_profile
             echo 'export HOMEBREW_REPOSITORY="/usr/local/Homebrew"' >> $HOME/.bash_profile
             echo 'export PATH="/usr/local/bin:/usr/local/sbin:$PATH"' >> $HOME/.bash_profile
             echo 'eval "$(/usr/local/bin/brew shellenv)"' >> $HOME/.bash_profile
             
-            # Source the profile to set up environment
             source $HOME/.bash_profile
             
-            # Install dependencies
             arch -x86_64 brew install python@3.10 cmake pybind11 hdf5
             
-            # Use the full path to Python and create virtual environment
             arch -x86_64 /bin/bash -c "/usr/local/bin/python3.10 -m venv venv"
             source venv/bin/activate
             python3.10 -m pip install --break-system-packages pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme==2.1.0 h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine pandas
@@ -162,6 +157,8 @@ jobs:
           python -m venv venv
           .\venv\Scripts\Activate.ps1
           pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme==2.1.0 h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine pandas
+          pip install zstandard
+          pip install urllib<2
 
       - name: Build documentation
         shell: pwsh
@@ -181,6 +178,8 @@ jobs:
           # Build with PyInstaller using absolute paths
           $workspace = "${{ github.workspace }}"
           pyinstaller --collect-submodules=sz_se_detect --noconfirm --onedir --windowed `
+            --hidden-import zstandard `
+            --hidden-import urllib3 `
             "$workspace\src\main.py" `
             --icon="$workspace\resources\icon.ico" `
             --add-data "$workspace\docs\_build/;." `
