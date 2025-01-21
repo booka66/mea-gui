@@ -158,7 +158,7 @@ jobs:
           .\venv\Scripts\Activate.ps1
           pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme==2.1.0 h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine pandas
           pip install zstandard
-          pip install urllib<2
+          pip install "urllib3<2"
 
       - name: Build documentation
         shell: pwsh
