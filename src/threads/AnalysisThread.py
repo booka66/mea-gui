@@ -194,6 +194,7 @@ class AnalysisThread(QThread):
                     if file.endswith(".mat"):
                         os.remove(os.path.join(self.temp_data_path, file))
                 # Clean up temporary directory
+                # TODO: This isn't working because the directory is not empty
                 os.rmdir(self.temp_data_path)
 
     def get_channels(self):

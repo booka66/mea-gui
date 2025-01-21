@@ -339,7 +339,9 @@ class MainWindow(QMainWindow):
 
         for action in self.viewMenu.actions():
             if action.isCheckable():
-                action.triggered.connect(self.handle_checkable_action)
+                action.triggered.connect(
+                    lambda: QTimer.singleShot(0, self.viewMenu.show)
+                )
 
         self.helpMenu = QMenu("Help", self)
         self.menuBar.addMenu(self.helpMenu)
@@ -564,18 +566,30 @@ class MainWindow(QMainWindow):
         self.analysis_thread.analysis_completed.connect(self.on_analysis_completed)
 
     def setup_matlab_thread(self):
+        def on_engine_started(eng):
+            self.engine_started = True
+            self.eng = eng
+            self.set_widgets_enabled()
+
+        def on_engine_error(error):
+            print(f"Error starting MATLAB engine: {error}")
+            self.use_cpp = True
+            self.eng = None
+            self.set_widgets_enabled()
+
         cwd = os.path.dirname(os.path.realpath(__file__))
         matlab_path = os.path.join(cwd, "helpers", "mat")
 
         self.matlab_thread = MatlabEngineThread(cwd, matlab_path)
-        self.matlab_thread.engine_started.connect(self.on_engine_started)
-        self.matlab_thread.error_occurred.connect(self.on_engine_error)
+        self.matlab_thread.engine_started.connect(on_engine_started)
+        self.matlab_thread.error_occurred.connect(on_engine_error)
         self.matlab_thread.start()
         self.eng = None
         self.use_cpp = True
         self.cpp_mode_checkbox.setChecked(True)
         self.engine_started = False
 
+    # TODO: Need to review when things should be allowed and when they should not (when this gets called as well)
     def set_widgets_enabled(self):
         if self.file_path is not None and (self.engine_started or self.use_cpp):
             self.run_button.setEnabled(True)
@@ -654,20 +668,7 @@ class MainWindow(QMainWindow):
         self.doc_viewer = DocumentationViewer(url)
         self.doc_viewer.show()
 
-    def handle_checkable_action(self):
-        QTimer.singleShot(0, self.viewMenu.show)
-
-    def on_engine_error(self, error):
-        print(f"Error starting MATLAB engine: {error}")
-        self.use_cpp = True
-        self.eng = None
-        self.set_widgets_enabled()
-
-    def on_engine_started(self, eng):
-        self.engine_started = True
-        self.eng = eng
-        self.set_widgets_enabled()
-
+    # TODO: Is this function necessary?
     def update_progress(self, message, value):
         self.loading_dialog.update_progress(message, value)
 
