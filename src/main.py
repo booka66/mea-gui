@@ -112,22 +112,243 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        pg.setConfigOptions(antialias=False)
         self.setWindowTitle(f"MEA GUI {VERSION}")
 
+        # If true, the lag is way too much for the user to interact with the trace plots
+        pg.setConfigOptions(antialias=False)
+
         # Functions to run on startup that setup the main window
-        self.initialize_variables()
+        self.setup_variables()
         self.setup_menu_bar()
+        self.setup_main_window()
+        self.setup_analysis_thread()
+        self.setup_matlab_thread()
+        self.set_widgets_enabled()
 
-        self.loading_dialog = LoadingDialog(self)
-        self.loading_dialog.analysis_cancelled.connect(self.cancel_analysis)
+    # TODO: Organize these variables based on function and group
+    def setup_variables(self):
+        # File and recording settings
+        self.file_path = None
+        self.recording_length = None
+        self.sampling_rate = 100
+        self.time_vector = None
+        self.data = None
 
-        self.analysis_thread = AnalysisThread(self)
-        self.analysis_thread.progress_updated.connect(
-            self.loading_dialog.update_progress
+        # Channel settings
+        self.active_channels = None
+        self.selected_channel = None
+        self.plotted_channels: list[ColorCell] = [None] * 4
+        self.selected_subplot = None
+
+        # Raster settings
+        self.raster_tooltip = None
+        self.raster_downsample_factor = 1
+        self.opacity = 1.0
+        self.do_show_spread_lines = False
+        self.do_show_prop_lines = False
+        self.raster_plot = None
+
+        # Recording and video settings
+        self.is_recording_video = False
+
+        # Region settings
+        self.current_region = None
+        self.custom_region = None
+        self.last_skip_time = 0
+
+        # Peak and discharge settings
+        self.peak_thresholds = {}
+        self.discharges = {}
+        self.show_discharge_peaks = False
+        self.active_discharges = []
+        self.snr_threshold = 35
+        self.current_discharge_index = 0
+        self.is_auto_analyzing = False
+        self.low_pass_cutoff = 35
+        self.discharge_starts_points = []
+        self.discharge_start_dialog: DischargeStartDialog = None
+        self.last_found_discharge_time = None
+        self.track_discharge_beginnings = False
+
+        # Min and max values
+        self.overall_min_voltage = None
+        self.overall_max_voltage = None
+        self.min_strength = None
+        self.max_strength = None
+
+        # UI settings
+        self.groups = []
+        self.left_pane = None
+        self.right_pane = None
+        self.grid_widget = None
+        self.lock_to_playhead = False
+        self.do_show_false_color_map = True
+        self.do_show_events = True
+        self.order_amount = 10
+
+        # Analysis settings
+        self.n_std_dev = 4
+        self.distance = 10
+        self.chunk_size = 256
+        self.overlap = 0
+        self.fs_range = (0.5, 50)
+        self.centroids = []
+        self.eps = 4.8
+        self.min_samples = 4
+        self.max_distance = 10
+        self.bin_size = 0.0133
+        self.signal_analyzer = None
+
+        # Miscellaneous
+        self.seized_cells = []
+        self.arrow_items = []
+        self.prop_arrow_items = []
+        self.markers = []
+        self.spaital_sections = []
+
+    def setup_menu_bar(self):
+        self.menuBar = QMenuBar(self)
+        self.menuBar.setNativeMenuBar(False)
+        self.setMenuBar(self.menuBar)
+
+        # TODO: Add MEA Grid image upload option
+        self.fileMenu = QMenu("File", self)
+        self.menuBar.addMenu(self.fileMenu)
+        self.openAction = QAction("Open File", self)
+        self.openAction.triggered.connect(self.openFile)
+        self.fileMenu.addAction(self.openAction)
+        self.viewHDF5Action = QAction("View HDF5 File", self)
+        self.viewHDF5Action.triggered.connect(self.viewHDF5)
+        self.fileMenu.addAction(self.viewHDF5Action)
+        self.downsampleExportAction = QAction("Downsample and Export", self)
+        self.downsampleExportAction.triggered.connect(
+            self.open_downsample_export_dialog
         )
-        self.analysis_thread.analysis_completed.connect(self.on_analysis_completed)
+        self.fileMenu.addAction(self.downsampleExportAction)
+        self.fileMenu.addSeparator()
+        self.createVideoAction = QAction("Save MEA as Video", self)
+        self.createVideoAction.triggered.connect(self.show_video_editor)
+        self.fileMenu.addAction(self.createVideoAction)
+        self.saveGridAction = QAction("Save MEA as PNG", self)
+        self.saveGridAction.triggered.connect(lambda: open_save_grid_dialog(self))
+        self.fileMenu.addAction(self.saveGridAction)
+        self.saveChannelPlotsAction = QAction("Save Channel Plots", self)
+        self.saveChannelPlotsAction.triggered.connect(self.save_channel_plots)
+        self.fileMenu.addAction(self.saveChannelPlotsAction)
+        self.saveMeaWithPlotsAction = QAction("Save MEA with Channel Plots", self)
+        self.saveMeaWithPlotsAction.triggered.connect(lambda: save_mea_with_plots(self))
+        self.fileMenu.addAction(self.saveMeaWithPlotsAction)
 
+        self.editMenu = QMenu("Edit", self)
+        self.menuBar.addMenu(self.editMenu)
+
+        self.settings_manager = SettingsWidgetManager(self.editMenu)
+
+        self.db_scan_settings_widget = DBSCANSettingsWidget(self)
+        self.settings_manager.add_widget(
+            "Set DBSCAN settings", self.db_scan_settings_widget
+        )
+
+        self.peak_settings_widget = PeakSettingsWidget(self)
+        self.settings_manager.add_widget("Set Peak Settings", self.peak_settings_widget)
+
+        self.spectrogram_settings_widget = SpectrogramSettingsWidget(self)
+        self.settings_manager.add_widget(
+            "Set spectrogram settings", self.spectrogram_settings_widget
+        )
+
+        self.viewMenu = QMenu("View", self)
+        self.menuBar.addMenu(self.viewMenu)
+
+        self.viewDischargeStartDialogAction = QAction(
+            "Open Discharge Start Dialog", self
+        )
+        self.viewDischargeStartDialogAction.triggered.connect(
+            self.open_discharge_start_dialog
+        )
+        self.viewMenu.addAction(self.viewDischargeStartDialogAction)
+
+        self.toggleEventsOverlayAction = QAction(
+            "Detected Events Overlay", self, checkable=True
+        )
+        self.toggleEventsOverlayAction.setChecked(False)
+        self.toggleEventsOverlayAction.triggered.connect(self.toggle_events_overlay)
+        self.viewMenu.addAction(self.toggleEventsOverlayAction)
+
+        self.toggleLegendAction = QAction("Legend", self, checkable=True)
+        self.toggleLegendAction.setChecked(False)
+        self.toggleLegendAction.triggered.connect(self.toggle_legend)
+        self.viewMenu.addAction(self.toggleLegendAction)
+
+        self.toggleLinesAction = QAction("Spread Lines", self, checkable=True)
+        self.toggleLinesAction.setChecked(False)
+        self.toggleLinesAction.triggered.connect(self.toggle_lines)
+        self.viewMenu.addAction(self.toggleLinesAction)
+
+        self.togglePropLinesAction = QAction("Discharge Paths", self, checkable=True)
+        self.togglePropLinesAction.setChecked(False)
+        self.togglePropLinesAction.triggered.connect(self.toggle_prop_lines)
+        self.viewMenu.addAction(self.togglePropLinesAction)
+
+        self.toggleEventsAction = QAction("Detected Events", self, checkable=True)
+        self.toggleEventsAction.setChecked(True)
+        self.toggleEventsAction.triggered.connect(self.toggle_events)
+        self.viewMenu.addAction(self.toggleEventsAction)
+
+        self.toggleColorMappingAction = QAction("False Color Map", self, checkable=True)
+        self.toggleColorMappingAction.setChecked(True)
+        self.toggleColorMappingAction.triggered.connect(self.toggle_false_color_map)
+        self.viewMenu.addAction(self.toggleColorMappingAction)
+
+        self.viewMenu.addSeparator()
+
+        self.toggleMiniMapAction = QAction("Mini-map", self, checkable=True)
+        self.toggleMiniMapAction.setChecked(True)
+        self.toggleMiniMapAction.triggered.connect(self.toggle_mini_map)
+        self.viewMenu.addAction(self.toggleMiniMapAction)
+
+        self.togglePlayheadsActions = QAction("Playheads", self, checkable=True)
+        self.togglePlayheadsActions.setChecked(True)
+        self.togglePlayheadsActions.triggered.connect(self.toggle_playheads)
+        self.viewMenu.addAction(self.togglePlayheadsActions)
+
+        self.antiAliasAction = QAction("Anti-aliasing", self, checkable=True)
+        self.antiAliasAction.setChecked(False)
+        self.antiAliasAction.triggered.connect(self.toggle_antialiasing)
+        self.viewMenu.addAction(self.antiAliasAction)
+
+        self.toggleRegionsAction = QAction("Seizure Regions", self, checkable=True)
+        self.toggleRegionsAction.setChecked(True)
+        self.toggleRegionsAction.triggered.connect(self.toggle_regions)
+        self.viewMenu.addAction(self.toggleRegionsAction)
+
+        self.toggleSpectrogramAction = QAction("Spectrograms", self, checkable=True)
+        self.toggleSpectrogramAction.setChecked(False)
+        self.toggleSpectrogramAction.triggered.connect(self.toggle_spectrogram)
+        self.viewMenu.addAction(self.toggleSpectrogramAction)
+
+        self.viewMenu.addSeparator()
+
+        self.setBinSizeAction = QAction("Set Bin Size", self)
+        self.setBinSizeAction.triggered.connect(self.set_bin_size)
+        self.viewMenu.addAction(self.setBinSizeAction)
+
+        self.setOrderAmountAction = QAction("Set Order Amount", self)
+        self.setOrderAmountAction.triggered.connect(self.set_order_amount)
+        self.viewMenu.addAction(self.setOrderAmountAction)
+
+        for action in self.viewMenu.actions():
+            if action.isCheckable():
+                action.triggered.connect(self.handle_checkable_action)
+
+        self.helpMenu = QMenu("Help", self)
+        self.menuBar.addMenu(self.helpMenu)
+
+        self.docsAction = QAction("Documentation", self)
+        self.helpMenu.addAction(self.docsAction)
+        self.docsAction.triggered.connect(self.open_docs)
+
+    def setup_main_window(self):
         self.main_tab_widget = QTabWidget()
         self.tab_widget = QTabWidget()
         self.main_tab_widget.currentChanged.connect(self.update_tab_layout)
@@ -332,8 +553,17 @@ class MainWindow(QMainWindow):
         self.speed_combo.view().setMinimumWidth(50)
         self.progress_bar.control_layout.addWidget(self.speed_combo)
 
-        self.set_widgets_enabled()
+    def setup_analysis_thread(self):
+        self.loading_dialog = LoadingDialog(self)
+        self.loading_dialog.analysis_cancelled.connect(self.cancel_analysis)
 
+        self.analysis_thread = AnalysisThread(self)
+        self.analysis_thread.progress_updated.connect(
+            self.loading_dialog.update_progress
+        )
+        self.analysis_thread.analysis_completed.connect(self.on_analysis_completed)
+
+    def setup_matlab_thread(self):
         cwd = os.path.dirname(os.path.realpath(__file__))
         matlab_path = os.path.join(cwd, "helpers", "mat")
 
@@ -346,207 +576,47 @@ class MainWindow(QMainWindow):
         self.cpp_mode_checkbox.setChecked(True)
         self.engine_started = False
 
-    def initialize_variables(self):
-        self.file_path = None
-        self.recording_length = None
-        self.sampling_rate = 100
-        self.time_vector = None
-        self.data = None
-        self.active_channels = None
-        self.selected_channel = None
-        self.plotted_channels: list[ColorCell] = [None] * 4
-        self.selected_subplot = None
-        self.raster_tooltip = None
-        self.is_recording_video = False
-        self.min_strength = None
-        self.max_strength = None
-        self.raster_downsample_factor = 1
-        self.opacity = 1.0
-        self.seized_cells = []
-        self.arrow_items = []
-        self.prop_arrow_items = []
-        self.do_show_spread_lines = False
-        self.do_show_prop_lines = False
-        self.current_region = None
-        self.custom_region = None
-        self.peak_thresholds = {}
-        self.discharges = {}
-        self.raster_plot = None
-        self.order_amount = 10
-        self.do_show_false_color_map = True
-        self.do_show_events = True
-        self.overall_min_voltage = None
-        self.overall_max_voltage = None
-        self.last_skip_time = 0
-        self.groups = []
-        self.left_pane = None
-        self.right_pane = None
-        self.grid_widget = None
-        self.lock_to_playhead = False
-        self.n_std_dev = 4
-        self.distance = 10
-        self.chunk_size = 256
-        self.overlap = 0
-        self.fs_range = (0.5, 50)
-        self.centroids = []
-        self.eps = 4.8
-        self.min_samples = 4
-        self.max_distance = 10
-        self.bin_size = 0.0133
-        self.signal_analyzer = None
-        self.show_discharge_peaks = False
-        self.active_discharges = []
-        self.snr_threshold = 35
-        self.current_discharge_index = 0
-        self.is_auto_analyzing = False
-        self.low_pass_cutoff = 35
-        self.markers = []
-        self.spaital_sections = []
-        self.discharge_starts_points = []
-        self.discharge_start_dialog: DischargeStartDialog = None
-        self.last_found_discharge_time = None
-        self.track_discharge_beginnings = False
+    def set_widgets_enabled(self):
+        if self.file_path is not None and (self.engine_started or self.use_cpp):
+            self.run_button.setEnabled(True)
+            self.view_button.setEnabled(True)
+        else:
+            self.run_button.setEnabled(False)
+            self.view_button.setEnabled(False)
 
-    def setup_menu_bar(self):
-        self.menuBar = QMenuBar(self)
-        self.menuBar.setNativeMenuBar(False)
-        self.setMenuBar(self.menuBar)
-
-        self.fileMenu = QMenu("File", self)
-        self.menuBar.addMenu(self.fileMenu)
-        self.openAction = QAction("Open File", self)
-        self.openAction.triggered.connect(self.openFile)
-        self.fileMenu.addAction(self.openAction)
-        self.viewHDF5Action = QAction("View HDF5 File", self)
-        self.viewHDF5Action.triggered.connect(self.viewHDF5)
-        self.fileMenu.addAction(self.viewHDF5Action)
-        self.downsampleExportAction = QAction("Downsample and Export", self)
-        self.downsampleExportAction.triggered.connect(
-            self.open_downsample_export_dialog
-        )
-        self.fileMenu.addAction(self.downsampleExportAction)
-        self.fileMenu.addSeparator()
-        self.createVideoAction = QAction("Save MEA as Video", self)
-        self.createVideoAction.triggered.connect(self.show_video_editor)
-        self.fileMenu.addAction(self.createVideoAction)
-        self.saveGridAction = QAction("Save MEA as PNG", self)
-        self.saveGridAction.triggered.connect(lambda: open_save_grid_dialog(self))
-        self.fileMenu.addAction(self.saveGridAction)
-        self.saveChannelPlotsAction = QAction("Save Channel Plots", self)
-        self.saveChannelPlotsAction.triggered.connect(self.save_channel_plots)
-        self.fileMenu.addAction(self.saveChannelPlotsAction)
-        self.saveMeaWithPlotsAction = QAction("Save MEA with Channel Plots", self)
-        self.saveMeaWithPlotsAction.triggered.connect(lambda: save_mea_with_plots(self))
-        self.fileMenu.addAction(self.saveMeaWithPlotsAction)
-
-        self.editMenu = QMenu("Edit", self)
-        self.menuBar.addMenu(self.editMenu)
-
-        self.settings_manager = SettingsWidgetManager(self.editMenu)
-
-        self.db_scan_settings_widget = DBSCANSettingsWidget(self)
-        self.settings_manager.add_widget(
-            "Set DBSCAN settings", self.db_scan_settings_widget
-        )
-
-        self.peak_settings_widget = PeakSettingsWidget(self)
-        self.settings_manager.add_widget("Set Peak Settings", self.peak_settings_widget)
-
-        self.spectrogram_settings_widget = SpectrogramSettingsWidget(self)
-        self.settings_manager.add_widget(
-            "Set spectrogram settings", self.spectrogram_settings_widget
-        )
-
-        self.viewMenu = QMenu("View", self)
-        self.menuBar.addMenu(self.viewMenu)
-
-        self.viewDischargeStartDialogAction = QAction(
-            "Open Discharge Start Dialog", self
-        )
-        self.viewDischargeStartDialogAction.triggered.connect(
-            self.open_discharge_start_dialog
-        )
-        self.viewMenu.addAction(self.viewDischargeStartDialogAction)
-
-        self.toggleEventsOverlayAction = QAction(
-            "Detected Events Overlay", self, checkable=True
-        )
-        self.toggleEventsOverlayAction.setChecked(False)
-        self.toggleEventsOverlayAction.triggered.connect(self.toggle_events_overlay)
-        self.viewMenu.addAction(self.toggleEventsOverlayAction)
-
-        self.toggleLegendAction = QAction("Legend", self, checkable=True)
-        self.toggleLegendAction.setChecked(False)
-        self.toggleLegendAction.triggered.connect(self.toggle_legend)
-        self.viewMenu.addAction(self.toggleLegendAction)
-
-        self.toggleLinesAction = QAction("Spread Lines", self, checkable=True)
-        self.toggleLinesAction.setChecked(False)
-        self.toggleLinesAction.triggered.connect(self.toggle_lines)
-        self.viewMenu.addAction(self.toggleLinesAction)
-
-        self.togglePropLinesAction = QAction("Discharge Paths", self, checkable=True)
-        self.togglePropLinesAction.setChecked(False)
-        self.togglePropLinesAction.triggered.connect(self.toggle_prop_lines)
-        self.viewMenu.addAction(self.togglePropLinesAction)
-
-        self.toggleEventsAction = QAction("Detected Events", self, checkable=True)
-        self.toggleEventsAction.setChecked(True)
-        self.toggleEventsAction.triggered.connect(self.toggle_events)
-        self.viewMenu.addAction(self.toggleEventsAction)
-
-        self.toggleColorMappingAction = QAction("False Color Map", self, checkable=True)
-        self.toggleColorMappingAction.setChecked(True)
-        self.toggleColorMappingAction.triggered.connect(self.toggle_false_color_map)
-        self.viewMenu.addAction(self.toggleColorMappingAction)
-
-        self.viewMenu.addSeparator()
-
-        self.toggleMiniMapAction = QAction("Mini-map", self, checkable=True)
-        self.toggleMiniMapAction.setChecked(True)
-        self.toggleMiniMapAction.triggered.connect(self.toggle_mini_map)
-        self.viewMenu.addAction(self.toggleMiniMapAction)
-
-        self.togglePlayheadsActions = QAction("Playheads", self, checkable=True)
-        self.togglePlayheadsActions.setChecked(True)
-        self.togglePlayheadsActions.triggered.connect(self.toggle_playheads)
-        self.viewMenu.addAction(self.togglePlayheadsActions)
-
-        self.antiAliasAction = QAction("Anti-aliasing", self, checkable=True)
-        self.antiAliasAction.setChecked(False)
-        self.antiAliasAction.triggered.connect(self.toggle_antialiasing)
-        self.viewMenu.addAction(self.antiAliasAction)
-
-        self.toggleRegionsAction = QAction("Seizure Regions", self, checkable=True)
-        self.toggleRegionsAction.setChecked(True)
-        self.toggleRegionsAction.triggered.connect(self.toggle_regions)
-        self.viewMenu.addAction(self.toggleRegionsAction)
-
-        self.toggleSpectrogramAction = QAction("Spectrograms", self, checkable=True)
-        self.toggleSpectrogramAction.setChecked(False)
-        self.toggleSpectrogramAction.triggered.connect(self.toggle_spectrogram)
-        self.viewMenu.addAction(self.toggleSpectrogramAction)
-
-        self.viewMenu.addSeparator()
-
-        self.setBinSizeAction = QAction("Set Bin Size", self)
-        self.setBinSizeAction.triggered.connect(self.set_bin_size)
-        self.viewMenu.addAction(self.setBinSizeAction)
-
-        self.setOrderAmountAction = QAction("Set Order Amount", self)
-        self.setOrderAmountAction.triggered.connect(self.set_order_amount)
-        self.viewMenu.addAction(self.setOrderAmountAction)
-
-        for action in self.viewMenu.actions():
-            if action.isCheckable():
-                action.triggered.connect(self.handle_checkable_action)
-
-        self.helpMenu = QMenu("Help", self)
-        self.menuBar.addMenu(self.helpMenu)
-
-        self.docsAction = QAction("Documentation", self)
-        self.helpMenu.addAction(self.docsAction)
-        self.docsAction.triggered.connect(self.open_docs)
+        if self.data is not None:
+            self.clear_button.setEnabled(True)
+            self.skip_backward_button.setEnabled(True)
+            self.prev_frame_button.setEnabled(True)
+            self.play_pause_button.setEnabled(True)
+            self.next_frame_button.setEnabled(True)
+            self.skip_forward_button.setEnabled(True)
+            self.progress_bar.setEnabled(True)
+            self.speed_combo.setEnabled(True)
+            self.order_combo.setEnabled(True)
+            self.saveGridAction.setEnabled(True)
+            self.createVideoAction.setEnabled(True)
+            self.saveChannelPlotsAction.setEnabled(True)
+            self.saveMeaWithPlotsAction.setEnabled(True)
+            self.toggleLinesAction.setEnabled(True)
+            self.toggleRegionsAction.setEnabled(True)
+        else:
+            self.clear_button.setEnabled(False)
+            self.skip_backward_button.setEnabled(False)
+            self.prev_frame_button.setEnabled(False)
+            self.play_pause_button.setEnabled(False)
+            self.next_frame_button.setEnabled(False)
+            self.skip_forward_button.setEnabled(False)
+            self.progress_bar.setEnabled(False)
+            self.speed_combo.setEnabled(False)
+            self.order_combo.setEnabled(False)
+            self.saveGridAction.setEnabled(False)
+            self.createVideoAction.setEnabled(False)
+            self.saveChannelPlotsAction.setEnabled(False)
+            self.saveMeaWithPlotsAction.setEnabled(False)
+            self.show_order_checkbox.setEnabled(False)
+            self.toggleLinesAction.setEnabled(False)
+            self.toggleRegionsAction.setEnabled(False)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -1710,48 +1780,6 @@ class MainWindow(QMainWindow):
             prev_cell.hover_tooltip.hide()
         self.selected_channel = (row, col)
 
-    def set_widgets_enabled(self):
-        if self.file_path is not None and (self.engine_started or self.use_cpp):
-            self.run_button.setEnabled(True)
-            self.view_button.setEnabled(True)
-        else:
-            self.run_button.setEnabled(False)
-            self.view_button.setEnabled(False)
-
-        if self.data is not None:
-            self.clear_button.setEnabled(True)
-            self.skip_backward_button.setEnabled(True)
-            self.prev_frame_button.setEnabled(True)
-            self.play_pause_button.setEnabled(True)
-            self.next_frame_button.setEnabled(True)
-            self.skip_forward_button.setEnabled(True)
-            self.progress_bar.setEnabled(True)
-            self.speed_combo.setEnabled(True)
-            self.order_combo.setEnabled(True)
-            self.saveGridAction.setEnabled(True)
-            self.createVideoAction.setEnabled(True)
-            self.saveChannelPlotsAction.setEnabled(True)
-            self.saveMeaWithPlotsAction.setEnabled(True)
-            self.toggleLinesAction.setEnabled(True)
-            self.toggleRegionsAction.setEnabled(True)
-        else:
-            self.clear_button.setEnabled(False)
-            self.skip_backward_button.setEnabled(False)
-            self.prev_frame_button.setEnabled(False)
-            self.play_pause_button.setEnabled(False)
-            self.next_frame_button.setEnabled(False)
-            self.skip_forward_button.setEnabled(False)
-            self.progress_bar.setEnabled(False)
-            self.speed_combo.setEnabled(False)
-            self.order_combo.setEnabled(False)
-            self.saveGridAction.setEnabled(False)
-            self.createVideoAction.setEnabled(False)
-            self.saveChannelPlotsAction.setEnabled(False)
-            self.saveMeaWithPlotsAction.setEnabled(False)
-            self.show_order_checkbox.setEnabled(False)
-            self.toggleLinesAction.setEnabled(False)
-            self.toggleRegionsAction.setEnabled(False)
-
     def openFile(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
@@ -1786,6 +1814,7 @@ class MainWindow(QMainWindow):
                 )
                 image_files = glob.glob(image_pattern, recursive=True)
 
+                # TODO: Make this optional so you don't have to have an image
                 if image_files:
                     image_path = image_files[0]
                     self.grid_widget.setBackgroundImage(image_path)
