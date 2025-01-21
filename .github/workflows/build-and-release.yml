@@ -150,28 +150,46 @@ jobs:
         with:
           python-version: 3.10.9
 
+      - name: Setup Visual Studio Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          toolset: 14.29
+
+      - name: Create Build Directories
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/build"
+          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/dist"
+
       - name: Install HDF5
         shell: pwsh
         run: |
-          $HDF5_VERSION = "1.12.2"
-          $HDF5_URL = "https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.12/hdf5-$HDF5_VERSION/bin/windows/hdf5-$HDF5_VERSION-Std-win10_64-vs16.zip"
+          # Create installation directory
+          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/HDF5-1.14.4-win64"
 
-          Invoke-WebRequest -Uri $HDF5_URL -OutFile hdf5.zip
-          Expand-Archive -Path hdf5.zip -DestinationPath C:\hdf5
+          # Download and extract HDF5
+          $HDF5_URL = "https://www.hdfgroup.org/package/windows-10-64-vs2019-static-shared-mtdll/?wpdmdl=17225"
 
-          # Add HDF5 to system PATH
-          echo "C:\hdf5\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-          echo "C:\hdf5\lib" | Out-File -FilePath $env:GITHUB_PATH -Append
+          Write-Host "Downloading HDF5..."
+          Invoke-WebRequest -Uri $HDF5_URL -OutFile "${{ github.workspace }}/hdf5.zip"
 
-          # Set HDF5 environment variables
-          echo "HDF5_DIR=C:\hdf5" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "HDF5_INCLUDE_DIR=C:\hdf5\include" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "HDF5_LIBRARY_DIR=C:\hdf5\lib" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Extracting HDF5..."
+          Expand-Archive -Path "${{ github.workspace }}/hdf5.zip" -DestinationPath "${{ github.workspace }}"
 
-      - name: Install CMake
-        shell: pwsh
-        run: |
-          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+          # Verify HDF5 installation
+          $HDF5_DIR = "${{ github.workspace }}/HDF5-1.14.4-win64"
+          if (!(Test-Path "$HDF5_DIR/include/hdf5.h")) {
+              Write-Error "HDF5 headers not found!"
+              exit 1
+          }
+
+          # Add HDF5 to PATH
+          echo "$HDF5_DIR/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          $env:PATH = "$HDF5_DIR/bin;$env:PATH"
+
+          Write-Host "HDF5 installation completed"
+          Get-ChildItem "$HDF5_DIR" -Recurse | Select-Object FullName
 
       - name: Install dependencies
         shell: pwsh
@@ -179,30 +197,34 @@ jobs:
           python -m pip install --upgrade pip
           python -m venv venv
           .\venv\Scripts\Activate.ps1
-          pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme==2.1.0 h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine pandas
-          pip install zstandard
-          pip install "urllib3<2"
+
+          pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme==2.1.0 h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine pandas zstandard "urllib3<2"
+
+          # Verify installations
+          pip list
 
       - name: Build C++ Extensions
         shell: pwsh
-        env:
-          HDF5_DIR: C:\hdf5
-          HDF5_INCLUDE_DIR: C:\hdf5\include
-          HDF5_LIBRARY_DIR: C:\hdf5\lib
         run: |
           .\venv\Scripts\Activate.ps1
-
-          # Change to the extensions directory
-          cd ${{ github.workspace }}/src/helpers/extensions
+          cd "${{ github.workspace }}/src/helpers/extensions"
 
           # Set MSVC compiler flags
-          $env:CL = "/MP /EHsc /std:c++17"
+          $env:CL = "/MP /EHsc"
 
-          # Build and install the extensions
-          python setup.py build_ext --inplace
+          # Debug information
+          Write-Host "Current directory:"
+          Get-Location
+          Write-Host "Directory contents:"
+          Get-ChildItem
+          Write-Host "HDF5 Directory contents:"
+          Get-ChildItem "${{ github.workspace }}/HDF5-1.14.4-win64"
 
-          # Verify the built extensions
-          dir *.pyd
+          # Build extensions
+          python win_setup.py build_ext --inplace -v
+
+          # Verify built extensions
+          Get-ChildItem *.pyd
 
       - name: Build documentation
         shell: pwsh
@@ -219,8 +241,9 @@ jobs:
           .\venv\Scripts\Activate.ps1
           cd src\helpers\update
 
-          # Build with PyInstaller using absolute paths
           $workspace = "${{ github.workspace }}"
+          $HDF5_DIR = "$workspace/HDF5-1.14.4-win64"
+
           pyinstaller --collect-submodules=sz_se_detect --noconfirm --onedir --windowed `
             --hidden-import zstandard `
             --hidden-import urllib3 `
@@ -238,8 +261,8 @@ jobs:
             --additional-hooks-dir "$workspace\hooks\" `
             --add-data "$workspace\src\helpers\mat\*.m;." `
             --add-data "$workspace\resources\fonts\GeistMonoNerdFontMono-Regular.otf;." `
-            --add-binary "C:\hdf5\bin\hdf5.dll;." `
-            --add-binary "C:\hdf5\bin\hdf5_hl.dll;."
+            --add-binary "$HDF5_DIR\bin\hdf5.dll;." `
+            --add-binary "$HDF5_DIR\bin\hdf5_cpp.dll;."
 
       - name: Create Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2

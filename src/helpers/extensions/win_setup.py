@@ -3,12 +3,14 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 import pybind11
 import os
 
-# HDF5 paths
-hdf5_dir = r"D:\Users\booka66\Desktop\HDF5-1.14.4-win64"
+# HDF5 paths for CI environment
+hdf5_dir = os.path.join(os.environ.get("GITHUB_WORKSPACE", ""), "HDF5-1.14.4-win64")
 hdf5_include_dir = os.path.join(hdf5_dir, "include")
 hdf5_lib_dir = os.path.join(hdf5_dir, "lib")
+
 # Add HDF5 bin directory to PATH (for dynamic libraries)
 os.environ["PATH"] = os.path.join(hdf5_dir, "bin") + os.pathsep + os.environ["PATH"]
+
 # Choose between static and dynamic libraries
 use_dynamic = True  # Set to False for static libraries
 if use_dynamic:
@@ -17,7 +19,9 @@ if use_dynamic:
 else:
     compile_args = ["/std:c++17", f"/I{hdf5_include_dir}"]
     libraries = ["libhdf5_cpp", "libhdf5"]
+
 link_args = [f"/LIBPATH:{hdf5_lib_dir}"]
+
 ext_modules = [
     Pybind11Extension(
         "sz_se_detect",
@@ -38,6 +42,7 @@ ext_modules = [
         extra_compile_args=["/std=c++17"],
     ),
 ]
+
 setup(
     name="sz_se_detect",
     version="0.0.1",
