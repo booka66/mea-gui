@@ -150,6 +150,29 @@ jobs:
         with:
           python-version: 3.10.9
 
+      - name: Install HDF5
+        shell: pwsh
+        run: |
+          $HDF5_VERSION = "1.12.2"
+          $HDF5_URL = "https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.12/hdf5-$HDF5_VERSION/bin/windows/hdf5-$HDF5_VERSION-Std-win10_64-vs16.zip"
+
+          Invoke-WebRequest -Uri $HDF5_URL -OutFile hdf5.zip
+          Expand-Archive -Path hdf5.zip -DestinationPath C:\hdf5
+
+          # Add HDF5 to system PATH
+          echo "C:\hdf5\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          echo "C:\hdf5\lib" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+          # Set HDF5 environment variables
+          echo "HDF5_DIR=C:\hdf5" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "HDF5_INCLUDE_DIR=C:\hdf5\include" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "HDF5_LIBRARY_DIR=C:\hdf5\lib" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install CMake
+        shell: pwsh
+        run: |
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+
       - name: Install dependencies
         shell: pwsh
         run: |
@@ -159,6 +182,27 @@ jobs:
           pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme==2.1.0 h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine pandas
           pip install zstandard
           pip install "urllib3<2"
+
+      - name: Build C++ Extensions
+        shell: pwsh
+        env:
+          HDF5_DIR: C:\hdf5
+          HDF5_INCLUDE_DIR: C:\hdf5\include
+          HDF5_LIBRARY_DIR: C:\hdf5\lib
+        run: |
+          .\venv\Scripts\Activate.ps1
+
+          # Change to the extensions directory
+          cd ${{ github.workspace }}/src/helpers/extensions
+
+          # Set MSVC compiler flags
+          $env:CL = "/MP /EHsc /std:c++17"
+
+          # Build and install the extensions
+          python setup.py build_ext --inplace
+
+          # Verify the built extensions
+          dir *.pyd
 
       - name: Build documentation
         shell: pwsh
@@ -180,6 +224,10 @@ jobs:
           pyinstaller --collect-submodules=sz_se_detect --noconfirm --onedir --windowed `
             --hidden-import zstandard `
             --hidden-import urllib3 `
+            --hidden-import h5py.defs `
+            --hidden-import h5py.utils `
+            --hidden-import h5py._proxy `
+            --collect-data h5py `
             "$workspace\src\main.py" `
             --icon="$workspace\resources\icon.ico" `
             --add-data "$workspace\docs\_build/;." `
@@ -189,7 +237,9 @@ jobs:
             --add-data "$workspace\src\helpers\mat\get_cat_envelop.m;." `
             --additional-hooks-dir "$workspace\hooks\" `
             --add-data "$workspace\src\helpers\mat\*.m;." `
-            --add-data "$workspace\resources\fonts\GeistMonoNerdFontMono-Regular.otf;."
+            --add-data "$workspace\resources\fonts\GeistMonoNerdFontMono-Regular.otf;." `
+            --add-binary "C:\hdf5\bin\hdf5.dll;." `
+            --add-binary "C:\hdf5\bin\hdf5_hl.dll;."
 
       - name: Create Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2

@@ -2794,7 +2794,7 @@ def get_font_path():
         if sys.platform == MAC:
             base_path = os.path.join(os.path.dirname(sys.executable), "..", "Resources")
         else:
-            base_path = os.path.dirname(sys.executable)
+            base_path = os.path.join(os.path.dirname(sys.executable), "_internal")
         return os.path.join(base_path, FONT_FILE)
     else:
         return os.path.join(
