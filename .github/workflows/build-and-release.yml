@@ -162,28 +162,26 @@ jobs:
           New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/build"
           New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/dist"
 
-      - name: Install HDF5
+      - name: Download HDF5
         shell: pwsh
         run: |
-          # Try basic installation first
-          choco install hdf5 -y
+          Invoke-WebRequest -Uri "https://github.com/HDFGroup/hdf5/releases/download/hdf5_1.14.5/hdf5-1.14.5-win-vs2022_cl.zip" -OutFile "hdf5.zip"
 
-          # Find actual installation directory
-          $HDF5_DIR = (Get-ChildItem "C:\Program Files\HDF_Group\HDF5\" -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
+      - name: Extract HDF5
+        shell: pwsh
+        run: |
+          7z x hdf5.zip -o"C:\hdf5"
 
-          if (-not $HDF5_DIR) {
-              Write-Error "HDF5 installation directory not found!"
-              exit 1
-          }
+      - name: Setup Environment
+        shell: pwsh
+        run: |
+          echo "C:\hdf5\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "HDF5_DIR=C:\hdf5" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-          echo "HDF5_DIR=$HDF5_DIR" >> $env:GITHUB_ENV
-
-          # Add to PATH
-          echo "$HDF5_DIR\bin" >> $env:GITHUB_PATH
-          echo "$HDF5_DIR\lib" >> $env:GITHUB_PATH
-
-          Write-Host "HDF5 installation completed successfully"
-          Write-Host "HDF5 installation directory: $HDF5_DIR"
+      - name: Verify Installation
+        shell: pwsh
+        run: |
+          h5cc --version
 
       - name: Install dependencies
         shell: pwsh
