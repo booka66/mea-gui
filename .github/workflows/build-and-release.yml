@@ -170,13 +170,16 @@ jobs:
       - name: Extract HDF5
         shell: pwsh
         run: |
-          7z x hdf5.zip -o"C:\hdf5"
+          7z x hdf5.zip
+          Move-Item "hdf5-1.14.5-win-vs2022_cl" "${{ github.workspace }}/HDF5-1.14.5-win64"
 
       - name: Setup Environment
         shell: pwsh
         run: |
-          echo "C:\hdf5\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          echo "HDF5_DIR=C:\hdf5" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "${{ github.workspace }}/HDF5-1.14.5-win64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "HDF5_DIR=${{ github.workspace }}/HDF5-1.14.5-win64" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # Debug path
+          Get-ChildItem "${{ github.workspace }}/HDF5-1.14.5-win64/bin"
 
       - name: Verify Installation
         shell: pwsh
