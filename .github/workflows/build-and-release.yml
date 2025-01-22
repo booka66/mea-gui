@@ -169,7 +169,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/HDF5-1.14.5-win64"
 
           # Download and extract HDF5
-          $HDF5_URL = "https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.14/hdf5-1.14.5/bin/windows/hdf5-1.14.5-win-vs2022_cl.zip"
+          $HDF5_URL = "https://support.hdfgroup.org/releases/hdf5/v1_14/v1_14_5/downloads/hdf5-1.14.5-win-vs2022_cl.zip"
 
           Write-Host "Downloading HDF5..."
           Invoke-WebRequest -Uri $HDF5_URL -OutFile "${{ github.workspace }}/hdf5.zip"
