@@ -162,38 +162,20 @@ jobs:
           New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/build"
           New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/dist"
 
-      - name: Download and Debug HDF5
+      - name: Download and Extract HDF5
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://github.com/HDFGroup/hdf5/releases/download/hdf5_1.14.5/hdf5-1.14.5-win-vs2022_cl.zip" -OutFile "hdf5.zip"
           7z x hdf5.zip
-          Write-Host "Current directory contents:"
-          Get-ChildItem -Force
-          Write-Host "Finding HDF5 directory:"
-          Get-ChildItem -Recurse -Filter "hdf5*.dll"
-
-      - name: Setup HDF5
-        shell: pwsh
-        run: |
-          # Get the actual HDF5 directory name
-          $hdf5Dir = Get-ChildItem -Directory | Where-Object { $_.Name -like "hdf5*" } | Select-Object -First 1
-          Write-Host "Found HDF5 directory: $($hdf5Dir.Name)"
-
-          # Create the target directory
-          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/HDF5-1.14.5-win64"
-
-          # Move contents
-          Move-Item -Path "$($hdf5Dir.FullName)/*" -Destination "${{ github.workspace }}/HDF5-1.14.5-win64/"
-
-          # Verify the move
-          Write-Host "Target directory contents:"
-          Get-ChildItem "${{ github.workspace }}/HDF5-1.14.5-win64"
+          7z x "HDF5-1.14.5-win64.zip" -o"${{ github.workspace }}/HDF5-1.14.5-win64"
 
       - name: Setup Environment
         shell: pwsh
         run: |
           echo "${{ github.workspace }}/HDF5-1.14.5-win64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "HDF5_DIR=${{ github.workspace }}/HDF5-1.14.5-win64" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "INCLUDE=${{ github.workspace }}/HDF5-1.14.5-win64/include;$env:INCLUDE" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "LIB=${{ github.workspace }}/HDF5-1.14.5-win64/lib;$env:LIB" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Install dependencies
         shell: pwsh
