@@ -165,21 +165,22 @@ jobs:
       - name: Install HDF5
         shell: pwsh
         run: |
-          choco install hdf5 --version=1.14.5 -y
+          # Try basic installation first
+          choco install hdf5 -y
 
-          # Set HDF5_DIR for later use
-          $HDF5_DIR = "C:\Program Files\HDF_Group\HDF5\1.14.5"
+          # Find actual installation directory
+          $HDF5_DIR = (Get-ChildItem "C:\Program Files\HDF_Group\HDF5\" -Directory | Sort-Object Name -Descending | Select-Object -First 1).FullName
+
+          if (-not $HDF5_DIR) {
+              Write-Error "HDF5 installation directory not found!"
+              exit 1
+          }
+
           echo "HDF5_DIR=$HDF5_DIR" >> $env:GITHUB_ENV
 
           # Add to PATH
-          echo "C:\Program Files\HDF_Group\HDF5\1.14.5\bin" >> $env:GITHUB_PATH
-          echo "C:\Program Files\HDF_Group\HDF5\1.14.5\lib" >> $env:GITHUB_PATH
-
-          # # Verify installation
-          # if (!(Test-Path "$HDF5_DIR\include\hdf5.h")) {
-          #     Write-Error "HDF5 headers not found!"
-          #     exit 1
-          # }
+          echo "$HDF5_DIR\bin" >> $env:GITHUB_PATH
+          echo "$HDF5_DIR\lib" >> $env:GITHUB_PATH
 
           Write-Host "HDF5 installation completed successfully"
           Write-Host "HDF5 installation directory: $HDF5_DIR"
