@@ -165,41 +165,24 @@ jobs:
       - name: Install HDF5
         shell: pwsh
         run: |
-          # Create installation directory
-          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}/HDF5-1.14.5-win64"
+          choco install hdf5 --version=1.14.5 -y
 
-          # Download and extract HDF5
-          $HDF5_URL = "https://support.hdfgroup.org/releases/hdf5/v1_14/v1_14_5/downloads/hdf5-1.14.5-win-vs2022_cl.zip"
+          # Set HDF5_DIR for later use
+          $HDF5_DIR = "C:\Program Files\HDF_Group\HDF5\1.14.5"
+          echo "HDF5_DIR=$HDF5_DIR" >> $env:GITHUB_ENV
 
-          Write-Host "Downloading HDF5..."
-          Invoke-WebRequest -Uri $HDF5_URL -OutFile "${{ github.workspace }}/hdf5.zip"
+          # Add to PATH
+          echo "C:\Program Files\HDF_Group\HDF5\1.14.5\bin" >> $env:GITHUB_PATH
+          echo "C:\Program Files\HDF_Group\HDF5\1.14.5\lib" >> $env:GITHUB_PATH
 
-          Write-Host "Extracting outer zip..."
-          Expand-Archive -Path "${{ github.workspace }}/hdf5.zip" -DestinationPath "${{ github.workspace }}/temp_hdf5"
-
-          Write-Host "Extracting inner zip..."
-          Expand-Archive -Path "${{ github.workspace }}/temp_hdf5/hdf5/HDF5-1.14.5-win64.zip" -DestinationPath "${{ github.workspace }}/HDF5-1.14.5-win64"
-
-          # Add debug information
-          Write-Host "Listing HDF5 directory contents:"
-          Get-ChildItem "${{ github.workspace }}/HDF5-1.14.5-win64" -Recurse
-
-          # Verify HDF5 installation
-          $HDF5_DIR = "${{ github.workspace }}/HDF5-1.14.5-win64"
-          if (!(Test-Path "$HDF5_DIR/include/hdf5.h")) {
-              Write-Error "HDF5 headers not found!"
-              Write-Host "Contents of HDF5_DIR:"
-              Get-ChildItem "$HDF5_DIR" -Recurse
-              exit 1
-          }
-
-          # Add HDF5 to PATH
-          echo "$HDF5_DIR/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
-          $env:PATH = "$HDF5_DIR/bin;$env:PATH"
+          # # Verify installation
+          # if (!(Test-Path "$HDF5_DIR\include\hdf5.h")) {
+          #     Write-Error "HDF5 headers not found!"
+          #     exit 1
+          # }
 
           Write-Host "HDF5 installation completed successfully"
           Write-Host "HDF5 installation directory: $HDF5_DIR"
-          Write-Host "Updated PATH: $env:PATH"
 
       - name: Install dependencies
         shell: pwsh
