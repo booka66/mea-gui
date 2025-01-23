@@ -16,7 +16,7 @@ File
 Contains actions regarding opening and saving files.
 
 Open File
-~~~~~~~~~
+^^^^^^^^^
 This is the main entry point for starting a new analysis. 
 Clicking it will open a file selection dialog where the user can select ``.brw`` files. 
 Upon selection, the application will search for an image associated with the recording.
