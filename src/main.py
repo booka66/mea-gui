@@ -125,7 +125,6 @@ class MainWindow(QMainWindow):
         self.setup_matlab_thread()
         self.set_widgets_enabled()
 
-    # TODO: Organize these variables based on function and group
     def setup_variables(self):
         # File and recording settings
         self.file_path = None
@@ -180,7 +179,7 @@ class MainWindow(QMainWindow):
         self.groups = []
         self.left_pane = None
         self.right_pane = None
-        self.grid_widget = None
+        self.grid_widget: GridWidget = None
         self.lock_to_playhead = False
         self.do_show_false_color_map = True
         self.do_show_events = True
@@ -215,8 +214,11 @@ class MainWindow(QMainWindow):
         self.fileMenu = QMenu("File", self)
         self.menuBar.addMenu(self.fileMenu)
         self.openAction = QAction("Open File", self)
-        self.openAction.triggered.connect(self.openFile)
+        self.openAction.triggered.connect(self.open_file)
         self.fileMenu.addAction(self.openAction)
+        self.uploadImageAction = QAction("Upload MEA Grid Image", self)
+        self.uploadImageAction.triggered.connect(self.upload_image)
+        self.fileMenu.addAction(self.uploadImageAction)
         self.viewHDF5Action = QAction("View HDF5 File", self)
         self.viewHDF5Action.triggered.connect(self.viewHDF5)
         self.fileMenu.addAction(self.viewHDF5Action)
@@ -488,7 +490,7 @@ class MainWindow(QMainWindow):
         self.settings_layout.addLayout(self.control_layout)
 
         self.open_button = QPushButton(" Open File")
-        self.open_button.clicked.connect(self.openFile)
+        self.open_button.clicked.connect(self.open_file)
         self.control_layout.addWidget(self.open_button)
 
         self.low_ram_checkbox = QCheckBox("󰡵 Low RAM Mode")
@@ -1194,6 +1196,7 @@ class MainWindow(QMainWindow):
                 self.right_pane.setVisible(False)
                 self.show_statistics_widgets()
 
+    # TODO: Move this to the GraphWidget class
     def clear_plots(self):
         for i in range(4):
             if self.plotted_channels[i] is not None:
@@ -1295,6 +1298,7 @@ class MainWindow(QMainWindow):
 
         self.update_raster_plotted_channels()
 
+    # TODO: Major refactor of the raster plot creation and update process. This should be in the RasterPlot class
     def update_raster(self):
         if self.raster_plot is None:
             self.raster_plot = RasterPlot(
@@ -1738,7 +1742,7 @@ class MainWindow(QMainWindow):
             prev_cell.hover_tooltip.hide()
         self.selected_channel = (row, col)
 
-    def openFile(self):
+    def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Open File",
@@ -1772,34 +1776,45 @@ class MainWindow(QMainWindow):
                 )
                 image_files = glob.glob(image_pattern, recursive=True)
 
-                # TODO: Make this optional so you don't have to have an image
                 if image_files:
                     image_path = image_files[0]
                     self.grid_widget.setBackgroundImage(image_path)
-                else:
-                    msg = QMessageBox()
-                    msg.setIcon(QMessageBox.Information)
-                    msg.setText(f"No image found, manually select image for {baseName}")
-                    msg.setWindowTitle("Image Not Found")
-                    msg.exec_()
-
-                    imageFileName, _ = QFileDialog.getOpenFileName(
-                        self,
-                        "Upload Slice Image",
-                        "",
-                        "Image Files (*.jpg *.png)",
-                    )
-
-                    if imageFileName:
-                        imageFileName = os.path.normpath(imageFileName)
-                        self.grid_widget.setBackgroundImage(imageFileName)
-                    else:
-                        print("No image selected")
+                # TODO: Took away this feature for now
+                # else:
+                #     msg = QMessageBox()
+                #     msg.setIcon(QMessageBox.Information)
+                #     msg.setText(f"No image found, manually select image for {baseName}")
+                #     msg.setWindowTitle("Image Not Found")
+                #     msg.exec_()
+                #
+                #     imageFileName, _ = QFileDialog.getOpenFileName(
+                #         self,
+                #         "Upload Slice Image",
+                #         "",
+                #         "Image Files (*.jpg *.png)",
+                #     )
+                #
+                #     if imageFileName:
+                #         imageFileName = os.path.normpath(imageFileName)
+                #         self.grid_widget.setBackgroundImage(imageFileName)
+                #     else:
+                #         print("No image selected")
 
             except Exception as e:
                 print(f"Error: {e}")
 
         self.set_widgets_enabled()
+
+    def upload_image(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open File",
+            directory="/Users/booka66/Jake-Squared/Sz_SE_Detection/",
+            filter="Image Files (*.jpg *.png *.jpeg *.bmp)",
+        )
+
+        if file_path:
+            self.grid_widget.setBackgroundImage(file_path)
 
     def viewHDF5(self):
         if self.file_path is not None:

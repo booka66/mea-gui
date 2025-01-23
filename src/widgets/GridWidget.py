@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QMenu,
     QGraphicsEllipseItem,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
 )
@@ -536,18 +537,26 @@ class GridWidget(QGraphicsView):
         self.curve2.setData(self.plot_x, self.plot_data2)
 
     def setBackgroundImage(self, image_path):
-        self.image_path = image_path
-        pixmap = QPixmap(image_path)
+        try:
+            self.image_path = image_path
+            pixmap = QPixmap(image_path)
 
-        scale_x = self.sceneRect().width() / pixmap.width()
-        scale_y = self.sceneRect().height() / pixmap.height()
+            scale_x = self.sceneRect().width() / pixmap.width()
+            scale_y = self.sceneRect().height() / pixmap.height()
 
-        transform = QTransform().scale(scale_x, scale_y)
+            transform = QTransform().scale(scale_x, scale_y)
 
-        brush = QBrush(pixmap)
-        brush.setTransform(transform)
+            brush = QBrush(pixmap)
+            brush.setTransform(transform)
 
-        self.setBackgroundBrush(brush)
+            self.setBackgroundBrush(brush)
+        except Exception as e:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Error loading image")
+            msg.setInformativeText(str(e))
+            msg.setWindowTitle("Error")
+            msg.exec_()
 
     def set_is_recording_video(self, value):
         self.is_recording_video = value
