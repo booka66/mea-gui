@@ -670,10 +670,6 @@ class MainWindow(QMainWindow):
         self.doc_viewer = DocumentationViewer(url)
         self.doc_viewer.show()
 
-    # TODO: Is this function necessary?
-    def update_progress(self, message, value):
-        self.loading_dialog.update_progress(message, value)
-
     def toggle_events(self, checked):
         self.do_show_events = checked
         self.update_grid()
