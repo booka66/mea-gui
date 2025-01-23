@@ -680,6 +680,83 @@ class MainWindow(QMainWindow):
         if self.raster_plot:
             self.raster_plot.toggle_color_mode()
 
+    def toggle_false_color_map(self, checked):
+        self.do_show_false_color_map = checked
+        self.update_grid()
+
+    def toggle_regions(self, checked):
+        self.graph_widget.do_show_regions = checked
+        if checked:
+            self.graph_widget.show_regions()
+        else:
+            self.graph_widget.hide_regions()
+
+    def toggle_events_overlay(self, checked):
+        self.grid_widget.toggle_overlay(checked)
+
+    def toggle_legend(self, checked):
+        self.legend_widget.setVisible(checked)
+        if self.data is not None:
+            self.redraw_arrows()
+            self.update_grid()
+
+    def toggle_mini_map(self, checked):
+        self.graph_widget.toggle_mini_map(checked)
+
+    def toggle_antialiasing(self, checked):
+        pg.setConfigOptions(antialias=checked)
+        for i in range(4):
+            if self.plotted_channels[i] is not None:
+                self.graph_widget.plot_widgets[i].clear()
+
+                curve = self.graph_widget.plot_widgets[i].plot(
+                    pen=pg.mkPen("k", width=3)
+                )
+                curve.setData(self.graph_widget.x_data[i], self.graph_widget.y_data[i])
+                curve.setDownsampling(auto=True, method="peak", ds=100)
+                curve.setClipToView(True)
+
+                self.graph_widget.plot_widgets[i].addItem(
+                    self.graph_widget.red_lines[i]
+                )
+
+        self.update_grid()
+
+    def toggle_spectrogram(self, checked):
+        if checked:
+            self.show_spectrograms()
+        else:
+            self.hide_spectrograms()
+
+    def toggle_prop_lines(self, checked):
+        self.do_show_prop_lines = checked
+        if checked:
+            self.show_prop_lines()
+        else:
+            self.hide_prop_lines()
+
+    def toggle_playheads(self, checked):
+        for red_line in self.graph_widget.red_lines:
+            red_line.setVisible(checked)
+        self.raster_plot.raster_red_line.setVisible(checked)
+
+    def toggle_cpp_mode(self, state):
+        self.use_cpp = state == Qt.Checked
+        self.set_widgets_enabled()
+
+    def toggle_lines(self, checked):
+        self.do_show_spread_lines = checked
+        if checked:
+            self.show_spread_lines()
+        else:
+            self.hide_spread_lines()
+
+    def toggle_order(self, state):
+        if state == Qt.Checked:
+            self.show_seizure_order()
+        else:
+            self.hide_seizure_order()
+
     def open_discharge_start_dialog(self):
         if (
             self.discharge_start_dialog is None
@@ -687,10 +764,6 @@ class MainWindow(QMainWindow):
         ):
             return
         self.discharge_start_dialog.show()
-
-    def toggle_false_color_map(self, checked):
-        self.do_show_false_color_map = checked
-        self.update_grid()
 
     def set_bin_size(self):
         bin_size, ok = QInputDialog.getText(
@@ -714,6 +787,7 @@ class MainWindow(QMainWindow):
                 msg.setWindowTitle("Invalid Bin Size")
                 msg.exec_()
 
+    # TODO: Do we actually want this function? Can be a bit annoying if you accidentally click it while zooming or something. Maybe make it cmd+click?
     def handle_region_clicked(self, start, stop):
         print(f"Region clicked: {start}, {stop}")
         for i in range(4):
@@ -722,13 +796,6 @@ class MainWindow(QMainWindow):
                 self.progress_bar.setValue(math.floor(start * self.sampling_rate))
                 self.last_skip_time = start
         self.current_region = (start, stop)
-
-    def toggle_regions(self, checked):
-        self.graph_widget.do_show_regions = checked
-        if checked:
-            self.graph_widget.show_regions()
-        else:
-            self.graph_widget.hide_regions()
 
     def edit_raster_settings(self):
         if self.raster_plot is None:
@@ -812,18 +879,6 @@ class MainWindow(QMainWindow):
 
             self.order_amount = order_amount
             self.toggle_order(self.show_order_checkbox.checkState())
-
-    def toggle_events_overlay(self, checked):
-        self.grid_widget.toggle_overlay(checked)
-
-    def toggle_legend(self, checked):
-        self.legend_widget.setVisible(checked)
-        if self.data is not None:
-            self.redraw_arrows()
-            self.update_grid()
-
-    def toggle_mini_map(self, checked):
-        self.graph_widget.toggle_mini_map(checked)
 
     def show_prop_lines(self):
         for arrow_item in self.prop_arrow_items:
@@ -975,56 +1030,6 @@ class MainWindow(QMainWindow):
             self.graph_widget.plot_widgets[i].setLabels(left="mV")
             self.graph_widget.trace_curves[i].setVisible(True)
             self.graph_widget.plot_widgets[i].getViewBox().autoRange()
-
-    def toggle_antialiasing(self, checked):
-        pg.setConfigOptions(antialias=checked)
-        for i in range(4):
-            if self.plotted_channels[i] is not None:
-                self.graph_widget.plot_widgets[i].clear()
-
-                curve = self.graph_widget.plot_widgets[i].plot(
-                    pen=pg.mkPen("k", width=3)
-                )
-                curve.setData(self.graph_widget.x_data[i], self.graph_widget.y_data[i])
-                curve.setDownsampling(auto=True, method="peak", ds=100)
-                curve.setClipToView(True)
-
-                self.graph_widget.plot_widgets[i].addItem(
-                    self.graph_widget.red_lines[i]
-                )
-
-        self.update_grid()
-
-    def toggle_spectrogram(self, checked):
-        if checked:
-            self.show_spectrograms()
-        else:
-            self.hide_spectrograms()
-
-    def toggle_prop_lines(self, checked):
-        self.do_show_prop_lines = checked
-        if checked:
-            self.show_prop_lines()
-        else:
-            self.hide_prop_lines()
-
-    def toggle_playheads(self, checked):
-        # Toggle the trace plots playheads
-        for red_line in self.graph_widget.red_lines:
-            red_line.setVisible(checked)
-        # Toggle the raster plot playhead
-        self.raster_plot.raster_red_line.setVisible(checked)
-
-    def toggle_cpp_mode(self, state):
-        self.use_cpp = state == Qt.Checked
-        self.set_widgets_enabled()
-
-    def toggle_lines(self, checked):
-        self.do_show_spread_lines = checked
-        if checked:
-            self.show_spread_lines()
-        else:
-            self.hide_spread_lines()
 
     def show_statistics_widgets(self):
         while self.stats_tab_layout.count():
@@ -1212,12 +1217,6 @@ class MainWindow(QMainWindow):
         self.grid_widget.update()
         self.current_region = None
         self.update_raster_plotted_channels()
-
-    def toggle_order(self, state):
-        if state == Qt.Checked:
-            self.show_seizure_order()
-        else:
-            self.hide_seizure_order()
 
     def show_seizure_order(self):
         if self.data is None:
@@ -2175,6 +2174,7 @@ class MainWindow(QMainWindow):
                             self.active_channels.index((cell.row + 1, cell.col + 1))
                             for cell in high_luminance_cells
                         ]
+                        # This is what is currently being used to determine if a discharge has started
                         if red:
                             for index in high_luminance_indices:
                                 colors[index] = self.blend_colors(
@@ -2789,6 +2789,8 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
 
+# TODO: Add a font size that will change size for smaller screens
+# TODO: It would be nice to make it higher quality as well
 def get_font_path():
     if getattr(sys, "frozen", False):
         if sys.platform == MAC:

@@ -1,4 +1,5 @@
 import os
+import platform
 import sys
 import requests
 from packaging import version
@@ -6,7 +7,7 @@ import urllib.request
 
 from helpers.Constants import VERSION
 
-GITHUB_REPO = "booka66/mea-gui-public"
+GITHUB_REPO = "booka66/mea-gui"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 
@@ -29,7 +30,18 @@ def check_for_update():
                 assets = latest_release["assets"]
                 for asset in assets:
                     if sys.platform == "darwin" and asset["name"].endswith(".pkg"):
-                        return True, latest_release
+                        machine = platform.machine().lower()
+                        if "arm64" in machine and "arm64" in asset["name"]:
+                            return True, latest_release
+                        elif (
+                            "x86_64" in machine or "x86" in machine
+                        ) and "x86_64" in asset["name"]:
+                            return True, latest_release
+                        else:
+                            print(
+                                "What the heck is this machine? Lol you are on your own"
+                            )
+                            return False, None
                     elif sys.platform == "win32" and asset["name"].endswith(".exe"):
                         return True, latest_release
             # return version.parse(latest_version) > version.parse(
@@ -46,8 +58,18 @@ def download_and_install_update(release):
     download_url = None
     for asset in assets:
         if sys.platform == "darwin" and asset["name"].endswith(".pkg"):
-            download_url = asset["browser_download_url"]
-            break
+            machine = platform.machine().lower()
+            if "arm64" in machine and "arm64" in asset["name"]:
+                download_url = asset["browser_download_url"]
+                break
+            elif ("x86_64" in machine or "x86" in machine) and "x86_64" in asset[
+                "name"
+            ]:
+                download_url = asset["browser_download_url"]
+                break
+            else:
+                print("How did you get here?")
+                return False
         elif sys.platform == "win32" and asset["name"].endswith(".exe"):
             download_url = asset["browser_download_url"]
             break
