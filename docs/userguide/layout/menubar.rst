@@ -76,7 +76,7 @@ Set DBSCAN Settings
 -------------------
 Hovering over this action displays a window containing parameters used for the DBSCAN clustering algorithm.
 
-  - Epsilon: The maximum distance between two samples for one to be considered as in the neighborhood of the other.
+  - Epsilon: The maximum distance between two samples for one to be considered as in the same neighborhood as the other.
   - Min Samples: The number of samples in a neighborhood for a point to be considered as a core point.
   - Max Distance: The maximum distance a discharge centroid can travel between consecutive frames.
   - Bin Size: Same as the bin size for calculating the false color map on the MEA grid.
@@ -96,9 +96,9 @@ Set Peak Settings
 -----------------
 Hovering over this action displays a window containing parameters used for a peak finding algorithm.
 
-  - Peak Threshold: The number of standard deviations above the mean to be considered a peak.
-  - Min Distance: The minimum distance between peaks measured in samples.
-  - SNR Threshold: The signal-to-noise ratio threshold for an entire channel to be considered in the peak finding algorithm. This acts as a filter to remove noisy or inactive channels.
+  - Peak Threshold: The number of standard deviations the mean after which a point may be considered a peak.
+  - Min Distance: The minimum number of samples between peaks necessary to consider them separate events.
+  - SNR Threshold: The minimum signal-to-noise ratio threshold of an electrode necessary to consider a peak within the given electrode. This acts as a filter to remove noisy or inactive channels.
 
 Set Spectrogram Settings
 ------------------------

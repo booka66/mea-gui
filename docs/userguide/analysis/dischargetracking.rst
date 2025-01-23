@@ -32,9 +32,9 @@ This is done by finding the local maxima of the signal and then finding the "clo
 
 Before the discharge detection algorithm can be run, the user must set the following parameters found in the :ref:`Peak Settings <peak_settings>`:
 
-  * **Peak Threshold**: The number of standard deviations above the mean to consider a peak.
-  * **Min Distance Between Peaks**: The minimum samples between peaks to consider them separate events. This is useful to increase if the orange discharge markers are too close together.
-  * **SNR Threshold**: The signal-to-noise ratio threshold to consider a peak. This parameter is used to filter out entire channels that are too noisy or have small peaks. If the red/orange markers are not appearing for a channel, try lowering this value.
+  * **Peak Threshold**: The number of standard deviations the mean after which a point may be considered a peak.
+  * **Min Distance Between Peaks**: The minimum number of samples between peaks necessary to consider them separate events. This is useful to increase if the orange discharge markers are too close together.
+  * **SNR Threshold**: The minimum signal-to-noise ratio threshold of an electrode necessary to consider a peak within the given electrode. This parameter is used to filter out entire channels that are too noisy or have small peaks. If the red/orange markers are not appearing for a channel, try lowering this value.
 
 .. note::
    The default values for the peak settings are a good starting point, but may need to be adjusted depending on the data.
