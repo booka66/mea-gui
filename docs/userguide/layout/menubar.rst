@@ -16,7 +16,7 @@ File
 Contains actions regarding opening and saving files.
 
 Open File
----------
+^^^^^^^^^
 This is the main entry point for starting a new analysis. 
 Clicking it will open a file selection dialog where the user can select ``.brw`` files. 
 Upon selection, the application will search for an image associated with the recording.
@@ -27,21 +27,21 @@ If it doesn't find one, the user must manually select an image.
    Double check the supported image files and the logic for finding an image based on the recording.
 
 View HDF5 File
---------------
+^^^^^^^^^^^^^^
 The ``.brw`` file is a binary file that contains the raw data from the MEA recording and is not human-readable.
 This action opens a dialog where the user can view the contents of the ``.brw`` file in a human-readable format.
 When tracking the propagation of discharges, the user can view the discharge centroids, paths, and other useful information not in the original file.
 By pressing the ``Export Discharge Stats`` button, the user can save the discharge statistics as a collection of CSV files.
 
 Downsample and Export
-_____________________
+^^^^^^^^^^^^^^^^^^^^^
 
 .. danger::
 
     This action is not yet implemented. It is intended to downsample the data and export it as a new ``.brw`` file. Pressing this button currently crashes the application.
 
 Save MEA as Video
------------------
+^^^^^^^^^^^^^^^^^
 Opens a video editor dialog where the user can save the MEA grid as a video.
 
 .. seealso::
@@ -49,15 +49,15 @@ Opens a video editor dialog where the user can save the MEA grid as a video.
    Video Editor Dialog
 
 Save MEA as PNG
----------------
+^^^^^^^^^^^^^^^
 Opens up a file dialog where the user can save the MEA grid as a PNG.
 
 .. tip::
 
    Left clicking on the MEA grid pulls up a context menu with the option to save the MEA as a PNG or a video.
 
-Save Channel Plots 
-------------------
+Save Channel Plots
+^^^^^^^^^^^^^^^^^^
 Opens up a file dialog where the user can save all or certain channels' plots as a PNG or SVG. It is requisite to have at least one channel plotted to enable this action.
 
 If desired, the user can hide the red play heads by checking or unchecking the box in the dialog.
@@ -65,7 +65,7 @@ If desired, the user can hide the red play heads by checking or unchecking the b
 Scale refers to the size of the saved image. The default is 4. The larger the scale, the larger the file size and longer the save time.
 
 Save MEA with Channel Plots
----------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Opens up a file dialog where the user can save the MEA grid with channel plots as a PNG or SVG.
 
 Edit
