@@ -86,7 +86,7 @@ With that brief explanation of the parameters, here is a step-by-step guide to t
 
 At this point, the user should have a good set of orange markers placed at the beginning of discharge events. The next step is to cluster these markers to form a discharge event. This is done by the DBSCAN algorithm. Fine-tuning these parameters is even more difficult than above, so be patient with the tedious process.
 
-  1. **Test Initial DBSCAN Parameters**: The default DBSCAN parameters are a good starting point, but may need to be adjusted depending on the data. To test the DBSCAN parameters, zoom in on a single discharge peak and place the playhead just before the discharge event. Now, turn on :ref:`discharge_paths` from the :ref:`view` option in the menubar. Hopefully, as the user taps `right arrow` and the playhead goes over the discharge marker, a `centroid` should appear and follow the path of the seizure like so:
+  1. **Test Initial DBSCAN Parameters**: The default DBSCAN parameters are a good starting point, but may need to be adjusted depending on the data. To test the DBSCAN parameters, zoom in on a single discharge peak and place the playhead just before the discharge event. Now, turn on :ref:`discharge_paths` from the :ref:`view` option in the menubar. Hopefully, as the user taps ``right arrow`` and the playhead goes over the discharge marker, a ``centroid`` should appear and follow the path of the seizure like so:
 
   .. image:: ../../_static/centroid_path.gif
     :width: 100%
