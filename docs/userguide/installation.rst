@@ -7,8 +7,9 @@ There are two ways to install the application:
 
 1. Downloading an installer for your operating system and following the instructions (recommended):
 
-    - `Download <https://github.com/booka66/mea-gui-public/releases/latest/download/MEA_GUI_Windows.exe>`__ for Windows
-    - `Download <https://github.com/booka66/mea-gui-public/releases/latest/download/MEA_GUI_MacOS.pkg>`__ for MacOS
+    - `Download <https://github.com/booka66/mea-gui/releases/latest/download/MEA_GUI_Windows.exe>`__ for Windows
+    - `Download <https://github.com/booka66/mea-gui/releases/latest/download/MEA_GUI_MacOS_arm64.pkg>`__ for MacOS (Apple Silicon)
+    - `Download <https://github.com/booka66/mea-gui/releases/latest/download/MEA_GUI_MacOS_x86_64.pkg>`__ for MacOS (Intel)
 
     .. note::
       The installers are not signed, so you may need to allow the installation in the system settings. On Windows, it may be flagged as a potential threat, but choose to keep it anyway.
@@ -51,5 +52,10 @@ There are two ways to install the application:
           python src/main.py
 
 .. important::
-  The instructions for building from the source code assume that you have Python 3.11 installed on your system. 
-  If you don't have it, you can download it from the `official website <https://www.python.org/downloads/release/python-3118/>`__.
+  The instructions for building from the source code assume that you have Python 3.10.9 installed on your system. 
+  If you don't have it, you can download it from the `official website <https://www.python.org/downloads/release/python-3109/>`__.
+
+.. note::
+  Some algorithms have the option of using a MATLAB implementation. If you want to use them, you need to have MATLAB installed on your system, build from source, and use pip to install the `matlab` and `matlabengine` packages. Note that you'll need to download the correct version of matlabengine to work with your MATLAB installation.
+
+
