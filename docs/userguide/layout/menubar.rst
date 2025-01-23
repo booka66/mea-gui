@@ -72,24 +72,6 @@ Edit
 ====
 Contains actions for setting parameters used in the analysis.
 
-.. _peak_settings:
-
-Set Peak Settings
------------------
-Hovering over this action displays a window containing parameters used for a peak finding algorithm.
-
-  - Peak Threshold: The number of standard deviations above the mean to be considered a peak.
-  - Min Distance: The minimum distance between peaks measured in samples.
-  - SNR Threshold: The signal-to-noise ratio threshold for an entire channel to be considered in the peak finding algorithm. This acts as a filter to remove noisy or inactive channels.
-
-Set Spectrogram Settings
-------------------------
-Hovering over this action displays a window containing parameters used for generating spectrograms.
-
-  - Chunk Size: The size of the window used to calculate the spectrogram.
-  - Overlap: The amount of overlap between windows.
-  - Freq Range: The range of frequencies to display in the spectrogram.
-
 Set DBSCAN Settings
 -------------------
 Hovering over this action displays a window containing parameters used for the DBSCAN clustering algorithm.
@@ -107,6 +89,24 @@ Hovering over this action displays a window containing parameters used for the D
 .. seealso::
 
    These settings are used in the :ref:`discharge_propagation_tracking` feature.
+
+.. _peak_settings:
+
+Set Peak Settings
+-----------------
+Hovering over this action displays a window containing parameters used for a peak finding algorithm.
+
+  - Peak Threshold: The number of standard deviations above the mean to be considered a peak.
+  - Min Distance: The minimum distance between peaks measured in samples.
+  - SNR Threshold: The signal-to-noise ratio threshold for an entire channel to be considered in the peak finding algorithm. This acts as a filter to remove noisy or inactive channels.
+
+Set Spectrogram Settings
+------------------------
+Hovering over this action displays a window containing parameters used for generating spectrograms.
+
+  - Chunk Size: The size of the window used to calculate the spectrogram.
+  - Overlap: The amount of overlap between windows.
+  - Freq Range: The range of frequencies to display in the spectrogram.
 
 .. _view:
 
