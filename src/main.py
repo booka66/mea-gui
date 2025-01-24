@@ -2813,6 +2813,20 @@ def get_font_path():
         return os.path.join(
             os.path.dirname(__file__), "..", "resources", "fonts", FONT_FILE
         )
+    
+def get_font_size(app: QApplication):
+    screen = app.primaryScreen()
+    dpi = screen.physicalDotsPerInch()
+
+    screen_width = screen.size().width() / dpi
+    screen_height = screen.size().height() / dpi
+    screen_diagonal = np.sqrt(screen_width ** 2 + screen_height ** 2)
+
+    # Normalize against an average screen size (e.g., 15 inches)
+    if screen_diagonal >= 13:
+        return 12
+    else:
+        return 8
 
 
 if sys.platform == MAC:
@@ -2829,6 +2843,8 @@ if __name__ == "__main__":
 
     font_path = get_font_path()
     font_id = QFontDatabase.addApplicationFont(font_path)
+
+    font_size = get_font_size(app)
 
     if font_id == -1:
         msg = QMessageBox()
@@ -2849,11 +2865,11 @@ if __name__ == "__main__":
             loaded_family = families[0]  # Use the first family name returned
             print(f"Font loaded successfully from: {font_path}")
             print(f"Using font family: {loaded_family}")
-            font = QFont(loaded_family, 13)
+            font = QFont(loaded_family, font_size)
             app.setFont(font)
         else:
             print("Warning: Font file loaded but no family names found")
-            font = QFont(FONT_FAMILY, 13)  # Fallback to expected family name
+            font = QFont(FONT_FAMILY, font_size)  # Fallback to expected family name
             app.setFont(font)
 
     def confirm_latest_version(self):
