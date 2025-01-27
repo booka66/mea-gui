@@ -2800,8 +2800,6 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
 
-# TODO: Add a font size that will change size for smaller screens
-# TODO: It would be nice to make it higher quality as well
 def get_font_path():
     if getattr(sys, "frozen", False):
         if sys.platform == MAC:
