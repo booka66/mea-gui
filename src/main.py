@@ -130,6 +130,7 @@ class MainWindow(QMainWindow):
         # Clean up the MATLAB engine if it's running
         if self.eng is not None:
             self.eng.quit()
+        print("Closing application.")
         event.accept()
 
     def setup_variables(self):
