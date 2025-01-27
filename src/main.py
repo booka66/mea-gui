@@ -2813,14 +2813,15 @@ def get_font_path():
         return os.path.join(
             os.path.dirname(__file__), "..", "resources", "fonts", FONT_FILE
         )
-    
+
+
 def get_font_size(app: QApplication):
     screen = app.primaryScreen()
     dpi = screen.physicalDotsPerInch()
 
     screen_width = screen.size().width() / dpi
     screen_height = screen.size().height() / dpi
-    screen_diagonal = np.sqrt(screen_width ** 2 + screen_height ** 2)
+    screen_diagonal = np.sqrt(screen_width**2 + screen_height**2)
 
     # Normalize against an average screen size (e.g., 15 inches)
     if screen_diagonal >= 13:
@@ -2838,6 +2839,7 @@ else:
     sys.exit(1)
 
 if __name__ == "__main__":
+    print("Hello! You are now on the development branch :D")
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()
 
