@@ -24,3 +24,4 @@ pyqtwebengine
 pandas
 zstandard
 urllib3
+
