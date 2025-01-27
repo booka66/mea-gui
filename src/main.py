@@ -125,14 +125,6 @@ class MainWindow(QMainWindow):
         self.setup_matlab_thread()
         self.set_widgets_enabled()
 
-    # TODO: Delete this later. Just using for proof of concept.
-    def closeEvent(self, event):
-        # Clean up the MATLAB engine if it's running
-        if self.eng is not None:
-            self.eng.quit()
-        print("Closing application.")
-        event.accept()
-
     def setup_variables(self):
         # File and recording settings
         self.file_path = None
