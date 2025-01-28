@@ -355,10 +355,7 @@ class ClusterTracker:
                                     )
                                     # Also save as MAT file
                                     mat_buffer = io.BytesIO()
-                                    savemat(
-                                        mat_buffer,
-                                        df.to_dict(orient="list"),
-                                    )
+                                    savemat(mat_buffer, stats)
                                     zf.writestr(
                                         f"{category}_stats.mat", mat_buffer.getvalue()
                                     )
