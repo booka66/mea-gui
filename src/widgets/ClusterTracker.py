@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 from scipy import stats
+from scipy.io import savemat
 from scipy.spatial.distance import cdist
 from PyQt5.QtGui import QPen, QColor, QImage, QPixmap
 from PyQt5.QtCore import Qt
@@ -285,7 +286,9 @@ class ClusterTracker:
             print(f"Error analyzing discharge speeds: {e}")
             return None
 
-    def export_discharges_to_zip(self, hdf5_file_path, output_dir):
+    def export_discharges_to_zip(
+        self, hdf5_file_path: str, output_dir: str
+    ) -> list | None:
         """
         Export discharge data from HDF5 file to separate ZIP files for each timeframe.
         Each ZIP file contains CSVs with speed statistics and individual discharge data.
@@ -349,6 +352,15 @@ class ClusterTracker:
                                     df.to_csv(csv_buffer)
                                     zf.writestr(
                                         f"{category}_stats.csv", csv_buffer.getvalue()
+                                    )
+                                    # Also save as MAT file
+                                    mat_buffer = io.BytesIO()
+                                    savemat(
+                                        mat_buffer,
+                                        df.to_dict(orient="list"),
+                                    )
+                                    zf.writestr(
+                                        f"{category}_stats.mat", mat_buffer.getvalue()
                                     )
 
                         # Export individual discharge data
