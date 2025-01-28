@@ -241,6 +241,7 @@ class AppUpdater:
             except Exception as e:
                 print(f"Cleanup failed: {e}")
 
+    # TODO: I'm not sure if this works on Windows
     def _update_windows(self, exe_file):
         try:
             app_location = self.app_path
