@@ -405,7 +405,6 @@ class ClusterTracker:
                             zf.writestr("all_discharges.mat", mat_buffer.getvalue())
 
                             # Also save detailed time series data for each discharge
-                            # TODO: Add matlab export as well
                             for discharge in all_discharges:
                                 time_series_data = {
                                     "timestamp": discharge["timestamps"],
@@ -419,6 +418,15 @@ class ClusterTracker:
                                 zf.writestr(
                                     f"discharge_{discharge['discharge_id']}_timeseries.csv",
                                     csv_buffer.getvalue(),
+                                )
+
+                                mat_buffer = io.BytesIO()
+                                savemat(
+                                    mat_buffer, time_series_data, do_compression=True
+                                )
+                                zf.writestr(
+                                    f"discharge_{discharge['discharge_id']}_timeseries.mat",
+                                    mat_buffer.getvalue(),
                                 )
 
                     created_files.append(zip_path)
