@@ -362,6 +362,7 @@ class ClusterTracker:
 
                         # Export individual discharge data
                         all_discharges = []
+                        all_discharges_dict = {}
                         for discharge_id in timeframe_group.keys():
                             if discharge_id == "analysis_stats":
                                 continue
@@ -386,6 +387,7 @@ class ClusterTracker:
                                 "end_point": discharge.attrs["end_point"].tolist(),
                             }
                             all_discharges.append(discharge_data)
+                            all_discharges_dict[discharge_id] = discharge_data
 
                         # Save all discharges to a single CSV
                         if all_discharges:
@@ -393,6 +395,14 @@ class ClusterTracker:
                             csv_buffer = io.StringIO()
                             discharges_df.to_csv(csv_buffer, index=False)
                             zf.writestr("all_discharges.csv", csv_buffer.getvalue())
+
+                            mat_buffer = io.BytesIO()
+                            structured_array = {
+                                key: np.array([value])
+                                for key, value in all_discharges_dict.items()
+                            }
+                            savemat(mat_buffer, structured_array, do_compression=True)
+                            zf.writestr("all_discharges.mat", mat_buffer.getvalue())
 
                             # Also save detailed time series data for each discharge
                             for discharge in all_discharges:
