@@ -63,9 +63,12 @@ from helpers.Constants import (
     CELL_SIZE,
     FONT_FAMILY,
     FONT_FILE,
+    LARGE_FONT_SIZE,
     MAC,
+    SCREEN_DIAGONLA_THRESHOLD,
     SE,
     SEIZURE,
+    SMALL_FONT_SIZE,
     VERSION,
     WIN,
 )
@@ -2822,10 +2825,10 @@ def get_font_size(app: QApplication):
     screen_diagonal = np.sqrt(screen_width**2 + screen_height**2)
 
     # Normalize against an average screen size (e.g., 15 inches)
-    if screen_diagonal >= 13:
-        return 12
+    if screen_diagonal >= SCREEN_DIAGONLA_THRESHOLD:
+        return LARGE_FONT_SIZE
     else:
-        return 8
+        return SMALL_FONT_SIZE
 
 
 if sys.platform == MAC:
