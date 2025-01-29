@@ -130,7 +130,7 @@ class MainWindow(QMainWindow):
 
     def setup_variables(self):
         # File and recording settings
-        self.file_path = None
+        self.file_path: Path = Path()
         self.recording_length = None
         self.sampling_rate = 100
         self.time_vector = None
@@ -596,7 +596,7 @@ class MainWindow(QMainWindow):
 
     # TODO: Need to review when things should be allowed and when they should not (when this gets called as well)
     def set_widgets_enabled(self):
-        if self.file_path is not None and (self.engine_started or self.use_cpp):
+        if self.file_path is not Path() and (self.engine_started or self.use_cpp):
             self.run_button.setEnabled(True)
             self.view_button.setEnabled(True)
         else:
@@ -643,9 +643,10 @@ class MainWindow(QMainWindow):
 
     # TODO: Notify of creation/success status
     def export_discharge_stats(self):
-        if self.cluster_tracker is None or self.file_path is None:
+        if self.cluster_tracker is None or self.file_path is Path():
             return
 
+        # TODO: Track this path for refactor
         self.cluster_tracker.export_discharges_to_zip(self.file_path)
 
     def open_docs(self):
@@ -1518,6 +1519,7 @@ class MainWindow(QMainWindow):
         self.is_auto_analyzing = False
 
     def load_discharges(self):
+        # TODO: Add checks for self.file_path
         try:
             with h5py.File(self.file_path, "r") as f:
                 tracked_discharges_group = f["tracked_discharges"]
@@ -1656,6 +1658,7 @@ class MainWindow(QMainWindow):
 
             start, end = time_range.split("_")
         print(f"Attempting to save discharges to new format: {start} - {end}")
+        # TODO: Track self.file_path here
         self.cluster_tracker.save_discharges_to_hdf5(
             self.file_path, float(start), float(end)
         )
@@ -1691,6 +1694,7 @@ class MainWindow(QMainWindow):
             if self.is_auto_analyzing:
                 print("Auto-analysis complete")
 
+                # TODO: Track self.file_path here
                 self.cluster_tracker.save_discharges_to_hdf5(
                     self.file_path, *self.custom_region
                 )
@@ -1746,9 +1750,8 @@ class MainWindow(QMainWindow):
         )
 
         if file_path:
-            print("Selected file path:", file_path)
-            file_path = os.path.normpath(file_path)
-            self.file_path = file_path
+            self.file_path = Path(file_path)
+            print("Selected file path:", self.file_path)
 
             try:
                 baseName = os.path.basename(file_path)
