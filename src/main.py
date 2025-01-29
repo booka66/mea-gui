@@ -2812,19 +2812,20 @@ def get_font_path():
         )
 
 
-# def get_font_size(app: QApplication):
-#     screen = app.primaryScreen()
-#     dpi = screen.physicalDotsPerInch()
-#
-#     screen_width = screen.size().width() / dpi
-#     screen_height = screen.size().height() / dpi
-#     screen_diagonal = np.sqrt(screen_width**2 + screen_height**2)
-#
-#     # Normalize against an average screen size (e.g., 15 inches)
-#     if screen_diagonal >= SCREEN_DIAGONLA_THRESHOLD:
-#         return LARGE_FONT_SIZE
-#     else:
-#         return SMALL_FONT_SIZE
+def get_font_size(app: QApplication):
+    screen = app.primaryScreen()
+    dpi = screen.physicalDotsPerInch()
+
+    screen_width = screen.size().width() / dpi
+    screen_height = screen.size().height() / dpi
+    screen_diagonal = np.sqrt(screen_width**2 + screen_height**2)
+
+    # Normalize against an average screen size (e.g., 15 inches)
+    if screen_diagonal >= SCREEN_DIAGONLA_THRESHOLD:
+        return LARGE_FONT_SIZE
+    else:
+        return SMALL_FONT_SIZE
+
 
 if sys.platform == MAC:
     font_dir = "/Library/Fonts/"
