@@ -641,16 +641,12 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         self.redraw_arrows()
 
+    # TODO: Notify of creation/success status
     def export_discharge_stats(self):
         if self.cluster_tracker is None or self.file_path is None:
             return
 
-        output_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        self.cluster_tracker.export_discharges_to_zip(self.file_path, output_dir)
+        self.cluster_tracker.export_discharges_to_zip(self.file_path)
 
     def open_docs(self):
         cwd = Path(__file__).resolve().parent

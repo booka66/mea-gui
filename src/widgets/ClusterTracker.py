@@ -286,23 +286,20 @@ class ClusterTracker:
             print(f"Error analyzing discharge speeds: {e}")
             return None
 
-    def export_discharges_to_zip(
-        self, hdf5_file_path: str, output_dir: str
-    ) -> list | None:
+    def export_discharges_to_zip(self, hdf5_file_path: str) -> bool:
         """
         Export discharge data from HDF5 file to separate ZIP files for each timeframe.
         Each ZIP file contains CSVs with speed statistics and individual discharge data.
 
         Parameters:
         hdf5_file_path (str): Path to the HDF5 file containing discharge data
-        output_dir (str): Directory where ZIP files will be saved
 
         Returns:
-        list: List of created ZIP file paths
+        bool: True if successful, False otherwise
         """
-        output_path = Path(output_dir)
+
+        output_path = Path().home() / "Downloads"
         output_path.mkdir(parents=True, exist_ok=True)
-        created_files = []
 
         try:
             with h5py.File(hdf5_file_path, "r") as f:
@@ -428,14 +425,11 @@ class ClusterTracker:
                                     f"discharge_{discharge['discharge_id']}_timeseries.mat",
                                     mat_buffer.getvalue(),
                                 )
-
-                    created_files.append(zip_path)
-
-            return created_files
+            return True
 
         except Exception as e:
             print(f"Error exporting discharges to ZIP: {e}")
-            return None
+            return False
 
     def save_discharges_to_hdf5(self, file_path, start, stop):
         try:
