@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 from scipy import stats
+from scipy.io import savemat
 from scipy.spatial.distance import cdist
 from PyQt5.QtGui import QPen, QColor, QImage, QPixmap
 from PyQt5.QtCore import Qt
@@ -285,21 +286,20 @@ class ClusterTracker:
             print(f"Error analyzing discharge speeds: {e}")
             return None
 
-    def export_discharges_to_zip(self, hdf5_file_path, output_dir):
+    def export_discharges_to_zip(self, hdf5_file_path: str) -> bool:
         """
         Export discharge data from HDF5 file to separate ZIP files for each timeframe.
         Each ZIP file contains CSVs with speed statistics and individual discharge data.
 
         Parameters:
         hdf5_file_path (str): Path to the HDF5 file containing discharge data
-        output_dir (str): Directory where ZIP files will be saved
 
         Returns:
-        list: List of created ZIP file paths
+        bool: True if successful, False otherwise
         """
-        output_path = Path(output_dir)
+
+        output_path = Path().home() / "Downloads"
         output_path.mkdir(parents=True, exist_ok=True)
-        created_files = []
 
         try:
             with h5py.File(hdf5_file_path, "r") as f:
@@ -350,9 +350,16 @@ class ClusterTracker:
                                     zf.writestr(
                                         f"{category}_stats.csv", csv_buffer.getvalue()
                                     )
+                                    # Also save as MAT file
+                                    mat_buffer = io.BytesIO()
+                                    savemat(mat_buffer, stats)
+                                    zf.writestr(
+                                        f"{category}_stats.mat", mat_buffer.getvalue()
+                                    )
 
                         # Export individual discharge data
                         all_discharges = []
+                        all_discharges_dict = {}
                         for discharge_id in timeframe_group.keys():
                             if discharge_id == "analysis_stats":
                                 continue
@@ -377,6 +384,7 @@ class ClusterTracker:
                                 "end_point": discharge.attrs["end_point"].tolist(),
                             }
                             all_discharges.append(discharge_data)
+                            all_discharges_dict[discharge_id] = discharge_data
 
                         # Save all discharges to a single CSV
                         if all_discharges:
@@ -384,6 +392,14 @@ class ClusterTracker:
                             csv_buffer = io.StringIO()
                             discharges_df.to_csv(csv_buffer, index=False)
                             zf.writestr("all_discharges.csv", csv_buffer.getvalue())
+
+                            mat_buffer = io.BytesIO()
+                            structured_array = {
+                                key: np.array([value])
+                                for key, value in all_discharges_dict.items()
+                            }
+                            savemat(mat_buffer, structured_array, do_compression=True)
+                            zf.writestr("all_discharges.mat", mat_buffer.getvalue())
 
                             # Also save detailed time series data for each discharge
                             for discharge in all_discharges:
@@ -401,13 +417,19 @@ class ClusterTracker:
                                     csv_buffer.getvalue(),
                                 )
 
-                    created_files.append(zip_path)
-
-            return created_files
+                                mat_buffer = io.BytesIO()
+                                savemat(
+                                    mat_buffer, time_series_data, do_compression=True
+                                )
+                                zf.writestr(
+                                    f"discharge_{discharge['discharge_id']}_timeseries.mat",
+                                    mat_buffer.getvalue(),
+                                )
+            return True
 
         except Exception as e:
             print(f"Error exporting discharges to ZIP: {e}")
-            return None
+            return False
 
     def save_discharges_to_hdf5(self, file_path, start, stop):
         try:
