@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from time import perf_counter
 import sys
 
@@ -189,13 +190,13 @@ class AnalysisThread(QThread):
                 self.progress_updater_thread.requestInterruption()
                 self.progress_updater_thread.wait()
             # Clean up .mat or .txt files in temporary directory if they exist
-            if os.path.exists(self.temp_data_path):
-                for file in os.listdir(self.temp_data_path):
-                    if file.endswith(".mat"):
-                        os.remove(os.path.join(self.temp_data_path, file))
+            temp_data_path = Path(self.temp_data_path)
+            if temp_data_path.exists():
+                for file in temp_data_path.iterdir():
+                    if file.suffix in [".mat", ".txt"]:
+                        file.unlink()
                 # Clean up temporary directory
-                # TODO: This isn't working because the directory is not empty
-                os.rmdir(self.temp_data_path)
+                temp_data_path.rmdir()
 
     def get_channels(self):
         with h5py.File(self.file_path, "r") as f:
