@@ -25,7 +25,7 @@ except ImportError:
 class CppAnalysisThread(QThread):
     analysis_completed = pyqtSignal(object)
 
-    def __init__(self, file_path, do_analysis, temp_data_path):
+    def __init__(self, file_path: Path, do_analysis, temp_data_path):
         super().__init__()
         self.file_path = file_path
         self.do_analysis = do_analysis
@@ -33,10 +33,12 @@ class CppAnalysisThread(QThread):
 
     def run(self):
         if sys.platform == "win32":
-            results = sz_se_detect.processAllChannels(self.file_path, self.do_analysis)
+            results = sz_se_detect.processAllChannels(
+                str(self.file_path.resolve()), self.do_analysis
+            )
         else:
             results = sz_se_detect.processAllChannels(
-                self.file_path, self.do_analysis, self.temp_data_path
+                str(self.file_path.resolve()), self.do_analysis, self.temp_data_path
             )
         self.analysis_completed.emit(results)
 
@@ -48,7 +50,7 @@ class AnalysisThread(QThread):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent = parent
-        self.file_path = None
+        self.file_path = Path()
         self.data = np.empty((64, 64), dtype=object)
         self.min_strength = None
         self.max_strength = None
@@ -111,14 +113,14 @@ class AnalysisThread(QThread):
 
                 if self.use_low_ram:
                     _, self.sampling_rate, num_rec_frames = self.eng.low_ram_cat(
-                        self.file_path,
+                        str(self.file_path.resolve()),
                         self.temp_data_path,
                         self.do_analysis,
                         nargout=3,
                     )
                 else:
                     _, self.sampling_rate, num_rec_frames = self.eng.get_cat_envelop(
-                        self.file_path,
+                        str(self.file_path.resolve()),
                         self.temp_data_path,
                         self.do_analysis,
                         nargout=3,

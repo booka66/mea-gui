@@ -1,3 +1,4 @@
+from pathlib import Path
 import h5py
 import time
 from PyQt5.QtWidgets import (
@@ -48,12 +49,9 @@ class HDF5TreeModel(QStandardItemModel):
                     self.setup_model_data(hdf5_file, node, current_path)
                 else:  # Dataset
                     node.setData("dataset", Qt.UserRole + 1)
-                    shape_str = str(item.shape) if hasattr(
-                        item, "shape") else ""
-                    dtype_str = str(item.dtype) if hasattr(
-                        item, "dtype") else ""
-                    info_item = QStandardItem(
-                        f"Shape: {shape_str}, Type: {dtype_str}")
+                    shape_str = str(item.shape) if hasattr(item, "shape") else ""
+                    dtype_str = str(item.dtype) if hasattr(item, "dtype") else ""
+                    info_item = QStandardItem(f"Shape: {shape_str}, Type: {dtype_str}")
                     node.appendRow(info_item)
 
                 # Add attributes if any
@@ -61,8 +59,7 @@ class HDF5TreeModel(QStandardItemModel):
                     attrs_node = QStandardItem("Attributes")
                     for attr_name, attr_value in item.attrs.items():
                         attr_item = QStandardItem(f"{attr_name}: {attr_value}")
-                        attr_item.setData(
-                            f"{current_path}/@{attr_name}", Qt.UserRole)
+                        attr_item.setData(f"{current_path}/@{attr_name}", Qt.UserRole)
                         attr_item.setData("attribute", Qt.UserRole + 1)
                         attrs_node.appendRow(attr_item)
                     node.appendRow(attrs_node)
@@ -97,22 +94,17 @@ class HDF5TreeModel(QStandardItemModel):
                 # Add additional info based on type
                 if item_type == "dataset":
                     item = self.hdf5[path]
-                    shape_str = str(item.shape) if hasattr(
-                        item, "shape") else ""
-                    dtype_str = str(item.dtype) if hasattr(
-                        item, "dtype") else ""
-                    info_item = QStandardItem(
-                        f"Shape: {shape_str}, Type: {dtype_str}")
+                    shape_str = str(item.shape) if hasattr(item, "shape") else ""
+                    dtype_str = str(item.dtype) if hasattr(item, "dtype") else ""
+                    info_item = QStandardItem(f"Shape: {shape_str}, Type: {dtype_str}")
                     node.appendRow(info_item)
 
                     # Add attributes
                     if hasattr(item, "attrs") and len(item.attrs) > 0:
                         attrs_node = QStandardItem("Attributes")
                         for attr_name, attr_value in item.attrs.items():
-                            attr_item = QStandardItem(
-                                f"{attr_name}: {attr_value}")
-                            attr_item.setData(
-                                f"{path}/@{attr_name}", Qt.UserRole)
+                            attr_item = QStandardItem(f"{attr_name}: {attr_value}")
+                            attr_item.setData(f"{path}/@{attr_name}", Qt.UserRole)
                             attr_item.setData("attribute", Qt.UserRole + 1)
                             attrs_node.appendRow(attr_item)
                         node.appendRow(attrs_node)
@@ -123,8 +115,7 @@ class HDF5TreeModel(QStandardItemModel):
                     for child_name, child_item in item.items():
                         child_path = f"{path}/{child_name}"
                         child_type = (
-                            "group" if isinstance(
-                                child_item, h5py.Group) else "dataset"
+                            "group" if isinstance(child_item, h5py.Group) else "dataset"
                         )
                         self.setup_model_data(self.hdf5, node, path)
 
@@ -132,10 +123,8 @@ class HDF5TreeModel(QStandardItemModel):
                     if hasattr(item, "attrs") and len(item.attrs) > 0:
                         attrs_node = QStandardItem("Attributes")
                         for attr_name, attr_value in item.attrs.items():
-                            attr_item = QStandardItem(
-                                f"{attr_name}: {attr_value}")
-                            attr_item.setData(
-                                f"{path}/@{attr_name}", Qt.UserRole)
+                            attr_item = QStandardItem(f"{attr_name}: {attr_value}")
+                            attr_item.setData(f"{path}/@{attr_name}", Qt.UserRole)
                             attr_item.setData("attribute", Qt.UserRole + 1)
                             attrs_node.appendRow(attr_item)
                         node.appendRow(attrs_node)
@@ -164,7 +153,7 @@ class HDF5TreeModel(QStandardItemModel):
 
 
 class HDF5Viewer(QMainWindow):
-    def __init__(self, file_path, parent=None):
+    def __init__(self, file_path: Path, parent=None):
         super().__init__(parent)
         self.main_window = parent
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -204,8 +193,7 @@ class HDF5Viewer(QMainWindow):
         toolbar_layout.addWidget(self.undo_button)
 
         self.export_button = QPushButton("Export Discharge Stats")
-        self.export_button.clicked.connect(
-            self.main_window.export_discharge_stats)
+        self.export_button.clicked.connect(self.main_window.export_discharge_stats)
         toolbar_layout.addWidget(self.export_button)
 
         toolbar_layout.addStretch()
@@ -213,8 +201,7 @@ class HDF5Viewer(QMainWindow):
 
         self.tree_view = QTreeView()
         self.tree_view.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.tree_view.customContextMenuRequested.connect(
-            self.show_context_menu)
+        self.tree_view.customContextMenuRequested.connect(self.show_context_menu)
         main_layout.addWidget(self.tree_view)
 
         menubar = QMenuBar()
@@ -252,8 +239,7 @@ class HDF5Viewer(QMainWindow):
                 value = self.store_group_structure(self.hdf5[path])
                 attributes = self.get_item_attributes(self.hdf5[path])
 
-            operation = DeleteOperation(
-                path, item_type, value, parent_path, attributes)
+            operation = DeleteOperation(path, item_type, value, parent_path, attributes)
             self.undo_stack.append(operation)
             self.undo_button.setEnabled(True)
 
@@ -287,8 +273,7 @@ class HDF5Viewer(QMainWindow):
                 if item["type"] == "group":
                     self.restore_group_structure(item_path, item["content"])
                 else:  # Dataset
-                    dataset = self.hdf5.create_dataset(
-                        item_path, data=item["value"])
+                    dataset = self.hdf5.create_dataset(item_path, data=item["value"])
                     for attr_name, attr_value in item["attributes"].items():
                         dataset.attrs[attr_name] = attr_value
 
@@ -308,8 +293,7 @@ class HDF5Viewer(QMainWindow):
             operation = self.undo_stack.pop()
 
             if operation.item_type == "dataset":
-                dataset = self.hdf5.create_dataset(
-                    operation.path, data=operation.value)
+                dataset = self.hdf5.create_dataset(operation.path, data=operation.value)
                 for attr_name, attr_value in operation.attributes.items():
                     dataset.attrs[attr_name] = attr_value
 
@@ -327,8 +311,7 @@ class HDF5Viewer(QMainWindow):
                 self.undo_button.setEnabled(False)
 
         except Exception as e:
-            QMessageBox.critical(
-                self, "Error", f"Failed to undo deletion: {str(e)}")
+            QMessageBox.critical(self, "Error", f"Failed to undo deletion: {str(e)}")
 
     def get_item_value(self, path, item_type):
         """Get the value of a dataset, group, or attribute."""
@@ -342,8 +325,7 @@ class HDF5Viewer(QMainWindow):
                 return list(self.hdf5[path].keys())
             return None
         except Exception as e:
-            QMessageBox.warning(
-                self, "Warning", f"Failed to get value: {str(e)}")
+            QMessageBox.warning(self, "Warning", f"Failed to get value: {str(e)}")
             return None
 
     def copy_to_clipboard(self, path, item_type):
@@ -390,8 +372,7 @@ class HDF5Viewer(QMainWindow):
     def delete_item(self, path, item_type, index):
         """Delete an item and update the tree view without reloading."""
         if self.read_only:
-            QMessageBox.warning(
-                self, "Warning", "File is opened in read-only mode")
+            QMessageBox.warning(self, "Warning", "File is opened in read-only mode")
             return
 
         try:

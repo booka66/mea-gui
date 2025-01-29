@@ -130,7 +130,7 @@ class MainWindow(QMainWindow):
 
     def setup_variables(self):
         # File and recording settings
-        self.file_path = None
+        self.file_path: Path = Path()
         self.recording_length = None
         self.sampling_rate = 100
         self.time_vector = None
@@ -200,6 +200,9 @@ class MainWindow(QMainWindow):
         self.max_distance = 10
         self.bin_size = 0.0133
         self.signal_analyzer = None
+        self.use_cpp = True
+        self.engine_started = True
+        self.eng = None
 
         # Miscellaneous
         self.seized_cells = []
@@ -213,7 +216,6 @@ class MainWindow(QMainWindow):
         self.menuBar.setNativeMenuBar(False)
         self.setMenuBar(self.menuBar)
 
-        # TODO: Add MEA Grid image upload option
         self.fileMenu = QMenu("File", self)
         self.menuBar.addMenu(self.fileMenu)
         self.openAction = QAction("Open File", self)
@@ -596,7 +598,7 @@ class MainWindow(QMainWindow):
 
     # TODO: Need to review when things should be allowed and when they should not (when this gets called as well)
     def set_widgets_enabled(self):
-        if self.file_path is not None and (self.engine_started or self.use_cpp):
+        if self.file_path is not Path() and (self.engine_started or self.use_cpp):
             self.run_button.setEnabled(True)
             self.view_button.setEnabled(True)
         else:
@@ -643,7 +645,7 @@ class MainWindow(QMainWindow):
 
     # TODO: Notify of creation/success status
     def export_discharge_stats(self):
-        if self.cluster_tracker is None or self.file_path is None:
+        if self.cluster_tracker is None or self.file_path is Path():
             return
 
         self.cluster_tracker.export_discharges_to_zip(self.file_path)
@@ -1746,16 +1748,15 @@ class MainWindow(QMainWindow):
         )
 
         if file_path:
-            print("Selected file path:", file_path)
-            file_path = os.path.normpath(file_path)
-            self.file_path = file_path
+            self.file_path = Path(file_path)
+            print("Selected file path:", self.file_path)
 
+            # TODO: Separate this into a separate function and add more robust error handling
             try:
-                baseName = os.path.basename(file_path)
+                baseName = self.file_path.name
 
                 self.setWindowTitle(f"MEA GUI {VERSION} - {baseName}")
-                brwFileName = os.path.basename(file_path)
-                dateSlice = "_".join(brwFileName.split("_")[:4])
+                dateSlice = "_".join(baseName.split("_")[:4])
                 dateSliceNumber = (
                     dateSlice.split("slice")[0]
                     + "slice"
@@ -1775,6 +1776,7 @@ class MainWindow(QMainWindow):
                     image_path = image_files[0]
                     self.grid_widget.setBackgroundImage(image_path)
                 # TODO: Took away this feature for now
+                #
                 # else:
                 #     msg = QMessageBox()
                 #     msg.setIcon(QMessageBox.Information)
@@ -1812,7 +1814,7 @@ class MainWindow(QMainWindow):
             self.grid_widget.setBackgroundImage(file_path)
 
     def viewHDF5(self):
-        if self.file_path is not None:
+        if self.file_path is not Path():
             if hasattr(self, "hdf5_viewer") and self.hdf5_viewer is not None:
                 self.hdf5_viewer.raise_()
                 self.hdf5_viewer.activateWindow()
