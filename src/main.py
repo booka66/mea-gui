@@ -216,7 +216,6 @@ class MainWindow(QMainWindow):
         self.menuBar.setNativeMenuBar(False)
         self.setMenuBar(self.menuBar)
 
-        # TODO: Add MEA Grid image upload option
         self.fileMenu = QMenu("File", self)
         self.menuBar.addMenu(self.fileMenu)
         self.openAction = QAction("Open File", self)
@@ -649,7 +648,6 @@ class MainWindow(QMainWindow):
         if self.cluster_tracker is None or self.file_path is Path():
             return
 
-        # TODO: Track this path for refactor
         self.cluster_tracker.export_discharges_to_zip(self.file_path)
 
     def open_docs(self):
@@ -1522,7 +1520,6 @@ class MainWindow(QMainWindow):
         self.is_auto_analyzing = False
 
     def load_discharges(self):
-        # TODO: Add checks for self.file_path
         try:
             with h5py.File(self.file_path, "r") as f:
                 tracked_discharges_group = f["tracked_discharges"]
@@ -1661,7 +1658,6 @@ class MainWindow(QMainWindow):
 
             start, end = time_range.split("_")
         print(f"Attempting to save discharges to new format: {start} - {end}")
-        # TODO: Track self.file_path here
         self.cluster_tracker.save_discharges_to_hdf5(
             self.file_path, float(start), float(end)
         )
@@ -1697,7 +1693,6 @@ class MainWindow(QMainWindow):
             if self.is_auto_analyzing:
                 print("Auto-analysis complete")
 
-                # TODO: Track self.file_path here
                 self.cluster_tracker.save_discharges_to_hdf5(
                     self.file_path, *self.custom_region
                 )
@@ -1824,7 +1819,6 @@ class MainWindow(QMainWindow):
                 self.hdf5_viewer.raise_()
                 self.hdf5_viewer.activateWindow()
             else:
-                # TODO: Track self.file_path here
                 self.hdf5_viewer = HDF5Viewer(self.file_path, parent=self)
                 self.hdf5_viewer.destroyed.connect(
                     lambda: setattr(self, "hdf5_viewer", None)

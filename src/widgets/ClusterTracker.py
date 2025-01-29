@@ -159,12 +159,12 @@ class ClusterTracker:
                 self.seizures.append(seizure)
                 self.last_seizure = seizure
 
-    def analyze_discharge_speeds(self, file_path, start, stop):
+    def analyze_discharge_speeds(self, file_path: Path, start, stop):
         """
         Perform exploratory data analysis on discharge speeds from HDF5 file.
 
         Parameters:
-        file_path (str): Path to the HDF5 file
+        file_path (Path): Path to the HDF5 file
         start (float): Start time of the timeframe
         stop (float): Stop time of the timeframe
 
@@ -286,13 +286,13 @@ class ClusterTracker:
             print(f"Error analyzing discharge speeds: {e}")
             return None
 
-    def export_discharges_to_zip(self, hdf5_file_path: str) -> bool:
+    def export_discharges_to_zip(self, hdf5_file_path: Path) -> bool:
         """
         Export discharge data from HDF5 file to separate ZIP files for each timeframe.
         Each ZIP file contains CSVs with speed statistics and individual discharge data.
 
         Parameters:
-        hdf5_file_path (str): Path to the HDF5 file containing discharge data
+        hdf5_file_path (Path): Path to the HDF5 file containing discharge data
 
         Returns:
         bool: True if successful, False otherwise
@@ -431,7 +431,7 @@ class ClusterTracker:
             print(f"Error exporting discharges to ZIP: {e}")
             return False
 
-    def save_discharges_to_hdf5(self, file_path, start, stop):
+    def save_discharges_to_hdf5(self, file_path: Path, start, stop):
         try:
             with h5py.File(file_path, "a") as f:
                 if "tracked_discharges" not in f:
