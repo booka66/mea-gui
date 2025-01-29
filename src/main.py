@@ -200,6 +200,9 @@ class MainWindow(QMainWindow):
         self.max_distance = 10
         self.bin_size = 0.0133
         self.signal_analyzer = None
+        self.use_cpp = True
+        self.engine_started = True
+        self.eng = None
 
         # Miscellaneous
         self.seized_cells = []
@@ -1753,12 +1756,12 @@ class MainWindow(QMainWindow):
             self.file_path = Path(file_path)
             print("Selected file path:", self.file_path)
 
+            # TODO: Separate this into a separate function and add more robust error handling
             try:
-                baseName = os.path.basename(file_path)
+                baseName = self.file_path.name
 
                 self.setWindowTitle(f"MEA GUI {VERSION} - {baseName}")
-                brwFileName = os.path.basename(file_path)
-                dateSlice = "_".join(brwFileName.split("_")[:4])
+                dateSlice = "_".join(baseName.split("_")[:4])
                 dateSliceNumber = (
                     dateSlice.split("slice")[0]
                     + "slice"
@@ -1778,6 +1781,7 @@ class MainWindow(QMainWindow):
                     image_path = image_files[0]
                     self.grid_widget.setBackgroundImage(image_path)
                 # TODO: Took away this feature for now
+                #
                 # else:
                 #     msg = QMessageBox()
                 #     msg.setIcon(QMessageBox.Information)
@@ -1815,11 +1819,12 @@ class MainWindow(QMainWindow):
             self.grid_widget.setBackgroundImage(file_path)
 
     def viewHDF5(self):
-        if self.file_path is not None:
+        if self.file_path is not Path():
             if hasattr(self, "hdf5_viewer") and self.hdf5_viewer is not None:
                 self.hdf5_viewer.raise_()
                 self.hdf5_viewer.activateWindow()
             else:
+                # TODO: Track self.file_path here
                 self.hdf5_viewer = HDF5Viewer(self.file_path, parent=self)
                 self.hdf5_viewer.destroyed.connect(
                     lambda: setattr(self, "hdf5_viewer", None)
