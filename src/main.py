@@ -72,6 +72,7 @@ from helpers.Constants import (
     VERSION,
     WIN,
 )
+from helpers.update.NewUpdater import AppUpdater
 from helpers.update.Updater import check_for_update
 from threads.AnalysisThread import AnalysisThread
 from threads.MatlabEngineThread import MatlabEngineThread
@@ -2875,22 +2876,29 @@ if __name__ == "__main__":
 
     def confirm_latest_version(self):
         def handle_update_button(button):
-            def on_update_completed(success):
-                self.download_msg.close()
-
-                if success:
-                    sys.exit()
-                else:
-                    msg = QMessageBox()
-                    msg.setIcon(QMessageBox.Warning)
-                    msg.setText("Update process failed.")
-                    msg.setWindowTitle("Update")
-                    msg.exec_()
-
             if button.text() == "&Yes":
+
+                def on_update_completed(success):
+                    self.download_msg.close()
+                    if success:
+                        msg = QMessageBox()
+                        msg.setIcon(QMessageBox.Information)
+                        msg.setText(
+                            "Update process has started. The application will now close."
+                        )
+                        msg.setWindowTitle("Update")
+                        msg.exec_()
+                        sys.exit()
+                    else:
+                        msg = QMessageBox()
+                        msg.setIcon(QMessageBox.Warning)
+                        msg.setText("Update process failed to start.")
+                        msg.setWindowTitle("Update")
+                        msg.exec_()
+
                 self.download_msg = QMessageBox(self)
                 self.download_msg.setIcon(QMessageBox.Information)
-                self.download_msg.setText("Downloading update...")
+                self.download_msg.setText("Starting update process...")
                 self.download_msg.setWindowTitle("Update in Progress")
                 self.download_msg.setStandardButtons(QMessageBox.NoButton)
                 self.download_msg.show()
@@ -2899,8 +2907,14 @@ if __name__ == "__main__":
                 self.update_thread.update_completed.connect(on_update_completed)
                 self.update_thread.start()
 
-        update_available, self.latest_release = check_for_update()
+        current_dir = Path.cwd()
+        current_dir = Path("/Applications/")
+        updater = AppUpdater(install_dir=current_dir)
+        print("Checking for updates...")
+        update_available, release = updater.check_for_update()
+
         if update_available:
+            self.latest_release = release
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Information)
             msg.setText("An update is available. Would you like to update now?")

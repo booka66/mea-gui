@@ -1,3 +1,4 @@
+# NewUpdater.py
 import os
 import stat
 import sys
@@ -144,22 +145,67 @@ class AppUpdater:
             print(f"Download failed: {e}")
             return None
 
+    def _request_admin_privileges(self, command):
+        """
+        Executes a command with admin privileges using osascript.
+        Uses proper AppleScript syntax.
+        """
+        escaped_command = command.replace('"', '\\"')
+        script = (
+            'do shell script "' + escaped_command + '" with administrator privileges'
+        )
+
+        try:
+            result = subprocess.run(
+                ["osascript", "-e", script], check=True, capture_output=True, text=True
+            )
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Admin privileges error: {e.stderr}")
+            return False
+
+    def _remove_app_with_privileges(self, target_app):
+        """
+        Attempts to remove the application using elevated privileges if needed.
+        """
+        try:
+            # Check if app is running
+            app_name = target_app.name.replace(".app", "")
+            ps_result = subprocess.run(["ps", "-ax"], capture_output=True, text=True)
+            if app_name in ps_result.stdout:
+                raise Exception(
+                    "Application is currently running. Please close it before updating."
+                )
+
+            # Try normal removal first
+            try:
+                shutil.rmtree(target_app)
+                return True
+            except PermissionError:
+                # If normal removal fails, try with admin privileges
+                path = str(target_app).replace('"', '\\"')
+                command = f'rm -rf "{path}"'
+                if self._request_admin_privileges(command):
+                    return True
+                raise Exception(
+                    "Failed to remove existing application - permission denied"
+                )
+        except Exception as e:
+            raise Exception(f"Error removing application: {str(e)}")
+
     def _update_macos(self, pkg_file):
         try:
             app_location = self.app_path
             extract_dir = self.temp_dir / "pkg_contents"
             payload_dir = self.temp_dir / "payload_contents"
 
-            # Ensure directories are clean and have proper permissions
+            # Clean directories with proper permissions
             for directory in [extract_dir, payload_dir]:
-                if directory.exists():
-                    shutil.rmtree(directory, onerror=self._remove_readonly)
-                directory.mkdir(parents=True, exist_ok=True)
-                os.chmod(directory, stat.S_IRWXU)
+                self._clean_directory(directory)
 
             print("Extracting package contents...")
 
-            # Use xar to extract the package (more reliable than pkgutil on macOS)
+            # Try xar first (restored from original code)
             result = subprocess.run(
                 ["xar", "-xf", str(pkg_file), "-C", str(extract_dir)],
                 capture_output=True,
@@ -206,21 +252,15 @@ class AppUpdater:
 
             print(f"Installing application to: {app_location}")
 
-            # If the app exists, try to remove it
             target_app = app_location / app_bundle.name
             if target_app.exists():
                 print("Removing existing application...")
-                try:
-                    shutil.rmtree(target_app, onerror=self._remove_readonly)
-                except PermissionError:
-                    raise Exception(
-                        "Cannot update while application is running. Please close the application and try again."
-                    )
+                self._remove_app_with_privileges(target_app)
 
             print("Installing new version...")
             shutil.copytree(app_bundle, target_app, symlinks=True)
 
-            # Ensure proper permissions on the new installation
+            # Set proper permissions on new installation
             for root, dirs, files in os.walk(str(target_app)):
                 for d in dirs:
                     os.chmod(os.path.join(root, d), stat.S_IRWXU)
@@ -313,6 +353,7 @@ class AppUpdater:
 def main():
     # When run directly, install/update in the current directory
     current_dir = Path.cwd()
+    current_dir = Path("/Applications/")
     updater = AppUpdater(install_dir=current_dir)
 
     print("Checking for updates...")
