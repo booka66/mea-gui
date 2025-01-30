@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "b*"
+    branches:
+      - feature/new-update-protocol
 
 jobs:
   build-macos:
@@ -16,7 +18,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: feature/new-update-protocol # This ensures we check out the debugging branch
 
+      # Rest of the workflow remains exactly the same...
       - name: Set up Python for ${{ matrix.arch }}
         run: |
           brew install python@3.10 cmake pybind11 hdf5
@@ -94,6 +99,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: feature/new-update-protocol # This ensures we check out the debugging branch
 
       - name: Download MacOS Silicon Artifact
         uses: actions/download-artifact@v4
