@@ -84,11 +84,11 @@ jobs:
           ARCHFLAGS: "-arch ${{ matrix.arch }}"
         run: |
           source venv/bin/activate
-          pyinstaller --noconfirm --clean \
+          pyinstaller --noconfirm --clean --distpath "dist_update" \
             "${{ github.workspace }}/src/helpers/update/updater.spec"
 
       - name: Check dist folder
-        run: ls -la ${{ github.workspace }}/src/helpers/update/dist/
+        run: ls -la ${{ github.workspace }}/src/helpers/update/dist_update/
 
       - name: Prepare Package
         run: |
