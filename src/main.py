@@ -2888,10 +2888,15 @@ if __name__ == "__main__":
                     cwd = Path(__file__).resolve().parent
                     print(f"Current working directory: {cwd}")
                     updater_path = cwd / "MEAUpdater.app"
-                    updater_path = Path(
-                        "/Applications/MEA GUI.app/Contents/Resources/MEAUpdater.app/"
-                    )
+                    # updater_path = Path(
+                    #     "/Applications/MEA GUI.app/Contents/Resources/MEAUpdater.app/"
+                    # )
                     print(f"Updater path: {updater_path}")
+                    msg = QMessageBox()
+                    msg.setIcon(QMessageBox.Information)
+                    msg.setText(f"Using updater path: {updater_path}")
+                    msg.setWindowTitle("Update")
+                    msg.exec_()
 
                     if updater_path.exists():
                         # Launch the updater and exit
