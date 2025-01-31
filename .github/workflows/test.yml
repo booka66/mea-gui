@@ -96,9 +96,9 @@ jobs:
           rm -rf ${{ github.workspace }}/package_root/MEA\ GUI.app
           cp -R ${{ github.workspace }}/dist/main.app ${{ github.workspace }}/package_root/MEA\ GUI.app
           cp -R "${{ github.workspace }}/dist_update/MEAUpdater.app" \
-            ${{ github.workspace }}/package_root/MEA\ GUI.app/Contents/Resources/
+            ${{ github.workspace }}/package_root/MEA\ GUI.app/Contents/Frameworks/
           chmod -R 755 ${{ github.workspace }}/package_root/MEA\ GUI.app
-          chmod -R 755 "${{ github.workspace }}/package_root/MEA GUI.app/Contents/Resources/MEAUpdater.app"
+          chmod -R 755 "${{ github.workspace }}/package_root/MEA GUI.app/Contents/Frameworks/MEAUpdater.app"
           pkgbuild --root ${{ github.workspace }}/package_root --identifier com.booka66.meagui --install-location /Applications --version 1.0 ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
 
       # - name: Prepare Package
