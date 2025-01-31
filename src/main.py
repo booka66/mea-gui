@@ -75,10 +75,8 @@ from helpers.Constants import (
     WIN,
 )
 from helpers.update.NewUpdater import AppUpdater
-from helpers.update.Updater import check_for_update
 from threads.AnalysisThread import AnalysisThread
 from threads.MatlabEngineThread import MatlabEngineThread
-from threads.UpdateThread import UpdateThread
 from threads.DischargeFinderThread import DischargeFinderThread
 from widgets.ChannelExtract import ChannelExtract
 from widgets.ClusterTracker import ClusterTracker
@@ -2808,6 +2806,7 @@ def get_font_path():
     if getattr(sys, "frozen", False):
         if sys.platform == MAC:
             base_path = os.path.join(os.path.dirname(sys.executable), "..", "Resources")
+            print(Path(sys.executable).resolve())
         else:
             base_path = os.path.join(os.path.dirname(sys.executable), "_internal")
         return os.path.join(base_path, FONT_FILE)
@@ -2937,6 +2936,7 @@ if __name__ == "__main__":
 
     window = MainWindow()
     window.showMaximized()
+    # TODO: Implement the windows version of the updater
     confirm_latest_version(window)
 
     try:
