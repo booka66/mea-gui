@@ -2873,7 +2873,7 @@ if __name__ == "__main__":
             app.setFont(font)
 
     def confirm_latest_version(self):
-        def handle_update_button(button, release):
+        def handle_update_button(button):
             if button.text() == "&Yes":
                 try:
                     # Path to the updater in Application Support
@@ -2934,7 +2934,7 @@ if __name__ == "__main__":
             msg.setText("An update is available. Would you like to update now?")
             msg.setWindowTitle("Update")
             msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            msg.buttonClicked.connect(lambda release: handle_update_button(release))
+            msg.buttonClicked.connect(handle_update_button)
             msg.exec_()
         else:
             print("No update available.")
