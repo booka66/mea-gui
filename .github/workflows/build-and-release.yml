@@ -78,6 +78,21 @@ jobs:
             make html
           fi
 
+      - name: Build Updater Application
+        env:
+          ARCHFLAGS: "-arch ${{ matrix.arch }}"
+        run: |
+          source venv/bin/activate
+          pyinstaller --noconfirm --clean \
+            "${{ github.workspace }}/src/helpers/update/updater.spec"
+
+          # Create the Application Support directory structure in package_root
+          mkdir -p "${{ github.workspace }}/package_root/Library/Application Support/MEA GUI"
+
+          # Copy the updater application
+          cp -R "${{ github.workspace }}/dist/MEAUpdater.app" \
+            "${{ github.workspace }}/package_root/Library/Application Support/MEA GUI/"
+
       - name: Build with PyInstaller
         env:
           ARCHFLAGS: "-arch ${{ matrix.arch }}"
