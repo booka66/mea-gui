@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+import time
 from urllib.request import pathname2url
 
 import h5py
@@ -2901,13 +2902,8 @@ if __name__ == "__main__":
                     if updater_path.exists():
                         # Launch the updater and exit
                         subprocess.Popen(["open", str(updater_path), "--args", VERSION])
-                        msg = QMessageBox()
-                        msg.setIcon(QMessageBox.Information)
-                        msg.setText(
-                            "Update process started. The application will now close."
-                        )
-                        msg.setWindowTitle("Update")
-                        msg.exec_()
+                        # wait for the updater to start
+                        time.sleep(2)
                         sys.exit(0)
                     else:
                         msg = QMessageBox()
