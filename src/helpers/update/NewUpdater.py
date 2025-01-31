@@ -9,7 +9,8 @@ import shutil
 from pathlib import Path
 from packaging import version
 
-VERSION = "v0.0.0"
+from helpers.Constants import VERSION
+
 GITHUB_REPO = "booka66/mea-gui"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
@@ -145,25 +146,6 @@ class AppUpdater:
             print(f"Download failed: {e}")
             return None
 
-    def _request_admin_privileges(self, command):
-        """
-        Executes a command with admin privileges using osascript.
-        Uses proper AppleScript syntax.
-        """
-        escaped_command = command.replace('"', '\\"')
-        script = (
-            'do shell script "' + escaped_command + '" with administrator privileges'
-        )
-
-        try:
-            result = subprocess.run(
-                ["osascript", "-e", script], check=True, capture_output=True, text=True
-            )
-            return True
-        except subprocess.CalledProcessError as e:
-            print(f"Admin privileges error: {e.stderr}")
-            return False
-
     def _remove_app_with_privileges(self, target_app):
         """
         Attempts to remove the application using elevated privileges if needed.
@@ -173,17 +155,39 @@ class AppUpdater:
         logger = logging.getLogger(__name__)
 
         try:
-            # Check if app is running
+            # Get a more precise check for running application
             app_name = target_app.name.replace(".app", "")
             logger.info(f"Checking if {app_name} is running")
-            ps_result = subprocess.run(["ps", "-ax"], capture_output=True, text=True)
-            if app_name in ps_result.stdout:
-                logger.error("Application is currently running")
-                raise Exception(
-                    "Application is currently running. Please close it before updating."
+
+            # More precise process check using pgrep
+            ps_result = subprocess.run(
+                ["pgrep", "-f", f"{app_name}.app"], capture_output=True, text=True
+            )
+
+            if ps_result.stdout.strip():
+                # Double-check with a more specific lsof command
+                lsof_result = subprocess.run(
+                    ["lsof", str(target_app)], capture_output=True, text=True
                 )
 
+                if lsof_result.returncode == 0:
+                    logger.error("Application is confirmed to be running")
+                    raise Exception(
+                        "Application is currently running. Please close it before updating."
+                    )
+
             logger.info(f"Attempting to remove: {target_app}")
+
+            # First try to kill any remaining file locks
+            subprocess.run(
+                ["pkill", "-f", f"{app_name}.app"], capture_output=True, text=True
+            )
+
+            # Small delay to ensure processes are terminated
+            import time
+
+            time.sleep(1)
+
             # Try normal removal first
             try:
                 shutil.rmtree(target_app)
@@ -193,6 +197,14 @@ class AppUpdater:
                 logger.info("Permission denied, attempting with admin privileges")
                 # If normal removal fails, try with admin privileges
                 path = str(target_app).replace('"', '\\"')
+
+                # First ensure no processes are using the app with sudo
+                subprocess.run(
+                    ["sudo", "pkill", "-f", f"{app_name}.app"],
+                    capture_output=True,
+                    text=True,
+                )
+
                 command = f'rm -rf "{path}"'
                 if self._request_admin_privileges(command):
                     logger.info("Successfully removed app with admin privileges")
@@ -204,6 +216,44 @@ class AppUpdater:
         except Exception as e:
             logger.exception(f"Error removing application: {str(e)}")
             raise
+
+    def _request_admin_privileges(self, command):
+        """
+        Executes a command with admin privileges using osascript.
+        Uses proper AppleScript syntax with improved error handling.
+        """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        escaped_command = command.replace('"', '\\"')
+        script = f'''
+        try
+            do shell script "{escaped_command}" with administrator privileges
+            return "Success"
+        on error errMsg
+            return "Error: " & errMsg
+        end try
+        '''
+
+        try:
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                check=False,  # Don't raise an exception on non-zero exit
+                capture_output=True,
+                text=True,
+            )
+
+            if "Error:" in result.stdout:
+                logger.error(f"Admin privileges error: {result.stdout}")
+                return False
+
+            logger.info("Successfully executed command with admin privileges")
+            return True
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Admin privileges error: {e.stderr}")
+            return False
 
     def _update_macos(self, pkg_file):
         try:

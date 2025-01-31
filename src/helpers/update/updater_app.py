@@ -151,11 +151,9 @@ class UpdaterWindow(QMainWindow):
 
 
 def main():
-    # Check if we received a release JSON as an argument
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()
 
-    # In a real scenario, you would pass the release info as arguments
     updater = AppUpdater(install_dir=Path("/Applications/"))
     update_available, release = updater.check_for_update()
 
