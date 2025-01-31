@@ -85,8 +85,6 @@ jobs:
         run: |
           source venv/bin/activate
           pyinstaller --noconfirm --clean \
-            --target-architecture ${{ matrix.arch }} \
-            --windowed \
             "${{ github.workspace }}/src/helpers/update/updater.spec"
 
           # Create the Application Support directory structure in package_root
