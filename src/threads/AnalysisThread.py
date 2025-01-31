@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from time import perf_counter
 import sys
 
@@ -24,7 +25,7 @@ except ImportError:
 class CppAnalysisThread(QThread):
     analysis_completed = pyqtSignal(object)
 
-    def __init__(self, file_path, do_analysis, temp_data_path):
+    def __init__(self, file_path: Path, do_analysis, temp_data_path):
         super().__init__()
         self.file_path = file_path
         self.do_analysis = do_analysis
@@ -32,10 +33,12 @@ class CppAnalysisThread(QThread):
 
     def run(self):
         if sys.platform == "win32":
-            results = sz_se_detect.processAllChannels(self.file_path, self.do_analysis)
+            results = sz_se_detect.processAllChannels(
+                str(self.file_path.resolve()), self.do_analysis
+            )
         else:
             results = sz_se_detect.processAllChannels(
-                self.file_path, self.do_analysis, self.temp_data_path
+                str(self.file_path.resolve()), self.do_analysis, self.temp_data_path
             )
         self.analysis_completed.emit(results)
 
@@ -47,7 +50,7 @@ class AnalysisThread(QThread):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent = parent
-        self.file_path = None
+        self.file_path = Path()
         self.data = np.empty((64, 64), dtype=object)
         self.min_strength = None
         self.max_strength = None
@@ -110,14 +113,14 @@ class AnalysisThread(QThread):
 
                 if self.use_low_ram:
                     _, self.sampling_rate, num_rec_frames = self.eng.low_ram_cat(
-                        self.file_path,
+                        str(self.file_path.resolve()),
                         self.temp_data_path,
                         self.do_analysis,
                         nargout=3,
                     )
                 else:
                     _, self.sampling_rate, num_rec_frames = self.eng.get_cat_envelop(
-                        self.file_path,
+                        str(self.file_path.resolve()),
                         self.temp_data_path,
                         self.do_analysis,
                         nargout=3,
@@ -189,13 +192,13 @@ class AnalysisThread(QThread):
                 self.progress_updater_thread.requestInterruption()
                 self.progress_updater_thread.wait()
             # Clean up .mat or .txt files in temporary directory if they exist
-            if os.path.exists(self.temp_data_path):
-                for file in os.listdir(self.temp_data_path):
-                    if file.endswith(".mat"):
-                        os.remove(os.path.join(self.temp_data_path, file))
+            temp_data_path = Path(self.temp_data_path)
+            if temp_data_path.exists():
+                for file in temp_data_path.iterdir():
+                    if file.suffix in [".mat", ".txt"]:
+                        file.unlink()
                 # Clean up temporary directory
-                # TODO: This isn't working because the directory is not empty
-                os.rmdir(self.temp_data_path)
+                temp_data_path.rmdir()
 
     def get_channels(self):
         with h5py.File(self.file_path, "r") as f:

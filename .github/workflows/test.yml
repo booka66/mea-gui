@@ -1,0 +1,163 @@
+name: Test
+
+on:
+  push:
+    tags:
+      - "b*"
+    branches:
+      - feature/new-update-protocol
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - arch: arm64
+            python-version: 3.10.9
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: feature/new-update-protocol # This ensures we check out the debugging branch
+
+      # Rest of the workflow remains exactly the same...
+      - name: Set up Python for ${{ matrix.arch }}
+        run: |
+          brew install python@3.10 cmake pybind11 hdf5
+          python3.10 -m venv venv
+          source venv/bin/activate
+          python3.10 -m pip install pyinstaller sphinx sphinx-copybutton sphinxcontrib-video pydata_sphinx_theme setuptools wheel numpy pybind11 requests scipy PyQt5 pyqtgraph opencv-python matplotlib lttbc pyqtdarktheme==2.1.0 h5py scikit-learn tqdm Pillow pywavelets pyqtwebengine pandas
+
+      - name: Build C++ Extensions
+        run: |
+          source venv/bin/activate
+
+          # Dynamically find HDF5 installation paths
+          HDF5_DIR=$(brew --prefix hdf5)
+          HDF5_INCLUDE_DIR="$HDF5_DIR/include"
+          HDF5_LIB_DIR="$HDF5_DIR/lib"
+
+          # Change to the extensions directory
+          cd ${{ github.workspace }}/src/helpers/extensions
+
+          # Build and install the extensions
+          CXXFLAGS="-std=c++17 -O3 -arch ${{ matrix.arch }}" \
+          LDFLAGS="-arch ${{ matrix.arch }}" \
+          python3.10 setup.py build_ext --inplace
+
+          # Verify the built extensions
+          ls -l *.so
+
+      - name: Build Documentation
+        run: |
+          source venv/bin/activate
+          cd docs
+          make html
+
+      - name: Build with PyInstaller
+        env:
+          ARCHFLAGS: "-arch ${{ matrix.arch }}"
+        run: |
+          source venv/bin/activate
+          HDF5_DIR="$(brew --prefix hdf5)" pyinstaller --noconfirm --onedir --windowed \
+            --target-architecture ${{ matrix.arch }} \
+            --hidden-import h5py.defs \
+            --hidden-import h5py.utils \
+            --hidden-import h5py._proxy \
+            --collect-data h5py \
+            ${{ github.workspace }}/src/main.py \
+            --icon=${{ github.workspace }}/resources/icon.icns \
+            --add-data "${{ github.workspace }}/docs/_build/:." \
+            --add-data "${{ github.workspace }}/src/helpers/mat/SzDetectCat.m:." \
+            --add-data "${{ github.workspace }}/src/helpers/mat/save_channel_to_mat.m:." \
+            --add-data "${{ github.workspace }}/src/helpers/mat/getChs.m:." \
+            --add-data "${{ github.workspace }}/src/helpers/mat/get_cat_envelop.m:." \
+            --additional-hooks-dir "${{ github.workspace }}/hooks/" \
+            --add-data "${{ github.workspace }}/src/helpers/mat/*.m:." \
+            --add-binary "$(brew --prefix hdf5)/lib/libhdf5.dylib:." \
+            --add-binary "$(brew --prefix hdf5)/lib/libhdf5_hl.dylib:." \
+            --add-data "${{ github.workspace }}/resources/fonts/GeistMonoNerdFontMono-Regular.otf:."
+
+      - name: Build Updater Application
+        env:
+          ARCHFLAGS: "-arch ${{ matrix.arch }}"
+        run: |
+          source venv/bin/activate
+          pyinstaller --noconfirm --clean --distpath "dist_update" \
+            "${{ github.workspace }}/src/helpers/update/updater.spec"
+
+      - name: Check dist folder
+        run: ls -la ${{ github.workspace }}/dist_update/
+
+      - name: Prepare Package
+        run: |
+          mkdir -p ${{ github.workspace }}/package_root/MEA\ GUI.app
+          rm -rf ${{ github.workspace }}/package_root/MEA\ GUI.app
+          cp -R ${{ github.workspace }}/dist/main.app ${{ github.workspace }}/package_root/MEA\ GUI.app
+          cp -R "${{ github.workspace }}/dist_update/MEAUpdater.app" \
+            ${{ github.workspace }}/package_root/MEA\ GUI.app/Contents/Frameworks/
+          chmod -R 755 ${{ github.workspace }}/package_root/MEA\ GUI.app
+          chmod -R 755 "${{ github.workspace }}/package_root/MEA GUI.app/Contents/Frameworks/MEAUpdater.app"
+          pkgbuild --root ${{ github.workspace }}/package_root --identifier com.booka66.meagui --install-location /Applications --version 1.0 ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
+
+      # - name: Prepare Package
+      #   run: |
+      #     # Create the package root directory structure
+      #     mkdir -p ${{ github.workspace }}/package_root/MEA\ GUI.app
+      #     mkdir -p ${{ github.workspace }}/package_root/Library/Application\ Support/MEA\ GUI
+      #
+      #     # Copy the main application
+      #     rm -rf ${{ github.workspace }}/package_root/MEA\ GUI.app
+      #     cp -R ${{ github.workspace }}/dist/main.app ${{ github.workspace }}/package_root/MEA\ GUI.app
+      #
+      #     # Copy the updater application to Application Support
+      #     cp -R ${{ github.workspace }}/dist/MEAUpdater.app "${{ github.workspace }}/package_root/Library/Application Support/MEA GUI/"
+      #
+      #     # Set permissions
+      #     chmod -R 755 "${{ github.workspace }}/package_root/MEA GUI.app"
+      #     chmod -R 755 "${{ github.workspace }}/package_root/Library/Application Support/MEA GUI"
+      #
+      #     # Create the package with scripts
+      #     pkgbuild --root ${{ github.workspace }}/package_root --identifier com.booka66.meagui --install-location /Applications --version 1.0 ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-package-${{ matrix.arch }}
+          path: ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
+
+  release:
+    needs: [build-macos]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: feature/new-update-protocol # This ensures we check out the debugging branch
+
+      - name: Download MacOS Silicon Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-package-arm64
+
+      - name: Get Release Info
+        id: release_info
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+        run: |
+          release_url=$(gh api \
+            --method GET \
+            /repos/${{ github.repository }}/releases/tags/${{ github.ref_name }} \
+            --jq .upload_url)
+          echo "UPLOAD_URL=$release_url" >> $GITHUB_ENV
+
+      - name: Upload macOS Silicon Package to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.GIT_TOKEN }}
+          files: MEA_GUI_MacOS_arm64.pkg
+          name: MEA_GUI_MacOS_Silicon.pkg
+          prerelease: true
+          fail_on_unmatched_files: true

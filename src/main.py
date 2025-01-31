@@ -63,9 +63,12 @@ from helpers.Constants import (
     CELL_SIZE,
     FONT_FAMILY,
     FONT_FILE,
+    LARGE_FONT_SIZE,
     MAC,
+    SCREEN_DIAGONLA_THRESHOLD,
     SE,
     SEIZURE,
+    SMALL_FONT_SIZE,
     VERSION,
     WIN,
 )
@@ -127,7 +130,7 @@ class MainWindow(QMainWindow):
 
     def setup_variables(self):
         # File and recording settings
-        self.file_path = None
+        self.file_path: Path = Path()
         self.recording_length = None
         self.sampling_rate = 100
         self.time_vector = None
@@ -197,6 +200,9 @@ class MainWindow(QMainWindow):
         self.max_distance = 10
         self.bin_size = 0.0133
         self.signal_analyzer = None
+        self.use_cpp = True
+        self.engine_started = True
+        self.eng = None
 
         # Miscellaneous
         self.seized_cells = []
@@ -210,7 +216,6 @@ class MainWindow(QMainWindow):
         self.menuBar.setNativeMenuBar(False)
         self.setMenuBar(self.menuBar)
 
-        # TODO: Add MEA Grid image upload option
         self.fileMenu = QMenu("File", self)
         self.menuBar.addMenu(self.fileMenu)
         self.openAction = QAction("Open File", self)
@@ -593,7 +598,7 @@ class MainWindow(QMainWindow):
 
     # TODO: Need to review when things should be allowed and when they should not (when this gets called as well)
     def set_widgets_enabled(self):
-        if self.file_path is not None and (self.engine_started or self.use_cpp):
+        if self.file_path is not Path() and (self.engine_started or self.use_cpp):
             self.run_button.setEnabled(True)
             self.view_button.setEnabled(True)
         else:
@@ -638,16 +643,12 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         self.redraw_arrows()
 
+    # TODO: Notify of creation/success status
     def export_discharge_stats(self):
-        if self.cluster_tracker is None or self.file_path is None:
+        if self.cluster_tracker is None or self.file_path is Path():
             return
 
-        output_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        self.cluster_tracker.export_discharges_to_zip(self.file_path, output_dir)
+        self.cluster_tracker.export_discharges_to_zip(self.file_path)
 
     def open_docs(self):
         cwd = Path(__file__).resolve().parent
@@ -1747,16 +1748,15 @@ class MainWindow(QMainWindow):
         )
 
         if file_path:
-            print("Selected file path:", file_path)
-            file_path = os.path.normpath(file_path)
-            self.file_path = file_path
+            self.file_path = Path(file_path)
+            print("Selected file path:", self.file_path)
 
+            # TODO: Separate this into a separate function and add more robust error handling
             try:
-                baseName = os.path.basename(file_path)
+                baseName = self.file_path.name
 
                 self.setWindowTitle(f"MEA GUI {VERSION} - {baseName}")
-                brwFileName = os.path.basename(file_path)
-                dateSlice = "_".join(brwFileName.split("_")[:4])
+                dateSlice = "_".join(baseName.split("_")[:4])
                 dateSliceNumber = (
                     dateSlice.split("slice")[0]
                     + "slice"
@@ -1776,6 +1776,7 @@ class MainWindow(QMainWindow):
                     image_path = image_files[0]
                     self.grid_widget.setBackgroundImage(image_path)
                 # TODO: Took away this feature for now
+                #
                 # else:
                 #     msg = QMessageBox()
                 #     msg.setIcon(QMessageBox.Information)
@@ -1813,7 +1814,7 @@ class MainWindow(QMainWindow):
             self.grid_widget.setBackgroundImage(file_path)
 
     def viewHDF5(self):
-        if self.file_path is not None:
+        if self.file_path is not Path():
             if hasattr(self, "hdf5_viewer") and self.hdf5_viewer is not None:
                 self.hdf5_viewer.raise_()
                 self.hdf5_viewer.activateWindow()
@@ -2800,8 +2801,6 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
 
-# TODO: Add a font size that will change size for smaller screens
-# TODO: It would be nice to make it higher quality as well
 def get_font_path():
     if getattr(sys, "frozen", False):
         if sys.platform == MAC:
@@ -2813,20 +2812,21 @@ def get_font_path():
         return os.path.join(
             os.path.dirname(__file__), "..", "resources", "fonts", FONT_FILE
         )
-    
+
+
 def get_font_size(app: QApplication):
     screen = app.primaryScreen()
     dpi = screen.physicalDotsPerInch()
 
     screen_width = screen.size().width() / dpi
     screen_height = screen.size().height() / dpi
-    screen_diagonal = np.sqrt(screen_width ** 2 + screen_height ** 2)
+    screen_diagonal = np.sqrt(screen_width**2 + screen_height**2)
 
     # Normalize against an average screen size (e.g., 15 inches)
-    if screen_diagonal >= 13:
-        return 12
+    if screen_diagonal >= SCREEN_DIAGONLA_THRESHOLD:
+        return LARGE_FONT_SIZE
     else:
-        return 8
+        return SMALL_FONT_SIZE
 
 
 if sys.platform == MAC:
@@ -2838,6 +2838,7 @@ else:
     sys.exit(1)
 
 if __name__ == "__main__":
+    print("Hello! You are now on the development branch :D")
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()
 
