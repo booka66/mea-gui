@@ -9,16 +9,15 @@ import shutil
 from pathlib import Path
 from packaging import version
 
-from helpers.Constants import VERSION
-
 GITHUB_REPO = "booka66/mea-gui"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+PROTECTED_PATHS = ["Contents/Resources/MEAUpdater.app"]
 
 
 class AppUpdater:
-    def __init__(self, install_dir=None):
+    def __init__(self, current_version: str, install_dir: Path = None):
         self.is_frozen = getattr(sys, "frozen", False)
-        # Use provided install_dir, or default to appropriate location
+        self.current_version = current_version
         if install_dir:
             self.app_path = Path(install_dir)
         else:
@@ -27,38 +26,69 @@ class AppUpdater:
                 if self.is_frozen
                 else Path(os.path.dirname(os.path.abspath(__file__)))
             )
-
         self.system = platform.system()
         self.machine = platform.machine()
         self.temp_dir = Path(os.path.expanduser("~")) / ".app_updates"
 
+    def _is_protected_path(self, path):
+        """Check if a path should be protected during updates"""
+        try:
+            rel_path = path.relative_to(self.app_path)
+            return str(rel_path) in PROTECTED_PATHS or any(
+                str(rel_path).startswith(p + "/") for p in PROTECTED_PATHS
+            )
+        except ValueError:
+            return False
+
+    def _preserve_protected_files(self, source_dir, target_dir):
+        """Preserve protected files by copying them from source to target"""
+        for protected_path in PROTECTED_PATHS:
+            source = source_dir / protected_path
+            target = target_dir / protected_path
+            if source.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                if target.exists():
+                    shutil.rmtree(target, onerror=self._remove_readonly)
+                shutil.copytree(source, target, symlinks=True)
+
     def _remove_readonly(self, func, path, _):
         """Clear the readonly bit and reattempt the removal"""
-        os.chmod(path, stat.S_IWRITE)
-        func(path)
+        if not self._is_protected_path(Path(path)):
+            os.chmod(path, stat.S_IWRITE)
+            func(path)
 
     def _clean_directory(self, path):
-        """Safely remove a directory and its contents if it exists."""
+        """Safely remove a directory and its contents if it exists, preserving protected paths."""
         try:
             path = Path(path)
             if path.exists():
-                # First try to fix permissions
+                # First try to fix permissions, excluding protected paths
                 for root, dirs, files in os.walk(str(path)):
+                    root_path = Path(root)
                     for d in dirs:
-                        try:
-                            os.chmod(os.path.join(root, d), stat.S_IRWXU)
-                        except:
-                            pass
+                        dir_path = root_path / d
+                        if not self._is_protected_path(dir_path):
+                            try:
+                                os.chmod(str(dir_path), stat.S_IRWXU)
+                            except:
+                                pass
                     for f in files:
-                        try:
-                            os.chmod(os.path.join(root, f), stat.S_IRWXU)
-                        except:
-                            pass
+                        file_path = root_path / f
+                        if not self._is_protected_path(file_path):
+                            try:
+                                os.chmod(str(file_path), stat.S_IRWXU)
+                            except:
+                                pass
 
-                # Then remove the directory
-                shutil.rmtree(path, onerror=self._remove_readonly)
+                # Then remove non-protected contents
+                for item in path.iterdir():
+                    if not self._is_protected_path(item):
+                        if item.is_dir():
+                            shutil.rmtree(item, onerror=self._remove_readonly)
+                        else:
+                            item.unlink()
 
-            # Create new directory with proper permissions
+            # Create new directory with proper permissions if it doesn't exist
             path.mkdir(parents=True, exist_ok=True)
             os.chmod(path, stat.S_IRWXU)  # 700 permissions
 
@@ -72,7 +102,7 @@ class AppUpdater:
             if response.status_code == 200:
                 latest_release = response.json()
                 latest_version = latest_release["tag_name"].lstrip("v")
-                current_version = VERSION.lstrip("v")
+                current_version = self.current_version.lstrip("v")
 
                 # Consider no local installation as needing an update
                 if not self._is_app_installed():
@@ -267,7 +297,7 @@ class AppUpdater:
 
             print("Extracting package contents...")
 
-            # Try xar first (restored from original code)
+            # Try xar first
             result = subprocess.run(
                 ["xar", "-xf", str(pkg_file), "-C", str(extract_dir)],
                 capture_output=True,
@@ -316,18 +346,34 @@ class AppUpdater:
 
             target_app = app_location / app_bundle.name
             if target_app.exists():
+                # Before removing existing app, preserve protected files
+                print("Preserving protected files...")
+                temp_preserve = self.temp_dir / "preserved"
+                temp_preserve.mkdir(parents=True, exist_ok=True)
+                self._preserve_protected_files(target_app, temp_preserve)
+
                 print("Removing existing application...")
                 self._remove_app_with_privileges(target_app)
 
             print("Installing new version...")
             shutil.copytree(app_bundle, target_app, symlinks=True)
 
+            # Restore protected files if they were preserved
+            if "temp_preserve" in locals() and temp_preserve.exists():
+                print("Restoring protected files...")
+                self._preserve_protected_files(temp_preserve, target_app)
+
             # Set proper permissions on new installation
             for root, dirs, files in os.walk(str(target_app)):
+                root_path = Path(root)
                 for d in dirs:
-                    os.chmod(os.path.join(root, d), stat.S_IRWXU)
+                    dir_path = root_path / d
+                    if not self._is_protected_path(dir_path):
+                        os.chmod(str(dir_path), stat.S_IRWXU)
                 for f in files:
-                    os.chmod(os.path.join(root, f), stat.S_IRWXU)
+                    file_path = root_path / f
+                    if not self._is_protected_path(file_path):
+                        os.chmod(str(file_path), stat.S_IRWXU)
 
             return True
 

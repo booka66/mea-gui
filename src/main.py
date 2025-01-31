@@ -2873,7 +2873,7 @@ if __name__ == "__main__":
             app.setFont(font)
 
     def confirm_latest_version(self):
-        def handle_update_button(button):
+        def handle_update_button(button, release):
             if button.text() == "&Yes":
                 try:
                     # Path to the updater in Application Support
@@ -2888,11 +2888,14 @@ if __name__ == "__main__":
                     cwd = Path(__file__).resolve().parent
                     print(f"Current working directory: {cwd}")
                     updater_path = cwd / "MEAUpdater.app"
+                    updater_path = Path(
+                        "/Applications/MEA GUI.app/Contents/Resources/MEAUpdater.app/"
+                    )
                     print(f"Updater path: {updater_path}")
 
                     if updater_path.exists():
                         # Launch the updater and exit
-                        subprocess.Popen(["open", str(updater_path)])
+                        subprocess.Popen(["open", str(updater_path), "--args", VERSION])
                         msg = QMessageBox()
                         msg.setIcon(QMessageBox.Information)
                         msg.setText(
@@ -2916,7 +2919,7 @@ if __name__ == "__main__":
 
         # Check for updates
         current_dir = Path("/Applications/")
-        updater = AppUpdater(install_dir=current_dir)
+        updater = AppUpdater(current_version=VERSION, install_dir=current_dir)
         print("Checking for updates...")
         update_available, release = updater.check_for_update()
 
@@ -2926,7 +2929,7 @@ if __name__ == "__main__":
             msg.setText("An update is available. Would you like to update now?")
             msg.setWindowTitle("Update")
             msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-            msg.buttonClicked.connect(handle_update_button)
+            msg.buttonClicked.connect(lambda release: handle_update_button(release))
             msg.exec_()
         else:
             print("No update available.")

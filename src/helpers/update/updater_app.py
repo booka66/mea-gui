@@ -20,11 +20,13 @@ class UpdateWorker(QThread):
     progress = pyqtSignal(str, int)  # Message, percentage
     finished = pyqtSignal(bool)  # Success status
 
-    def __init__(self, release, install_dir):
+    def __init__(self, release, install_dir, current_version):
         super().__init__()
         self.release = release
         self.install_dir = install_dir
-        self.updater = AppUpdater(install_dir=install_dir)
+        self.updater = AppUpdater(
+            current_version=current_version, install_dir=install_dir
+        )
 
         import logging
 
@@ -66,7 +68,7 @@ class UpdateWorker(QThread):
 
 
 class UpdaterWindow(QMainWindow):
-    def __init__(self, release=None, install_dir=None):
+    def __init__(self, release=None, install_dir=None, current_version=None):
         super().__init__()
 
         # Set up logging
@@ -75,7 +77,7 @@ class UpdaterWindow(QMainWindow):
         self.release = release
         self.install_dir = install_dir or Path("/Applications/")
         self.init_ui()
-        self.start_update()
+        self.start_update(current_version)
 
     def setup_logging(self):
         import logging
@@ -115,8 +117,8 @@ class UpdaterWindow(QMainWindow):
             (screen.width() - self.width()) // 2, (screen.height() - self.height()) // 2
         )
 
-    def start_update(self):
-        self.worker = UpdateWorker(self.release, self.install_dir)
+    def start_update(self, current_version):
+        self.worker = UpdateWorker(self.release, self.install_dir, current_version)
         self.worker.progress.connect(self.update_progress)
         self.worker.finished.connect(self.handle_completion)
         self.worker.start()
@@ -152,13 +154,19 @@ class UpdaterWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    # extract version from arg
+    try:
+        version = sys.argv[1]
+    except IndexError:
+        sys.exit("No version provided")
+
     qdarktheme.setup_theme()
 
-    updater = AppUpdater(install_dir=Path("/Applications/"))
+    updater = AppUpdater(current_version=version, install_dir=Path("/Applications/"))
     update_available, release = updater.check_for_update()
 
     if update_available and release:
-        window = UpdaterWindow(release=release)
+        window = UpdaterWindow(release=release, current_version=version)
         window.show()
         return app.exec()
     else:
