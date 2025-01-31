@@ -1,3 +1,4 @@
+# updater_app.py
 import sys
 import os
 from pathlib import Path
@@ -25,27 +26,41 @@ class UpdateWorker(QThread):
         self.install_dir = install_dir
         self.updater = AppUpdater(install_dir=install_dir)
 
+        import logging
+
+        self.logger = logging.getLogger(__name__)
+
     def run(self):
         try:
+            self.logger.info("Starting update process")
             self.progress.emit("Downloading update...", 0)
+
+            self.logger.info("Downloading update")
             update_file = self.updater.download_update(self.release)
 
             if not update_file:
+                self.logger.error("Download failed")
                 self.progress.emit("Download failed.", 100)
                 self.finished.emit(False)
                 return
 
+            self.logger.info(f"Download completed: {update_file}")
             self.progress.emit("Installing update...", 50)
+
+            self.logger.info("Starting installation")
             success = self.updater.install_update(update_file)
 
             if success:
+                self.logger.info("Installation completed successfully")
                 self.progress.emit("Installation complete!", 100)
                 self.finished.emit(True)
             else:
+                self.logger.error("Installation failed")
                 self.progress.emit("Installation failed.", 100)
                 self.finished.emit(False)
 
         except Exception as e:
+            self.logger.exception("Error during update process")
             self.progress.emit(f"Error: {str(e)}", 100)
             self.finished.emit(False)
 
@@ -53,10 +68,27 @@ class UpdateWorker(QThread):
 class UpdaterWindow(QMainWindow):
     def __init__(self, release=None, install_dir=None):
         super().__init__()
+
+        # Set up logging
+        self.setup_logging()
+
         self.release = release
         self.install_dir = install_dir or Path("/Applications/")
         self.init_ui()
         self.start_update()
+
+    def setup_logging(self):
+        import logging
+
+        log_file = Path(os.path.expanduser("~")) / ".mea_updater" / "updater.log"
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="%(asctime)s - %(levelname)s - %(message)s",
+            handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
+        )
+        self.logger = logging.getLogger(__name__)
 
     def init_ui(self):
         self.setWindowTitle("MEA GUI Updater")
@@ -95,6 +127,7 @@ class UpdaterWindow(QMainWindow):
 
     def handle_completion(self, success):
         if success:
+            self.logger.info("Update completed successfully")
             QMessageBox.information(
                 self,
                 "Update Complete",
@@ -103,12 +136,16 @@ class UpdaterWindow(QMainWindow):
             # Launch the main application
             app_path = self.install_dir / "MEA GUI.app"
             if app_path.exists():
+                self.logger.info(f"Launching application at: {app_path}")
                 os.system(f"open '{app_path}'")
+            else:
+                self.logger.error(f"Application not found at: {app_path}")
         else:
+            self.logger.error("Update process failed")
             QMessageBox.critical(
                 self,
                 "Update Failed",
-                "The update process failed. Please try again later.",
+                "The update process failed. Please check the logs at ~/.mea_updater/updater.log",
             )
         self.close()
 

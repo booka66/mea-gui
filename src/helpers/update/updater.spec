@@ -54,6 +54,8 @@ app = BUNDLE(
     icon=None,
     bundle_identifier='com.booka66.meaupdater',
     info_plist={
-        'LSUIElement': True,  # Makes the app not show in dock
+        'LSUIElement': True,
+        'NSAppleEventsUsageDescription': 'This app needs to modify applications.',
+        'NSSystemAdministrationUsageDescription': 'This app needs to modify applications.',
     },
 )

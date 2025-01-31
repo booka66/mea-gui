@@ -2,6 +2,7 @@ import gc
 import glob
 import math
 import os
+import subprocess
 import sys
 from pathlib import Path
 from urllib.request import pathname2url
@@ -2842,10 +2843,8 @@ if __name__ == "__main__":
     print("Hello! You are now on the development branch :D")
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()
-
     font_path = get_font_path()
     font_id = QFontDatabase.addApplicationFont(font_path)
-
     font_size = get_font_size(app)
 
     if font_id == -1:
@@ -2861,60 +2860,63 @@ if __name__ == "__main__":
         msg.exec_()
     else:
         print("Font loaded successfully")
-        # Get the exact font family name that was loaded
         families = QFontDatabase.applicationFontFamilies(font_id)
         if families:
-            loaded_family = families[0]  # Use the first family name returned
+            loaded_family = families[0]
             print(f"Font loaded successfully from: {font_path}")
             print(f"Using font family: {loaded_family}")
             font = QFont(loaded_family, font_size)
             app.setFont(font)
         else:
             print("Warning: Font file loaded but no family names found")
-            font = QFont(FONT_FAMILY, font_size)  # Fallback to expected family name
+            font = QFont(FONT_FAMILY, font_size)
             app.setFont(font)
 
     def confirm_latest_version(self):
         def handle_update_button(button):
             if button.text() == "&Yes":
+                try:
+                    # Path to the updater in Application Support
+                    updater_path = (
+                        Path().home()
+                        / "Library"
+                        / "Application Support"
+                        / "MEA GUI"
+                        / "MEAUpdater.app"
+                    )
+                    print(f"Updater path: {updater_path}")
 
-                def on_update_completed(success):
-                    self.download_msg.close()
-                    if success:
+                    if updater_path.exists():
+                        # Launch the updater and exit
+                        subprocess.Popen(["open", str(updater_path)])
                         msg = QMessageBox()
                         msg.setIcon(QMessageBox.Information)
                         msg.setText(
-                            "Update process has started. The application will now close."
+                            "Update process started. The application will now close."
                         )
                         msg.setWindowTitle("Update")
                         msg.exec_()
-                        sys.exit()
+                        sys.exit(0)
                     else:
                         msg = QMessageBox()
-                        msg.setIcon(QMessageBox.Warning)
-                        msg.setText("Update process failed to start.")
-                        msg.setWindowTitle("Update")
+                        msg.setIcon(QMessageBox.Critical)
+                        msg.setText("Update failed: Updater application not found.")
+                        msg.setWindowTitle("Update Error")
                         msg.exec_()
+                except Exception as e:
+                    msg = QMessageBox()
+                    msg.setIcon(QMessageBox.Critical)
+                    msg.setText(f"Update failed: {str(e)}")
+                    msg.setWindowTitle("Update Error")
+                    msg.exec_()
 
-                self.download_msg = QMessageBox(self)
-                self.download_msg.setIcon(QMessageBox.Information)
-                self.download_msg.setText("Starting update process...")
-                self.download_msg.setWindowTitle("Update in Progress")
-                self.download_msg.setStandardButtons(QMessageBox.NoButton)
-                self.download_msg.show()
-
-                self.update_thread = UpdateThread(self.latest_release)
-                self.update_thread.update_completed.connect(on_update_completed)
-                self.update_thread.start()
-
-        current_dir = Path.cwd()
+        # Check for updates
         current_dir = Path("/Applications/")
         updater = AppUpdater(install_dir=current_dir)
         print("Checking for updates...")
         update_available, release = updater.check_for_update()
 
         if update_available:
-            self.latest_release = release
             msg = QMessageBox()
             msg.setIcon(QMessageBox.Information)
             msg.setText("An update is available. Would you like to update now?")
@@ -2928,6 +2930,7 @@ if __name__ == "__main__":
     window = MainWindow()
     window.showMaximized()
     confirm_latest_version(window)
+
     try:
         if sys.argv[1]:
             window.file_path = sys.argv[1]
@@ -2935,4 +2938,5 @@ if __name__ == "__main__":
             window.run_analysis()
     except IndexError:
         print("No file path provided")
+
     sys.exit(app.exec_())

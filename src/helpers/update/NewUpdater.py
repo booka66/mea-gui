@@ -168,30 +168,42 @@ class AppUpdater:
         """
         Attempts to remove the application using elevated privileges if needed.
         """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         try:
             # Check if app is running
             app_name = target_app.name.replace(".app", "")
+            logger.info(f"Checking if {app_name} is running")
             ps_result = subprocess.run(["ps", "-ax"], capture_output=True, text=True)
             if app_name in ps_result.stdout:
+                logger.error("Application is currently running")
                 raise Exception(
                     "Application is currently running. Please close it before updating."
                 )
 
+            logger.info(f"Attempting to remove: {target_app}")
             # Try normal removal first
             try:
                 shutil.rmtree(target_app)
+                logger.info("Successfully removed app without privileges")
                 return True
             except PermissionError:
+                logger.info("Permission denied, attempting with admin privileges")
                 # If normal removal fails, try with admin privileges
                 path = str(target_app).replace('"', '\\"')
                 command = f'rm -rf "{path}"'
                 if self._request_admin_privileges(command):
+                    logger.info("Successfully removed app with admin privileges")
                     return True
+                logger.error("Failed to remove app even with admin privileges")
                 raise Exception(
                     "Failed to remove existing application - permission denied"
                 )
         except Exception as e:
-            raise Exception(f"Error removing application: {str(e)}")
+            logger.exception(f"Error removing application: {str(e)}")
+            raise
 
     def _update_macos(self, pkg_file):
         try:
