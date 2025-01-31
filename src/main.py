@@ -2877,13 +2877,17 @@ if __name__ == "__main__":
             if button.text() == "&Yes":
                 try:
                     # Path to the updater in Application Support
-                    updater_path = (
-                        Path().home()
-                        / "Library"
-                        / "Application Support"
-                        / "MEA GUI"
-                        / "MEAUpdater.app"
-                    )
+                    # updater_path = (
+                    #     Path().home()
+                    #     / "Library"
+                    #     / "Application Support"
+                    #     / "MEA GUI"
+                    #     / "MEAUpdater.app"
+                    # )
+
+                    cwd = Path(__file__).resolve().parent
+                    print(f"Current working directory: {cwd}")
+                    updater_path = cwd / "MEAUpdater.app"
                     print(f"Updater path: {updater_path}")
 
                     if updater_path.exists():
