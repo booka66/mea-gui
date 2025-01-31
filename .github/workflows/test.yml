@@ -87,43 +87,39 @@ jobs:
           pyinstaller --noconfirm --clean \
             "${{ github.workspace }}/src/helpers/update/updater.spec"
 
-          # Create the Application Support directory structure in package_root
-          mkdir -p "${{ github.workspace }}/package_root/Library/Application Support/MEA GUI"
-
-          # Copy the updater application
-          cp -R "${{ github.workspace }}/dist/MEAUpdater.app" \
-            "${{ github.workspace }}/package_root/Library/Application Support/MEA GUI/"
-
-      # - name: Prepare Package
-      #   run: |
-      #     mkdir -p ${{ github.workspace }}/package_root/MEA\ GUI.app
-      #     rm -rf ${{ github.workspace }}/package_root/MEA\ GUI.app
-      #     cp -R ${{ github.workspace }}/dist/main.app ${{ github.workspace }}/package_root/MEA\ GUI.app
-      #     cp -R "${{ github.workspace }}/dist_update/MEAUpdater.app" \
-      #       ${{ github.workspace }}/package_root/MEA\ GUI.app/Contents/Resources/
-      #     chmod -R 755 ${{ github.workspace }}/package_root/MEA\ GUI.app
-      #     chmod -R 755 "${{ github.workspace }}/package_root/MEA GUI.app/Contents/Resources/MEAUpdater.app"
-      #     pkgbuild --root ${{ github.workspace }}/package_root --identifier com.booka66.meagui --install-location /Applications --version 1.0 ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
+      - name: Check dist folder
+        run: ls -la ${{ github.workspace }}/src/helpers/update/dist/
 
       - name: Prepare Package
         run: |
-          # Create the package root directory structure
           mkdir -p ${{ github.workspace }}/package_root/MEA\ GUI.app
-          mkdir -p ${{ github.workspace }}/package_root/Library/Application\ Support/MEA\ GUI
-
-          # Copy the main application
           rm -rf ${{ github.workspace }}/package_root/MEA\ GUI.app
           cp -R ${{ github.workspace }}/dist/main.app ${{ github.workspace }}/package_root/MEA\ GUI.app
-
-          # Copy the updater application to Application Support
-          cp -R ${{ github.workspace }}/dist/MEAUpdater.app "${{ github.workspace }}/package_root/Library/Application Support/MEA GUI/"
-
-          # Set permissions
-          chmod -R 755 "${{ github.workspace }}/package_root/MEA GUI.app"
-          chmod -R 755 "${{ github.workspace }}/package_root/Library/Application Support/MEA GUI"
-
-          # Create the package with scripts
+          cp -R "${{ github.workspace }}/src/helpers/update/dist_update/MEAUpdater.app" \
+            ${{ github.workspace }}/package_root/MEA\ GUI.app/Contents/Resources/
+          chmod -R 755 ${{ github.workspace }}/package_root/MEA\ GUI.app
+          chmod -R 755 "${{ github.workspace }}/package_root/MEA GUI.app/Contents/Resources/MEAUpdater.app"
           pkgbuild --root ${{ github.workspace }}/package_root --identifier com.booka66.meagui --install-location /Applications --version 1.0 ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
+
+      # - name: Prepare Package
+      #   run: |
+      #     # Create the package root directory structure
+      #     mkdir -p ${{ github.workspace }}/package_root/MEA\ GUI.app
+      #     mkdir -p ${{ github.workspace }}/package_root/Library/Application\ Support/MEA\ GUI
+      #
+      #     # Copy the main application
+      #     rm -rf ${{ github.workspace }}/package_root/MEA\ GUI.app
+      #     cp -R ${{ github.workspace }}/dist/main.app ${{ github.workspace }}/package_root/MEA\ GUI.app
+      #
+      #     # Copy the updater application to Application Support
+      #     cp -R ${{ github.workspace }}/dist/MEAUpdater.app "${{ github.workspace }}/package_root/Library/Application Support/MEA GUI/"
+      #
+      #     # Set permissions
+      #     chmod -R 755 "${{ github.workspace }}/package_root/MEA GUI.app"
+      #     chmod -R 755 "${{ github.workspace }}/package_root/Library/Application Support/MEA GUI"
+      #
+      #     # Create the package with scripts
+      #     pkgbuild --root ${{ github.workspace }}/package_root --identifier com.booka66.meagui --install-location /Applications --version 1.0 ${{ github.workspace }}/MEA_GUI_MacOS_${{ matrix.arch }}.pkg
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
