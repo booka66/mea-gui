@@ -1,5 +1,4 @@
 # -*- mode: python ; coding: utf-8 -*-
-
 block_cipher = None
 
 a = Analysis(
@@ -30,9 +29,9 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,
+    console=False,  # Matches --windowed in workflow
     disable_windowed_traceback=False,
-    target_arch=None,
+    target_arch=None,  # This will be set by --target-architecture in workflow
     codesign_identity=None,
     entitlements_file=None,
 )
