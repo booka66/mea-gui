@@ -88,14 +88,14 @@ jobs:
             "${{ github.workspace }}/src/helpers/update/updater.spec"
 
       - name: Check dist folder
-        run: ls -la ${{ github.workspace }}/src/helpers/update/dist_update/
+        run: ls -la ${{ github.workspace }}/dist_update/
 
       - name: Prepare Package
         run: |
           mkdir -p ${{ github.workspace }}/package_root/MEA\ GUI.app
           rm -rf ${{ github.workspace }}/package_root/MEA\ GUI.app
           cp -R ${{ github.workspace }}/dist/main.app ${{ github.workspace }}/package_root/MEA\ GUI.app
-          cp -R "${{ github.workspace }}/src/helpers/update/dist_update/MEAUpdater.app" \
+          cp -R "${{ github.workspace }}/dist_update/MEAUpdater.app" \
             ${{ github.workspace }}/package_root/MEA\ GUI.app/Contents/Resources/
           chmod -R 755 ${{ github.workspace }}/package_root/MEA\ GUI.app
           chmod -R 755 "${{ github.workspace }}/package_root/MEA GUI.app/Contents/Resources/MEAUpdater.app"
