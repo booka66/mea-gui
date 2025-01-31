@@ -266,6 +266,7 @@ class AppUpdater:
         end try
         '''
 
+        # TODO: Modify message to include MEAUpdater and the fact that it wants to delete the old application
         try:
             result = subprocess.run(
                 ["osascript", "-e", script],
