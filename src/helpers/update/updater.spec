@@ -31,7 +31,7 @@ exe = EXE(
     upx=True,
     console=False,  # Matches --windowed in workflow
     disable_windowed_traceback=False,
-    target_arch=None,  # This will be set by --target-architecture in workflow
+    target_arch=None,  
     codesign_identity=None,
     entitlements_file=None,
 )
